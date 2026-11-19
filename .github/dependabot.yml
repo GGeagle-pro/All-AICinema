@@ -1,0 +1,7 @@
+# GitHub Actions 구성요소의 보안 업데이트를 매주 자동으로 제안(PR)합니다.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

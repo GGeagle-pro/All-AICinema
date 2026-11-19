@@ -1,0 +1,63 @@
+name: Cloudways 배포
+
+# 코드를 수정해서 main 브랜치에 올리면(push) Cloudways 서버가 최신 코드를 자동으로 받아갑니다.
+# 영상 자동 업데이트(update.yml)가 끝난 뒤에도 이 워크플로가 호출됩니다.
+#
+# 필요한 GitHub Secrets (Settings → Secrets and variables → Actions):
+#   CLOUDWAYS_API_TOKEN : Cloudways → API Integration → Create Access Token 으로 만든 토큰
+#   CLOUDWAYS_SERVER_ID : 서버 화면 주소창의 숫자 (…/server/123456/…)
+#   CLOUDWAYS_APP_ID    : 앱 화면 주소창의 숫자 (…/apps/7654321/…)
+#
+# 보안: 토큰은 Cloudways에서 "Limited Access"로 만들고, 코드·로그에 절대 출력하지 않습니다.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      CLOUDWAYS_API_TOKEN:
+        required: false
+      CLOUDWAYS_SERVER_ID:
+        required: false
+      CLOUDWAYS_APP_ID:
+        required: false
+
+# 이 작업은 저장소에 쓸 일이 없으므로 읽기 권한만
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudways-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cloudways에 Git Pull 요청
+        env:
+          CW_TOKEN: ${{ secrets.CLOUDWAYS_API_TOKEN }}
+          CW_SERVER: ${{ secrets.CLOUDWAYS_SERVER_ID }}
+          CW_APP: ${{ secrets.CLOUDWAYS_APP_ID }}
+          GIT_URL: git@github.com:${{ github.repository }}.git
+          BRANCH: main
+        run: |
+          API=https://api.cloudways.com/api/v1
+          case "$CW_SERVER$CW_APP" in *[!0-9]*) echo "::error::서버/앱 ID는 숫자여야 합니다"; exit 1;; esac
+          if [ -z "$CW_TOKEN" ] || [ -z "$CW_SERVER" ] || [ -z "$CW_APP" ]; then
+            echo "::warning::Cloudways Secrets가 설정되지 않아 배포를 건너뜁니다 (README 참고)"
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 --proto '=https' -X POST "$API/git/pull" \
+            -H "Authorization: Bearer $CW_TOKEN" -H "Accept: application/json" \
+            --data-urlencode "server_id=$CW_SERVER" \
+            --data-urlencode "app_id=$CW_APP" \
+            --data-urlencode "git_url=$GIT_URL" \
+            --data-urlencode "branch_name=$BRANCH")
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::Cloudways 배포 요청 실패 (HTTP $code)"
+            exit 1
+          fi
+          echo "배포 요청 완료 – 수십 초 안에 사이트에 반영됩니다."

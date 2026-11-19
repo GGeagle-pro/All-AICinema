@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src 'self' https://i.ytimg.com data:; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>관리자 – AI Screen Archive</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="../" aria-label="사이트로 돌아가기">
+        <span class="brand__mark">▶</span><span class="brand__name">AI Screen Archive</span>
+      </a>
+      <span class="adm-badge">관리자</span>
+      <div class="adm-head-right">
+        <span id="who" class="muted"></span>
+        <button id="logout" class="btn" type="button" hidden>로그아웃</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap adm">
+    <!-- 로그인 -->
+    <section id="login" class="adm-card adm-login" hidden>
+      <h1>관리자 로그인</h1>
+      <p class="muted">GitHub 저장소 이름과 토큰을 넣으세요. 토큰은 이 브라우저에만 저장되고, GitHub 외에는 어디에도 보내지 않아요.</p>
+      <form id="loginForm" novalidate>
+        <label for="repo">저장소 (아이디/저장소이름)</label>
+        <input id="repo" name="repo" type="text" placeholder="myname/AllAI-Cinema" autocomplete="off" spellcheck="false" required />
+        <label for="token">GitHub 토큰</label>
+        <input id="token" name="token" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false" required />
+        <label class="adm-check"><input id="remember" type="checkbox" /> 이 기기에서 로그인 유지 (개인 기기에서만)</label>
+        <button class="btn btn--primary" type="submit" id="loginBtn">로그인</button>
+        <p id="loginErr" class="adm-err" role="alert" hidden></p>
+      </form>
+      <p class="muted small">토큰 만드는 방법은 설치 가이드의 "관리자 페이지 설정"을 보세요.</p>
+    </section>
+
+    <!-- 관리 화면 -->
+    <section id="app" hidden>
+      <div class="adm-status" id="status"></div>
+
+      <nav class="tabs adm-tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="videos" aria-pressed="true">영상 관리</button>
+        <button class="tab" role="tab" data-tab="hidden" aria-pressed="false">숨긴 영상 <span id="hiddenCount"></span></button>
+        <button class="tab" role="tab" data-tab="channels" aria-pressed="false">채널 관리</button>
+      </nav>
+
+      <!-- 영상 관리 -->
+      <div id="tab-videos" class="adm-pane">
+        <div class="adm-toolbar">
+          <select id="chFilter" aria-label="채널 선택"></select>
+          <input id="q" type="search" placeholder="제목 검색" aria-label="제목 검색" />
+          <label class="adm-check"><input id="selectAll" type="checkbox" /> 목록 전체 선택</label>
+          <button id="hideSelected" class="btn btn--danger" type="button" disabled>선택한 영상 숨기기</button>
+        </div>
+        <p id="listInfo" class="muted small"></p>
+        <ul id="videoList" class="adm-list"></ul>
+        <button id="more" class="btn adm-more" type="button" hidden>더 보기</button>
+      </div>
+
+      <!-- 숨긴 영상 -->
+      <div id="tab-hidden" class="adm-pane" hidden>
+        <p class="muted small">여기 있는 영상은 채널에 새로 올라와도 사이트에 다시 나타나지 않아요. 복원하면 다음 수집 때 다시 보여요.</p>
+        <ul id="hiddenList" class="adm-list"></ul>
+      </div>
+
+      <!-- 채널 관리 -->
+      <div id="tab-channels" class="adm-pane" hidden>
+        <div class="adm-card">
+          <h2>채널·영상 추가</h2>
+          <form id="addForm" novalidate>
+            <label for="addLinks">유튜브 링크 (한 줄에 하나씩)</label>
+            <textarea id="addLinks" rows="3" placeholder="https://www.youtube.com/@채널핸들&#10;https://youtu.be/영상ID" spellcheck="false"></textarea>
+            <div class="adm-row">
+              <div>
+                <label for="addCat">카테고리</label>
+                <input id="addCat" list="catList" placeholder="AI 영화" />
+                <datalist id="catList"></datalist>
+              </div>
+              <div>
+                <label for="addName">표시 이름 (선택)</label>
+                <input id="addName" placeholder="비워두면 유튜브 이름 사용" />
+              </div>
+            </div>
+            <button class="btn btn--primary" type="submit">추가</button>
+          </form>
+        </div>
+        <h2 class="adm-h2">등록된 채널</h2>
+        <ul id="channelList" class="adm-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
+  <script src="admin.js" defer></script>
+</body>
+</html>

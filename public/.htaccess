@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────────────────────
+# AI Screen Archive – Cloudways(Apache) 보안 설정
+# Cloudways 웹루트를 public_html/public 으로 지정하면 이 폴더만 외부에 공개됩니다.
+# (.git, .github, scripts, channels.json, README 는 웹에서 접근 불가)
+# ─────────────────────────────────────────────────────────────
+
+Options -Indexes -MultiViews
+DirectoryIndex index.html
+ServerSignature Off
+
+# 정적 사이트이므로 GET/HEAD 외 요청(POST, PUT, DELETE 등)은 모두 거부
+<LimitExcept GET HEAD>
+  Require all denied
+</LimitExcept>
+
+# 숨김 파일(.htaccess, .env 등)·임시/백업 파일 차단 (.well-known 은 SSL 인증용으로 허용)
+RedirectMatch 404 /\.(?!well-known/)
+<FilesMatch "\.(tmp|bak|old|orig|swp|log|sh|md|yml|yaml|php|env|ini|sql|zip|tar|gz)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  # 콘텐츠 보안 정책 (HTML 안의 <meta> 와 같은 내용 + 헤더로만 가능한 frame-ancestors)
+  #  - 인라인 스크립트·onclick 같은 속성 스크립트 실행 금지 → XSS 차단
+  #  - 다른 사이트가 이 페이지를 iframe 으로 감싸는 클릭재킹 차단
+  #  - script-src 를 https 전체로 둔 이유: 애드센스가 쓰는 도메인이 수시로 바뀌어
+  #    Google 이 도메인 목록 방식 CSP 를 지원하지 않기 때문 (광고가 깨지지 않게)
+  Header always set Content-Security-Policy "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; script-src 'self' https: 'unsafe-eval'; script-src-attr 'none'; upgrade-insecure-requests"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-Content-Type-Options "nosniff"
+  # 유튜브 플레이어는 출처(origin) 정보가 있어야 재생되므로 no-referrer 로 바꾸지 마세요
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # 사용하지 않는 브라우저 기능 차단 (유튜브 재생·광고에 필요한 기능은 허용)
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), usb=(), serial=(), bluetooth=(), payment=(), magnetometer=(), gyroscope=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+  Header always unset X-Powered-By
+
+  # 캐시: 페이지와 영상 목록은 항상 재검증(304), CSS/JS는 5분
+  <FilesMatch "\.(html|json)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "\.(css|js)$">
+    Header set Cache-Control "public, max-age=300"
+  </FilesMatch>
+  <FilesMatch "\.json$">
+    Header set X-Robots-Tag "noindex"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+
+# HTTPS 강제 이동·HSTS 는 Cloudways "Enforce HTTPS" 와 Cloudflare 설정으로 켭니다 (README 참고)

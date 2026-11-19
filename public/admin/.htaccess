@@ -1,0 +1,9 @@
+# 관리자 페이지 전용 보안 설정 (사이트 설정보다 더 엄격)
+<IfModule mod_headers.c>
+  # 광고·외부 스크립트 없음: 이 폴더의 스크립트와 GitHub API 연결만 허용
+  Header always set Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src 'self' https://i.ytimg.com data:; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set X-Robots-Tag "noindex, nofollow"
+  Header always set Cache-Control "no-store"
+</IfModule>

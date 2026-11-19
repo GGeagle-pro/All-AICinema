@@ -1,0 +1,52 @@
+name: 영상 자동 업데이트
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # 30분마다 새 영상 확인
+  workflow_dispatch:          # Actions 탭에서 수동 실행 가능
+  push:
+    branches: [main]
+    paths: ["channels.json"]  # 채널·영상 목록을 직접 고치면 즉시 실행
+
+# 기본은 읽기 전용, 커밋이 필요한 작업에만 쓰기 권한 부여 (최소 권한 원칙)
+permissions:
+  contents: read
+
+concurrency:
+  group: update-videos
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 영상 수집
+        run: node scripts/fetch-videos.mjs
+      - name: 변경 사항 저장
+        id: commit
+        run: >
+          bash scripts/commit-and-push.sh
+          "영상 목록 업데이트 $(date -u +'%Y-%m-%d %H:%M')"
+          "node scripts/fetch-videos.mjs"
+          public/data/videos.json public/data/desc.json public/data/meta.json
+
+  # 새 영상이 저장되면 Cloudways 서버에도 반영
+  deploy:
+    needs: update
+    if: needs.update.outputs.changed == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy.yml
+    secrets:
+      CLOUDWAYS_API_TOKEN: ${{ secrets.CLOUDWAYS_API_TOKEN }}
+      CLOUDWAYS_SERVER_ID: ${{ secrets.CLOUDWAYS_SERVER_ID }}
+      CLOUDWAYS_APP_ID: ${{ secrets.CLOUDWAYS_APP_ID }}

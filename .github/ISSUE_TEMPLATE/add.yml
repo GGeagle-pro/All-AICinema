@@ -1,0 +1,45 @@
+name: 채널·영상 추가
+description: 유튜브 링크를 붙여넣으면 사이트에 자동으로 추가(또는 숨김)됩니다.
+title: "[추가] "
+body:
+  - type: dropdown
+    id: action
+    attributes:
+      label: 할 일
+      options:
+        - 추가
+        - 숨기기 (영상 숨김 / 채널 삭제)
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: links
+    attributes:
+      label: 유튜브 링크
+      description: |
+        채널 링크 → 지금까지 영상 + 앞으로 올라올 새 영상이 계속 자동 추가
+        영상 링크 → 그 영상 하나만 추가
+        여러 개면 한 줄에 하나씩 붙여넣으세요. (유튜브 앱 → 공유 → 링크 복사)
+      placeholder: |
+        https://www.youtube.com/@채널핸들
+        https://youtu.be/영상ID
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: 카테고리
+      description: 사이트 상단 탭에 표시됩니다. 목록은 .github/ISSUE_TEMPLATE/add.yml 에서 바꿀 수 있어요.
+      options:
+        - AI 영화
+        - AI 드라마
+        - AI 단편
+        - 기타
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: 표시 이름 (선택)
+      description: 비워두면 유튜브 채널 이름을 그대로 사용합니다.
