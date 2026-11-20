@@ -4,7 +4,7 @@
 
   // ===== 설정 =====
   const ADSENSE = {
-    client: "ca-pub-XXXXXXXXXXXXXXXX", // 본인 게시자 ID
+    client: "ca-pub-8096684162493748", // 본인 게시자 ID
     feedSlot: "3333333333",            // 목록 사이 인피드 광고 슬롯
     playerSlot: "4444444444",          // 플레이어 아래 광고 슬롯
     feedEvery: 12,                     // 카드 N개마다 광고 1개

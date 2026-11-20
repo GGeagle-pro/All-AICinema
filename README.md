@@ -255,7 +255,7 @@ GitHub 웹에서 `channels.json`을 열고 ✏️ 아이콘으로 수정한 뒤 
 채널·영상 추가 방법은 위의 **"📺 채널·영상 추가하기"**를 보세요.
 
 ### 애드센스
-아래 파일에서 `ca-pub-XXXXXXXXXXXXXXXX`를 본인 게시자 ID(숫자 16자리)로 바꿉니다.
+아래 파일에서 `ca-pub-8096684162493748`를 본인 게시자 ID(숫자 16자리)로 바꿉니다.
 - `public/index.html`, `public/about.html`, `public/privacy.html`, `public/assets/app.js`
 - `public/ads.txt`에는 `pub-…` 형식으로 넣습니다.
 
