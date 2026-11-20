@@ -260,6 +260,13 @@
       views: Number(x[5]) || 0,
       manual: x[8] === 1,
     }));
+    // 채널 이름 → 유튜브 프로필 사진 (yt3 주소만)
+    state.avatarByName = new Map();
+    const av = d.avatars && typeof d.avatars === "object" ? d.avatars : {};
+    for (const x of items) {
+      const name = clean(d.channels?.[x?.[2]], 80), u = av[d.cids?.[x?.[7]]];
+      if (name && !state.avatarByName.has(name) && typeof u === "string" && /^https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[\w\-./=~%]{10,500}$/.test(u)) state.avatarByName.set(name, u);
+    }
     const live = new Set(state.videos.map((v) => v.id));
     for (const id of state.pending) if (!live.has(id)) state.pending.delete(id);
   }
@@ -445,7 +452,12 @@
       const url = clean(c.url || (c.id ? `https://www.youtube.com/channel/${c.id}` : ""), 200);
       list.append(el("li", { class: "adm-chcard" },
         el("div", { class: "adm-chhead" },
-          el("span", { class: "chtab__av", "aria-hidden": "true", text: label.replace(/^@/, "")[0] || "?" }),
+          (() => {
+            const avEl = el("span", { class: "chtab__av", "aria-hidden": "true", text: label.replace(/^@/, "")[0] || "?" });
+            const u = state.avatarByName?.get(name0) || state.avatarByName?.get(label);
+            if (u) { const im = el("img", { src: u, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }); im.addEventListener("error", () => im.remove()); avEl.append(im); }
+            return avEl;
+          })(),
           el("div", { class: "adm-chinfo" },
             el("b", { text: label }),
             el("div", { class: "meta" },

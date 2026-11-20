@@ -159,9 +159,9 @@
     return v ? state.avatars[v.cid] : "";
   }
   // 채널 아이콘: 프로필 사진이 있으면 사진, 없거나 못 불러오면 첫 글자
-  function avatarHtml(name) {
-    const url = avatarOf(name);
-    return `<span class="chtab__av" aria-hidden="true">${esc(name.trim()[0] || "?")}` +
+  function avatarHtml(name, cls = "chtab__av", cid = "") {
+    const url = (cid && state.avatars[cid]) || avatarOf(name);
+    return `<span class="${cls}" aria-hidden="true">${esc(String(name || "?").trim()[0] || "?")}` +
       (url ? `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="26" height="26" />` : "") + `</span>`;
   }
 
@@ -326,7 +326,7 @@
         <img loading="lazy" decoding="async" src="${thumb(v.id, "mqdefault")}" width="320" height="180" alt="" />
       </div>
       <div class="card__body">
-        <span class="avatar" aria-hidden="true">${esc((v.channel || "?").trim()[0] || "?")}</span>
+        ${avatarHtml(v.channel, "avatar", v.cid)}
         <div><h3>${esc(v.title)}</h3><p>${esc(v.channel)}</p>
         <p>${v.views ? "조회수 " + fmtViews(v.views) + " · " : ""}${ago(v.published)}</p></div>
       </div></a>`;
@@ -388,7 +388,7 @@
     document.body.classList.add("locked");
 
     $("#pTitle").textContent = v.title;
-    $("#pChannel").textContent = v.channel;
+    $("#pChannel").innerHTML = avatarHtml(v.channel, "avatar avatar--sm", v.cid) + `<span>${esc(v.channel)}</span>`;
     $("#pMeta").textContent = [v.views && "조회수 " + fmtViews(v.views), ago(v.published)].filter(Boolean).join(" · ");
     // 원본 영상·채널 링크 (저작자 표시)
     $("#pYoutube").href = `https://www.youtube.com/watch?v=${v.id}`;
@@ -491,7 +491,7 @@
       apply();
     });
     // 프로필 사진을 못 불러오면 사진만 지우고 첫 글자를 보여줌 (인라인 onerror는 보안 정책상 사용 안 함)
-    $("#chs").addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.remove(); }, true);
+    document.addEventListener("error", (e) => { if (e.target.tagName === "IMG" && e.target.parentElement?.matches(".avatar, .chtab__av")) e.target.remove(); }, true);
     $("#chs").addEventListener("click", (e) => {
       const t = e.target.closest(".chtab");
       if (!t) return;

@@ -20,7 +20,7 @@ button,input,select{font:inherit;color:inherit}
 .topbar--hidden{transform:translateY(-100%)}
 .topbar__inner{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:12px var(--gutter)}
 .brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:800;font-size:20px;letter-spacing:-.02em;white-space:nowrap}
-.brand__mark{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));font-size:13px}
+.brand__mark{display:block;width:30px;height:30px;flex:none;border-radius:9px}
 .search{flex:1;max-width:520px;margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:0 14px;height:42px}
 .search:focus-within{border-color:var(--accent2)}
 .search svg{width:18px;height:18px;fill:var(--muted);flex:none}
@@ -201,3 +201,9 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
 /* 채널 프로필 사진 (없으면 첫 글자 동그라미) */
 .chtab__av{position:relative;overflow:hidden;flex:none}
 .chtab__av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:var(--bg2)}
+
+/* 영상 카드·플레이어의 채널 아이콘도 프로필 사진 사용 */
+.avatar{position:relative;overflow:hidden}
+.avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:var(--bg2)}
+.player__sub #pChannel{display:inline-flex;align-items:center;gap:8px}
+.avatar--sm{width:26px;height:26px;font-size:12px}
