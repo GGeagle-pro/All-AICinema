@@ -38,6 +38,8 @@ RedirectMatch 404 /\.(?!well-known/)
   # 캐시: 페이지와 영상 목록은 항상 재검증(304), CSS/JS는 5분
   <FilesMatch "\.(html|json)$">
     Header set Cache-Control "no-cache"
+    # Cloudways Varnish 가 페이지를 오래 보관하지 않도록
+    Header set X-Varnish-TTL "0"
   </FilesMatch>
   <FilesMatch "\.(css|js)$">
     Header set Cache-Control "public, max-age=300"
