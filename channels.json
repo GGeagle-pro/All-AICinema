@@ -4,7 +4,10 @@
     {
       "url": "https://www.youtube.com/@Dejavurangers",
       "name": "데자부레인저",
-      "category": "AI 드라마"
+      "categories": [
+        "AI 드라마",
+        "한국"
+      ]
     },
     {
       "url": "https://www.youtube.com/@titaniumknight",
