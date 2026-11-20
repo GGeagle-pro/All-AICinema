@@ -18,7 +18,8 @@
   const PAGE_SIZE = 24;
   const FEED_EVERY = 12;              // 카드 N개마다 목록 사이 광고 1개
   const REFRESH_MS = 10 * 60 * 1000;  // 열려 있는 페이지에서 10분마다 새 영상 확인
-  const NEW_HOURS = 48;               // NEW 배지 기준
+  const NEW_HOURS = 72;               // NEW 배지·NEW 메뉴 기준: 최근 3일
+  const NEW_KEY = "__new__";          // 1줄 메뉴의 NEW 탭 (관리자 카테고리 이름과 겹치지 않는 내부 값)
   const RAIL_MIN_WIDTH = 1480;        // 이 너비 이상(데스크톱)에서만 양옆 세로 배너 표시
   const SITE_NAME_DEFAULT = "All AI-Cinema";
 
@@ -180,6 +181,16 @@
       const m = await r.json();
       if (m.generatedAt && m.generatedAt !== state.latest) { descPromise = null; await load(false); }
     } catch {}
+    refreshNew();
+  }
+
+  // NEW 메뉴는 "지금으로부터 3일"이라 시간이 지나면 저절로 바뀜 → 확인할 때마다 개수와 목록을 다시 맞춤
+  function refreshNew() {
+    const cur = $(`#cats .tab--new`);
+    if (cur) cur.outerHTML = newTab();
+    if (state.cat !== NEW_KEY || state.q || !$("#player").hidden) return;
+    const ids = state.all.filter((v) => inCat(v) && (!state.ch || v.channel === state.ch)).map((v) => v.id).sort().join();
+    if (ids !== state.list.map((v) => v.id).sort().join() && scrollY < 400) { renderMenus(); apply(); }
   }
 
   async function load(initial) {
@@ -207,7 +218,13 @@
   }
 
   // ===== 메뉴 (1줄: 장르·국가, 2줄: 유튜브 채널) =====
-  const inCat = (v, cat = state.cat) => cat === "전체" || v.categories.includes(cat);
+  const inCat = (v, cat = state.cat) => cat === "전체" || (cat === NEW_KEY ? isNew(v.published) : v.categories.includes(cat));
+  const newCount = () => state.all.reduce((n, v) => n + (isNew(v.published) ? 1 : 0), 0);
+  function newTab() {
+    const n = newCount();
+    return `<button type="button" class="tab tab--new" data-key="${NEW_KEY}" aria-pressed="${state.cat === NEW_KEY}" aria-label="NEW: 최근 3일 새 영상 ${n}개">` +
+      `<span class="tab__new" aria-hidden="true">NEW</span>${n ? `<span class="tab__count" aria-hidden="true">${n > 99 ? "99+" : n}</span>` : ""}</button>`;
+  }
   function catList() {
     if (state.site.menu.length) return state.site.menu;
     return [...new Set(state.all.flatMap((v) => v.categories))];   // 메뉴를 정하지 않았으면 영상의 카테고리로 자동 구성
@@ -216,7 +233,9 @@
     return `<button type="button" class="${cls}" data-key="${esc(key)}" aria-pressed="${pressed}">${extra}${esc(label)}</button>`;
   }
   function renderMenus() {
-    $("#cats").innerHTML = ["전체", ...catList()].map((c) => chip("tab", c, c, c === state.cat)).join("");
+    // 전체 → NEW(최근 3일) → 관리자에서 정한 카테고리
+    $("#cats").innerHTML = chip("tab", "전체", "전체", state.cat === "전체") + newTab() +
+      catList().map((c) => chip("tab", c, c, c === state.cat)).join("");
     // 2줄: 현재 고른 장르·국가에 영상이 있는 채널만, 영상 많은 순
     const counts = new Map();
     for (const v of state.all) if (inCat(v) && v.channel) counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
@@ -253,12 +272,13 @@
     state.list = list;
     state.shown = 0;
     $("#grid").innerHTML = "";
-    const where = [state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
+    const where = [state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
     $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : where || "최신 영상";
     renderHero();
     const empty = $("#empty");
     empty.hidden = list.length > 0;
-    empty.textContent = state.all.length ? "이 메뉴에는 아직 영상이 없어요." : "아직 수집된 영상이 없습니다.";
+    empty.textContent = !state.all.length ? "아직 수집된 영상이 없습니다."
+      : state.cat === NEW_KEY ? "최근 3일 동안 새로 올라온 영상이 없어요." : "이 메뉴에는 아직 영상이 없어요.";
     more();
   }
 

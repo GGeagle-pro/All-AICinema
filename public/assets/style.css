@@ -191,3 +191,9 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
 .chmore:hover{border-color:var(--muted)}
 .chmore[aria-expanded="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
 .chrow.open .menu--channels{flex-wrap:wrap;overflow-x:visible;overflow-y:auto;max-height:min(50vh,360px);scroll-snap-type:none;-webkit-mask-image:none;mask-image:none;padding-bottom:12px}
+
+/* 1줄 메뉴: NEW 탭 (최근 3일 새 영상) */
+.tab--new{display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 8px}
+.tab__new{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.04em;line-height:1;padding:5px 7px;border-radius:6px;background:var(--accent);color:#fff}
+.tab__count{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;opacity:.85}
+.tab--new[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
