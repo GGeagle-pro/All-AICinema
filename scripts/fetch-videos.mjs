@@ -27,7 +27,8 @@ const MAX_VIDEOS = 3000;        // 보관할 최대 영상 수 (직접 추가한
 const MAX_CHANNELS = 200;
 const MAX_MANUAL = 1000;
 const AVATAR_REFRESH_HOURS = 24; // 채널 프로필 사진은 하루 1번만 다시 확인
-const VIEWS_REFRESH_HOURS = 6;  // 바뀐 게 조회수뿐이면 이 간격으로만 저장
+const VIEWS_REFRESH_HOURS = 6;
+const SKIP_SHORTS = true;       // 채널 자동 수집에서 쇼츠(Shorts) 영상 제외 (직접 추가한 영상은 그대로 보관)  // 바뀐 게 조회수뿐이면 이 간격으로만 저장
 
 // 채널/영상 설정의 카테고리 → 배열 (예전 단일 category 도 지원, 최대 10개)
 export const catsOf = (x) => {
@@ -90,7 +91,8 @@ async function main() {
       const cid = await resolveChannel(ch);
       // 서로 다른 두 채널 주소가 같은 채널로 연결되면, 뒤에 있는 것은 이름이 덮어써지지 않게 건너뜀
       if (tracked.has(cid)) { console.warn(`✗ 채널 ${label}: 이미 등록된 '${tracked.get(cid).name}'과 같은 채널(${cid}) – 건너뜀`); continue; }
-      const vids = parseFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${cid}`), ch, cid);
+      const all = parseFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${cid}`), ch, cid);
+      const vids = SKIP_SHORTS ? all.filter((v) => !v.short) : all;
       for (const v of vids) map.set(v.id, { ...map.get(v.id), ...v }); // 조회수 등 갱신
       tracked.set(cid, { name: clean(ch.name, 80) || vids[0]?.channel || "", categories: catsOf(ch) });
       console.log(`✓ 채널 ${label}: ${vids.length}개`);
@@ -127,6 +129,8 @@ async function main() {
   for (const id of exclude) map.delete(id);
   for (const [id, v] of map) {
     v.manual = manualIds.has(id);
+    // 예전에 수집된 쇼츠도 정리 (직접 추가한 영상 제외)
+    if (SKIP_SHORTS && v.short && !v.manual) { map.delete(id); continue; }
     const t = v.cid && tracked.get(v.cid);
     if (t && !v.manual) { v.categories = t.categories; if (t.name) v.channel = t.name; }
     // channels.json 에서 지운 채널의 영상은 삭제 (이번 실행에 실패한 채널이 있으면 안전하게 보류)
