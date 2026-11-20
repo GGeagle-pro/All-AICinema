@@ -5,6 +5,14 @@
       "url": "https://www.youtube.com/@Dejavurangers",
       "name": "데자부레인저",
       "category": "AI 드라마"
+    },
+    {
+      "url": "https://www.youtube.com/@titaniumknight",
+      "name": "씨네트릭스",
+      "categories": [
+        "AI 영화",
+        "한국"
+      ]
     }
   ],
   "videos": [],
