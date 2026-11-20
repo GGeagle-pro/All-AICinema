@@ -1,13 +1,39 @@
 {
   "siteName": "All AI-Cinema",
-  "menu": ["AI 드라마", "AI 영화", "AI 단편", "한국", "중국", "일본"],
+  "menu": [
+    "AI 드라마",
+    "AI 영화",
+    "AI 단편",
+    "한국",
+    "중국",
+    "일본"
+  ],
   "adsense": {
     "client": "ca-pub-8096684162493748",
-    "slots": { "top": "", "bottom": "", "left": "", "right": "", "feed": "", "player": "" }
+    "slots": {
+      "top": "5920591143",
+      "bottom": "9778403114",
+      "left": "",
+      "right": "",
+      "feed": "6371183139",
+      "player": "2941084910"
+    }
   },
   "banners": [
-    { "image": "", "link": "", "alt": "" },
-    { "image": "", "link": "", "alt": "" },
-    { "image": "", "link": "", "alt": "" }
+    {
+      "image": "",
+      "link": "",
+      "alt": ""
+    },
+    {
+      "image": "",
+      "link": "",
+      "alt": ""
+    },
+    {
+      "image": "",
+      "link": "",
+      "alt": ""
+    }
   ]
 }
