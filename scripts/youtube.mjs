@@ -88,6 +88,25 @@ const OWN_ID_PATTERNS = [
   /"channelMetadataRenderer":\{[^{}]*?"externalId":"(UC[\w-]{22})"/,
   /"externalId":"(UC[\w-]{22})"/,
 ];
+// 채널 프로필 사진 주소 (유튜브 이미지 서버 yt3.* 주소만 허용, 작은 크기로)
+const AVATAR_URL = /^https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[\w\-./=~%]{10,500}$/;
+export function avatarFromPage(html) {
+  const m = String(html).match(/<meta property="og:image" content="([^"]+)"/) ||
+            String(html).match(/<link itemprop="thumbnailUrl" href="([^"]+)"/);
+  if (!m) return "";
+  const url = decodeXml(m[1]).replace(/=s\d+(-[^/?#]*)?$/, "=s88-c-k-c0x00ffffff-no-rj");
+  return AVATAR_URL.test(url) ? url : "";
+}
+export const isAvatarUrl = (u) => typeof u === "string" && AVATAR_URL.test(u);
+// 채널 고유번호로 채널 페이지를 열어 프로필 사진을 가져옴 (페이지가 그 채널 것인지도 확인)
+export async function fetchChannelAvatar(cid) {
+  if (!CHANNEL_ID.test(cid)) return "";
+  const html = await get(`https://www.youtube.com/channel/${cid}`);
+  let own = "";
+  try { own = channelIdFromPage(html); } catch { /* 확인 불가 → 아래에서 버림 */ }
+  return own === cid ? avatarFromPage(html) : "";
+}
+
 export function channelIdFromPage(html) {
   const found = new Set();
   for (const re of OWN_ID_PATTERNS) {

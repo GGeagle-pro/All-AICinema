@@ -197,3 +197,7 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
 .tab__new{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.04em;line-height:1;padding:5px 7px;border-radius:6px;background:var(--accent);color:#fff}
 .tab__count{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;opacity:.85}
 .tab--new[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+/* 채널 프로필 사진 (없으면 첫 글자 동그라미) */
+.chtab__av{position:relative;overflow:hidden;flex:none}
+.chtab__av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:var(--bg2)}

@@ -15,7 +15,7 @@
 import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
+import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CHANNELS_FILE = resolve(ROOT, "channels.json");
@@ -26,6 +26,7 @@ const META_FILE = resolve(DATA_DIR, "meta.json");
 const MAX_VIDEOS = 3000;        // 보관할 최대 영상 수 (직접 추가한 영상은 항상 보관)
 const MAX_CHANNELS = 200;
 const MAX_MANUAL = 1000;
+const AVATAR_REFRESH_HOURS = 24; // 채널 프로필 사진은 하루 1번만 다시 확인
 const VIEWS_REFRESH_HOURS = 6;  // 바뀐 게 조회수뿐이면 이 간격으로만 저장
 
 // 채널/영상 설정의 카테고리 → 배열 (예전 단일 category 도 지원, 최대 10개)
@@ -134,15 +135,36 @@ async function main() {
     if (!failed && !v.manual && !v.cid && prevIds.has(id) && existing.manualIds.has(id)) map.delete(id);
   }
 
+  // 4) 채널 프로필 사진 (유튜브 이미지 주소만 저장, 사진 파일은 이 서버에 복사하지 않음)
+  const avatars = {};
+  const avAge = existing.avatarsCheckedAt ? (Date.now() - new Date(existing.avatarsCheckedAt)) / 3600e3 : Infinity;
+  const refreshAll = !(avAge < AVATAR_REFRESH_HOURS);
+  let avatarsCheckedAt = refreshAll ? new Date().toISOString() : existing.avatarsCheckedAt;
+  for (const cid of tracked.keys()) {
+    const prev = existing.avatars?.[cid];
+    if (!refreshAll && isAvatarUrl(prev)) { avatars[cid] = prev; continue; }
+    try {
+      const url = await fetchChannelAvatar(cid);
+      if (url) avatars[cid] = url; else if (isAvatarUrl(prev)) avatars[cid] = prev;
+    } catch (err) {
+      if (isAvatarUrl(prev)) avatars[cid] = prev;
+      console.warn(`✗ 프로필 사진 ${tracked.get(cid).name || cid}: ${err.message}`);
+    }
+  }
+
   const sorted = [...map.values()].sort((a, b) => new Date(b.published) - new Date(a.published));
   const videos = [...sorted.filter((v) => v.manual), ...sorted.filter((v) => !v.manual).slice(0, MAX_VIDEOS)]
     .sort((a, b) => new Date(b.published) - new Date(a.published));
   const added = videos.filter((v) => !prevIds.has(v.id)).length;
 
   // ── 전송량 절약: 바뀐 게 조회수뿐이면 VIEWS_REFRESH_HOURS 마다만 저장
-  const index = buildIndex(videos);
+  // 이번에 수집이 잠깐 실패한 채널은 예전 사진 유지, 사이트에서 사라진 채널의 사진은 정리
+  const liveCids = new Set(videos.map((v) => v.cid).filter(Boolean));
+  for (const cid of liveCids) if (!avatars[cid] && isAvatarUrl(existing.avatars?.[cid])) avatars[cid] = existing.avatars[cid];
+  for (const cid of Object.keys(avatars)) if (!liveCids.has(cid)) delete avatars[cid];
+  const index = { ...buildIndex(videos), avatars };
   const age = existing.generatedAt ? (Date.now() - new Date(existing.generatedAt)) / 3600e3 : Infinity;
-  if (signature(index) === signature(buildIndex(existing.videos)) && age < VIEWS_REFRESH_HOURS) {
+  if (signature(index) === signature({ ...buildIndex(existing.videos), avatars: existing.avatars || {} }) && age < VIEWS_REFRESH_HOURS && !refreshAll) {
     console.log(`변경 없음 – 저장 생략 (마지막 저장 ${age.toFixed(1)}시간 전)`);
     return;
   }
@@ -155,7 +177,7 @@ async function main() {
   // 임시 파일에 쓴 뒤 교체 → 중간에 실패해도 반쯤 쓰인 파일이 공개되지 않음
   const save = async (file, obj) => { await writeFile(file + ".tmp", JSON.stringify(obj)); await rename(file + ".tmp", file); };
   await save(DESC_FILE, desc);
-  await save(OUT_FILE, { v: 2, generatedAt, ...index });
+  await save(OUT_FILE, { v: 2, generatedAt, avatarsCheckedAt, ...index });
   await save(META_FILE, meta);
   console.log(`완료: 총 ${videos.length}개 (신규 ${added}개, 삭제 ${[...prevIds].filter((id) => !map.has(id)).length}개)`);
 }
@@ -176,7 +198,7 @@ function buildIndex(videos) {
   };
 }
 // 조회수를 뺀 내용이 같으면 "변경 없음"
-const signature = (ix) => JSON.stringify([ix.channels, ix.cats, ix.cids, ix.items.map((r) => r.filter((_, i) => i !== 5))]);
+const signature = (ix) => JSON.stringify([ix.channels, ix.cats, ix.cids, ix.avatars || {}, ix.items.map((r) => r.filter((_, i) => i !== 5))]);
 
 // 이전 저장 파일 읽기 (예전 형식 {videos:[…]} 과 압축 형식 모두 지원)
 async function readExisting() {
@@ -195,7 +217,9 @@ async function readExisting() {
     cid: CHANNEL_ID.test(raw.cids?.[cid] || "") ? raw.cids[cid] : null,
     manual: manual === 1, description: desc[id] || "",
   }));
-  return { generatedAt: raw.generatedAt, videos, manualIds: new Set(videos.filter((v) => v.manual).map((v) => v.id)) };
+  const avatars = Object.fromEntries(Object.entries(raw.avatars && typeof raw.avatars === "object" ? raw.avatars : {})
+    .filter(([k, u]) => CHANNEL_ID.test(k) && isAvatarUrl(u)));
+  return { generatedAt: raw.generatedAt, avatarsCheckedAt: raw.avatarsCheckedAt, avatars, videos, manualIds: new Set(videos.filter((v) => v.manual).map((v) => v.id)) };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

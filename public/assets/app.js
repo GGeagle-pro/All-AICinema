@@ -28,7 +28,7 @@
   const state = {
     all: [], list: [], shown: 0,
     cat: "전체", ch: "", q: "", sort: "new",
-    current: -1, latest: null, cids: [],
+    current: -1, latest: null, cids: [], avatars: {},
     site: { siteName: SITE_NAME_DEFAULT, menu: [], adsense: { client: "", slots: {} }, banners: [] },
   };
   let ytApi, ytPlayer;
@@ -147,6 +147,24 @@
     return raw.slice(0, 5000).map(clean).filter((v) => v && !seen.has(v.id) && seen.add(v.id));
   }
 
+  // 채널 프로필 사진: 유튜브 이미지 서버(yt3) 주소만 허용
+  const AVATAR_URL = /^https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[\w\-./=~%]{10,500}$/;
+  function parseAvatars(a) {
+    const out = {};
+    if (a && typeof a === "object") for (const [cid, u] of Object.entries(a)) if (/^UC[\w-]{22}$/.test(cid) && AVATAR_URL.test(u)) out[cid] = u;
+    return out;
+  }
+  function avatarOf(name) {
+    const v = state.all.find((x) => x.channel === name && x.cid && state.avatars[x.cid]);
+    return v ? state.avatars[v.cid] : "";
+  }
+  // 채널 아이콘: 프로필 사진이 있으면 사진, 없거나 못 불러오면 첫 글자
+  function avatarHtml(name) {
+    const url = avatarOf(name);
+    return `<span class="chtab__av" aria-hidden="true">${esc(name.trim()[0] || "?")}` +
+      (url ? `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" width="26" height="26" />` : "") + `</span>`;
+  }
+
   async function loadSite() {
     try {
       const r = await fetch("data/site.json", { cache: "no-cache" });
@@ -200,6 +218,7 @@
     const data = await res.json();
     const vids = parseIndex(data);
     state.latest = data.generatedAt;
+    state.avatars = parseAvatars(data.avatars);
     $("#meta").textContent = data.generatedAt ? `업데이트 ${ago(data.generatedAt)}` : "";
     if (initial) {
       state.all = vids;
@@ -242,7 +261,7 @@
     const chs = [...counts].sort((a, b) => b[1] - a[1]).map(([c]) => c);
     if (state.ch && !counts.has(state.ch)) state.ch = "";
     $("#chs").innerHTML = chip("chtab", "", "모든 채널", !state.ch) +
-      chs.map((c) => chip("chtab", c, c, c === state.ch, `<span class="chtab__av" aria-hidden="true">${esc(c.trim()[0] || "?")}</span>`)).join("");
+      chs.map((c) => chip("chtab", c, c, c === state.ch, avatarHtml(c))).join("");
     $("#chrow").hidden = !chs.length;
     requestAnimationFrame(updateChMore);
   }
@@ -471,6 +490,8 @@
       renderMenus();
       apply();
     });
+    // 프로필 사진을 못 불러오면 사진만 지우고 첫 글자를 보여줌 (인라인 onerror는 보안 정책상 사용 안 함)
+    $("#chs").addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.remove(); }, true);
     $("#chs").addEventListener("click", (e) => {
       const t = e.target.closest(".chtab");
       if (!t) return;
