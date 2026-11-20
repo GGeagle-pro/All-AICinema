@@ -204,6 +204,7 @@
     if (!Array.isArray(s.banners)) s.banners = [];
     while (s.banners.length < 3) s.banners.push({ image: "", link: "", alt: "" });
     s.banners = s.banners.slice(0, 3);
+    if (s.openMode !== "page" && s.openMode !== "inline") s.openMode = "inline";
     return s;
   };
   const saveConfig = (msg, mutate) => saveJson(CONFIG, msg, mutate, { normalize: normConfig }).then((r) => { state.config = r.doc; return r.changed; });
@@ -609,6 +610,25 @@
     }
   }
 
+  // 영상 여는 방식 (page: 실제 페이지 이동 → 전면 광고 기회 / inline: 이동 없이 바로 재생)
+  function renderOpenMode() {
+    const mode = state.site?.openMode === "page" ? "page" : "inline";
+    for (const r of document.querySelectorAll('input[name="openMode"]')) r.checked = r.value === mode;
+    $("#openModeNow").textContent = mode === "page" ? "지금: 페이지 이동 방식" : "지금: 바로 재생 방식 (원래 방식)";
+  }
+  function saveOpenMode(e) {
+    e.preventDefault();
+    const mode = document.querySelector('input[name="openMode"]:checked')?.value === "page" ? "page" : "inline";
+    run(async () => {
+      const changed = await saveSite(`영상 여는 방식: ${mode === "page" ? "페이지 이동" : "바로 재생"}`, (s) => {
+        if (s.openMode === mode) return false; s.openMode = mode; return true; });
+      renderOpenMode();
+      if (!changed) return toast("이미 이 방식이에요.");
+      toast(mode === "page" ? "페이지 이동 방식으로 바꿨어요." : "원래 방식(바로 재생)으로 되돌렸어요.");
+      afterSiteSave("영상 여는 방식 반영 중");
+    });
+  }
+
   function renderAll() {
     renderStatus();
     renderAddCats();
@@ -619,7 +639,7 @@
     renderHidden();
     renderMenu();
     renderBanners();
-    renderAds();
+    renderAds(); renderOpenMode();
   }
 
   // ───────── 작업 ─────────
@@ -912,6 +932,7 @@
   });
   $("#menuSave").addEventListener("click", saveMenu);
   $("#adsForm").addEventListener("submit", saveAds);
+  $("#openModeForm").addEventListener("submit", saveOpenMode);
 
   // 시작
   const saved = store.load();

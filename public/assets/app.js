@@ -179,6 +179,9 @@
           slots: Object.fromEntries(Object.entries(s.adsense?.slots || {}).map(([k, v]) => [str(k, 20), str(String(v ?? ""), 12)])),
         },
         banners: Array.isArray(s.banners) ? s.banners.slice(0, 3) : [],
+        // 영상 여는 방식: "page" = 목록에서 누르면 실제로 영상 페이지로 이동(애드센스 전면 광고 기회),
+        //                 "inline" = 페이지 이동 없이 바로 플레이어 열기 (관리자 > 광고 설정에서 변경)
+        openMode: s.openMode === "page" ? "page" : "inline",
       };
     } catch {}
   }
@@ -302,6 +305,7 @@
     renderHero();
     const empty = $("#empty");
     empty.hidden = list.length > 0;
+    syncListUrl();
     empty.textContent = !state.all.length ? "아직 수집된 영상이 없습니다."
       : state.cat === NEW_KEY ? "최근 3일 동안 새로 올라온 영상이 없어요." : "이 메뉴에는 아직 영상이 없어요.";
     more();
@@ -321,7 +325,7 @@
       </div>`;
     const img = hero.querySelector("img");
     img.addEventListener("error", () => { img.src = thumb(v.id); }, { once: true }); // 고화질 썸네일이 없을 때
-    hero.onclick = () => openPlayer(0);
+    hero.onclick = () => (pageMode() ? goToVideo(state.list[0]) : openPlayer(0));
   }
 
   function card(v, i) {
@@ -439,6 +443,7 @@
     document.body.classList.remove("locked");
     try { ytPlayer?.stopVideo(); } catch {}
     document.title = `${siteName()} | AI 영화·드라마 모아보기`;
+    if (!fromPop && backToList) { backToList = false; history.back(); return; }
     if (!fromPop) history.state?.v ? history.back() : history.replaceState(null, "", location.pathname);
     const c = document.querySelector(`.card[data-i="${state.current}"]`);
     c?.focus({ preventScroll: true });
@@ -482,6 +487,7 @@
       const c = e.target.closest(".card");
       if (!c || e.metaKey || e.ctrlKey || e.shiftKey) return; // 새 탭 열기는 허용
       e.preventDefault();
+      if (pageMode()) return goToVideo(state.list[+c.dataset.i]);
       openPlayer(+c.dataset.i);
     });
     const pick = (row, t) => {
@@ -559,6 +565,42 @@
     bindHeaderAutoHide();
   }
 
+  // ── "page" 방식: 영상 페이지로 실제 이동 (지금 보던 카테고리·채널은 주소에 담아 이어서 보여줌)
+  const pageMode = () => state.site.openMode === "page";
+  function listQuery() {
+    const q = new URLSearchParams();
+    if (state.cat !== "전체") q.set("c", state.cat);
+    if (state.ch) q.set("ch", state.ch);
+    if (state.sort !== "new") q.set("s", state.sort);
+    return q;
+  }
+  // 목록 화면 주소에 지금 고른 카테고리·채널을 담아둠 → 영상 페이지에서 돌아와도 그대로
+  let urlReady = false;   // 첫 로딩에서 주소의 v·c·ch 를 읽기 전에는 주소를 바꾸지 않음
+  function syncListUrl() {
+    if (!urlReady || !pageMode() || !$("#player").hidden) return;
+    const qs = listQuery().toString();
+    const want = location.pathname + (qs ? "?" + qs : "");
+    if (location.pathname + location.search !== want) history.replaceState(null, "", want);
+  }
+  function goToVideo(v) {
+    if (!v || !VALID_ID.test(v.id)) return;
+    syncListUrl();
+    // 돌아왔을 때 보던 위치로 스크롤하기 위해 저장 (이 브라우저 탭에만, 실패해도 무시)
+    try { sessionStorage.setItem("aic:list", JSON.stringify({ at: location.search, y: scrollY, shown: state.shown })); } catch {}
+    const q = listQuery(); q.set("v", v.id);
+    location.assign("?" + q.toString());
+  }
+  function restoreListPosition() {
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem("aic:list") || "null"); sessionStorage.removeItem("aic:list"); } catch {}
+    if (!saved || saved.at !== location.search || !Number.isFinite(saved.y)) return;
+    while (state.shown < Math.min(saved.shown || 0, state.list.length)) { const before = state.shown; more(); if (state.shown === before) break; }
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    requestAnimationFrame(() => scrollTo(0, saved.y));
+  }
+  // 이 사이트의 목록 화면에서 넘어왔으면 "닫기"를 누를 때 그 화면(보던 스크롤 위치)으로 돌아감
+  let backToList = false;
+
   function openById(id, push) {
     if (!VALID_ID.test(id)) return;
     let i = state.list.findIndex((v) => v.id === id);
@@ -584,10 +626,27 @@
     renderPromo();
     return load(true);
   }).then(() => {
-    const id = new URLSearchParams(location.search).get("v");
+    const params = new URLSearchParams(location.search);
+    const id = params.get("v");
+    // 보던 카테고리·채널·정렬 이어서 보기 (영상 페이지 ↔ 목록 오갈 때)
+    const c = params.get("c"), ch = params.get("ch"), so = params.get("s");
+    if (c && (c === NEW_KEY || catList().includes(c))) state.cat = c;
+    if (ch && state.all.some((v) => v.channel === ch)) state.ch = ch;
+    if (so === "views") { state.sort = "views"; $("#sort").value = "views"; }
+    urlReady = true;
+    if (c || ch || so) { renderMenus(); apply(); }
+    if (!id) restoreListPosition();
     if (id && VALID_ID.test(id)) {
-      history.replaceState(null, "", location.pathname);
-      openById(id, true);
+      let fromList = false;
+      try { fromList = pageMode() && !!document.referrer && new URL(document.referrer).origin === location.origin && history.length > 1; } catch {}
+      if (fromList) {
+        backToList = true;
+        history.replaceState({ v: id }, "", "?v=" + id);
+        openById(id, false);
+      } else {
+        history.replaceState(null, "", location.pathname);
+        openById(id, true);
+      }
     }
   }).catch((err) => {
     $("#grid").innerHTML = "";
