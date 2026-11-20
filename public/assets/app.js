@@ -376,7 +376,7 @@
     p.hidden = true;
     document.body.classList.remove("locked");
     try { ytPlayer?.stopVideo(); } catch {}
-    document.title = `${siteName()} – AI 영화·드라마·단편 모아보기`;
+    document.title = `${siteName()} | AI 영화·드라마 모아보기`;
     if (!fromPop) history.state?.v ? history.back() : history.replaceState(null, "", location.pathname);
     const c = document.querySelector(`.card[data-i="${state.current}"]`);
     c?.focus({ preventScroll: true });
