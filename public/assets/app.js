@@ -224,7 +224,24 @@
     if (state.ch && !counts.has(state.ch)) state.ch = "";
     $("#chs").innerHTML = chip("chtab", "", "모든 채널", !state.ch) +
       chs.map((c) => chip("chtab", c, c, c === state.ch, `<span class="chtab__av" aria-hidden="true">${esc(c.trim()[0] || "?")}</span>`)).join("");
-    $("#chs").hidden = !chs.length;
+    $("#chrow").hidden = !chs.length;
+    requestAnimationFrame(updateChMore);
+  }
+
+  // 2줄(채널)이 화면 너비를 넘치면 ＋ 버튼 표시 → 누르면 여러 줄로 펼침, － 로 접기
+  function updateChMore() {
+    const wrap = $("#chrow"), row = $("#chs"), btn = $("#chMore");
+    const open = wrap.classList.contains("open");
+    const overflow = row.scrollWidth > row.clientWidth + 4;
+    btn.hidden = !(open || overflow);
+    btn.textContent = open ? "−" : "+";
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", open ? "채널 목록 접기" : "채널 모두 펼치기");
+  }
+  function setChOpen(open) {
+    $("#chrow").classList.toggle("open", open);
+    updateChMore();
+    if (!open) $("#chs .chtab[aria-pressed=\"true\"]")?.scrollIntoView({ inline: "center", block: "nearest" });
   }
 
   function apply() {
@@ -439,6 +456,7 @@
       if (!t) return;
       state.ch = t.dataset.key;
       pick($("#chs"), t);
+      if ($("#chrow").classList.contains("open")) setChOpen(false);   // 고르면 다시 접기
       apply();
     });
     $(".search").addEventListener("submit", (e) => { e.preventDefault(); $("#q").blur(); });
@@ -451,6 +469,9 @@
       $("#searchBtn").setAttribute("aria-expanded", String(open));
       if (open) $("#q").focus();
     });
+    $("#chMore").addEventListener("click", () => setChOpen(!$("#chrow").classList.contains("open")));
+    let rt;
+    addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(updateChMore, 150); }, { passive: true });
     $("#sort").addEventListener("change", (e) => { state.sort = e.target.value; apply(); });
 
     $("#player").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closePlayer(); });

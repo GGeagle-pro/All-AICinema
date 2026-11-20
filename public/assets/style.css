@@ -183,3 +183,11 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
   .upnext li{grid-template-columns:140px 1fr}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ───────── 2줄 채널 메뉴: 넘치면 ＋ 로 펼치기 / － 로 접기 ───────── */
+.chrow{position:relative;max-width:1600px;margin:0 auto;display:flex;align-items:flex-start;gap:8px;padding-right:var(--gutter)}
+.chrow .menu--channels{flex:1;min-width:0;margin:0;padding-right:0}
+.chmore{flex:none;width:36px;height:36px;margin-bottom:12px;border-radius:50%;border:1px solid var(--line);background:var(--bg2);color:var(--text);font-size:22px;font-weight:700;line-height:1;display:grid;place-items:center;cursor:pointer;transition:background .15s}
+.chmore:hover{border-color:var(--muted)}
+.chmore[aria-expanded="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.chrow.open .menu--channels{flex-wrap:wrap;overflow-x:visible;overflow-y:auto;max-height:min(50vh,360px);scroll-snap-type:none;-webkit-mask-image:none;mask-image:none;padding-bottom:12px}

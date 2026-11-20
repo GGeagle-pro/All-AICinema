@@ -343,6 +343,40 @@
         onclick: () => { state.addCats.has(m) ? state.addCats.delete(m) : state.addCats.add(m); renderAddCats(); updateAddForm(); },
       }));
     }
+    box.append(el("button", {
+      type: "button", class: "adm-chip adm-chip--add", text: "+ 새 카테고리",
+      "aria-expanded": String(!$("#newCatBox").hidden), "aria-controls": "newCatBox",
+      onclick: () => openNewCat(true),
+    }));
+  }
+  function openNewCat(open) {
+    $("#newCatBox").hidden = !open;
+    $("#newCatName").value = "";
+    renderAddCats();
+    if (open) $("#newCatName").focus();
+  }
+  // 새 카테고리 만들기 → site.json 메뉴에 추가(사이트 1줄 메뉴에 바로 반영) + 지금 등록 중인 채널에 자동 선택
+  function createCategory() {
+    const v = clean($("#newCatName").value, 30);
+    if (!v) return $("#newCatName").focus();
+    if (v === "전체") return toast("'전체'는 이미 있는 기본 메뉴라 쓸 수 없어요.", true);
+    const current = menuItems();
+    if (current.includes(v)) { state.addCats.add(v); openNewCat(false); updateAddForm(); return toast(`'${v}'은(는) 이미 있는 카테고리예요. 선택해 두었어요.`); }
+    if (current.length >= 30) return toast("카테고리는 30개까지 만들 수 있어요.", true);
+    run(async () => {
+      await saveSite(`카테고리 추가: ${v}`, (s) => {
+        if (!s.menu.length) s.menu = [...current];   // 메뉴가 비어 있으면 지금 보이는 기본 카테고리부터 저장
+        if (s.menu.includes(v)) return false;
+        s.menu.push(v);
+        return true;
+      });
+      state.menuDraft = null;
+      state.addCats.add(v);
+      openNewCat(false);
+      updateAddForm(); renderChannels(); renderMenu();
+      toast(`'${v}' 카테고리를 만들었어요. 사이트 위쪽 메뉴에도 추가돼요.`);
+      afterSiteSave(`'${v}' 카테고리 추가 반영 중`);
+    });
   }
   function updateAddForm() {
     const r = parseLink($("#addUrl").value);
@@ -358,7 +392,7 @@
     } else { hint.textContent = "✓ 영상 주소예요 — 이 영상 하나만 추가돼요."; hint.classList.add("ok"); }
     const dup = r?.type === "channel" && state.config?.channels.some((c) => sameChannel(c, r));
     $("#addBtn").disabled = !r || dup || !state.addCats.size || state.busy;
-    $("#addBtn").textContent = !state.addCats.size && r ? "메뉴를 하나 이상 골라 주세요" : "추가하고 바로 반영";
+    $("#addBtn").textContent = !state.addCats.size && r ? "카테고리를 하나 이상 골라 주세요" : "추가하고 바로 반영";
   }
 
   function renderChannels() {
@@ -674,7 +708,7 @@
       await saveSite("메뉴 변경", (s) => { s.menu = d; return true; });
       state.menuDraft = [...state.site.menu];
       renderMenu(); renderAddCats(); renderChannels();
-      toast("메뉴를 저장했어요.");
+      toast("카테고리를 저장했어요.");
       afterSiteSave("메뉴 변경 반영 중");
     });
   }
@@ -834,6 +868,12 @@
     t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   });
   $("#addUrl").addEventListener("input", updateAddForm);
+  $("#newCatSave").addEventListener("click", createCategory);
+  $("#newCatCancel").addEventListener("click", () => openNewCat(false));
+  $("#newCatName").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); createCategory(); }
+    if (e.key === "Escape") openNewCat(false);
+  });
   $("#addForm").addEventListener("submit", addFromForm);
   $("#pasteBtn").addEventListener("click", async () => {
     try { $("#addUrl").value = (await navigator.clipboard.readText()).trim(); updateAddForm(); $("#addUrl").focus(); }
@@ -852,8 +892,8 @@
     e.preventDefault();
     const v = clean($("#menuNew").value, 30);
     if (!v) return;
-    if (state.menuDraft.includes(v)) return toast("이미 있는 메뉴예요.", true);
-    if (state.menuDraft.length >= 30) return toast("메뉴는 30개까지 만들 수 있어요.", true);
+    if (state.menuDraft.includes(v)) return toast("이미 있는 카테고리예요.", true);
+    if (state.menuDraft.length >= 30) return toast("카테고리는 30개까지 만들 수 있어요.", true);
     state.menuDraft.push(v);
     $("#menuNew").value = "";
     renderMenu();

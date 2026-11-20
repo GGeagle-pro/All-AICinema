@@ -148,3 +148,14 @@
   .adm-status{gap:4px 12px}
   .adm-actions .btn{flex:1}
 }
+
+/* 새 카테고리 만들기 */
+.adm-chip--add{border-style:dashed;border-color:var(--accent2);color:#b9a8ff;font-weight:700;background:transparent}
+.adm-chip--add[aria-expanded="true"]{background:rgba(124,92,255,.14)}
+.adm-newcat{display:flex;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--accent2);border-radius:12px;padding:8px}
+.adm-newcat input{flex:1;min-width:0}
+@media (max-width:760px){
+  .adm-newcat{flex-wrap:wrap}
+  .adm-newcat input{flex-basis:100%}
+  .adm-newcat .btn{flex:1}
+}
