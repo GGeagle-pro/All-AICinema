@@ -19,6 +19,9 @@
   const FEED_EVERY = 12;              // 카드 N개마다 목록 사이 광고 1개
   const REFRESH_MS = 10 * 60 * 1000;  // 열려 있는 페이지에서 10분마다 새 영상 확인
   const NEW_HOURS = 72;               // NEW 배지·NEW 메뉴 기준: 최근 3일
+  const BINGE_KEY = "__binge__";      // 1줄 메뉴의 "몰아보기" 탭 (제목으로 자동 분류: 몰아보기·모아보기·통합본·완결판…)
+  const BINGE_RE = /몰아\s?보기|모아\s?보기|통합본|완결판|전편|합본|complete\s+series|full\s+series/i;
+  const isBinge = (v) => BINGE_RE.test(v.title);
   const NEW_KEY = "__new__";          // 1줄 메뉴의 NEW 탭 (관리자 카테고리 이름과 겹치지 않는 내부 값)
   const RAIL_MIN_WIDTH = 1480;        // 이 너비 이상(데스크톱)에서만 양옆 세로 배너 표시
   const SITE_NAME_DEFAULT = "All AI-Cinema";
@@ -28,7 +31,7 @@
   const state = {
     all: [], list: [], shown: 0,
     cat: "전체", ch: "", q: "", sort: "new",
-    current: -1, latest: null, cids: [], avatars: {},
+    current: -1, latest: null, cids: [], avatars: {}, queue: [],
     site: { siteName: SITE_NAME_DEFAULT, menu: [], adsense: { client: "", slots: {} }, banners: [] },
   };
   let ytApi, ytPlayer;
@@ -240,13 +243,13 @@
   }
 
   // ===== 메뉴 (1줄: 장르·국가, 2줄: 유튜브 채널) =====
-  const inCat = (v, cat = state.cat) => cat === "전체" || (cat === NEW_KEY ? isNew(v.published) : v.categories.includes(cat));
+  const inCat = (v, cat = state.cat) => cat === "전체" || (cat === NEW_KEY ? isNew(v.published) : cat === BINGE_KEY ? isBinge(v) : v.categories.includes(cat));
   const newCount = () => state.all.reduce((n, v) => n + (isNew(v.published) ? 1 : 0), 0);
   // 1줄 메뉴 항목 + 영상 개수 (NEW 탭과 같은 모양)
   const countLabel = (n) => (n > 999 ? "999+" : String(n));
-  function catTab(c, n) {
-    return `<button type="button" class="tab tab--count" data-key="${esc(c)}" aria-pressed="${c === state.cat}" aria-label="${esc(c)} 영상 ${n}개">` +
-      `${esc(c)}<span class="tab__count" aria-hidden="true">${countLabel(n)}</span></button>`;
+  function catTab(c, n, label = c) {
+    return `<button type="button" class="tab tab--count" data-key="${esc(c)}" aria-pressed="${c === state.cat}" aria-label="${esc(label)} 영상 ${n}개">` +
+      `${esc(label)}<span class="tab__count" aria-hidden="true">${countLabel(n)}</span></button>`;
   }
   function newTab() {
     const n = newCount();
@@ -262,8 +265,12 @@
   }
   function renderMenus() {
     // 전체 → NEW(최근 3일) → 관리자에서 정한 카테고리
+    const binge = state.all.reduce((n, v) => n + (isBinge(v) ? 1 : 0), 0);
     $("#cats").innerHTML = catTab("전체", state.all.length) + newTab() +
-      catList().map((c) => catTab(c, state.all.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0))).join("");
+      (binge ? catTab(BINGE_KEY, binge, "몰아보기") : "") +
+      catList().map((c) => [c, state.all.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0)])
+        .filter(([c, n]) => n > 0 || c === state.cat)   // 아직 영상이 없는 카테고리는 숨김 (영상이 생기면 자동 표시)
+        .map(([c, n]) => catTab(c, n)).join("");
     // 2줄: 현재 고른 장르·국가에 영상이 있는 채널만, 영상 많은 순
     const counts = new Map();
     for (const v of state.all) if (inCat(v) && v.channel) counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
@@ -300,8 +307,9 @@
     state.list = list;
     state.shown = 0;
     $("#grid").innerHTML = "";
-    const where = [state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
-    $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : where || "최신 영상";
+    const where = [state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat === BINGE_KEY ? "몰아보기 · 정주행" : state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
+    const shelvesOn = renderShelves();
+    $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : (shelvesOn ? `${where || "전체"} 최신 영상` : where || "최신 영상");
     renderHero();
     const empty = $("#empty");
     empty.hidden = list.length > 0;
@@ -309,6 +317,44 @@
     empty.textContent = !state.all.length ? "아직 수집된 영상이 없습니다."
       : state.cat === NEW_KEY ? "최근 3일 동안 새로 올라온 영상이 없어요." : "이 메뉴에는 아직 영상이 없어요.";
     more();
+  }
+
+  // ===== 채널별로 묶어 보기 (전체·장르 탭에서, 채널·검색을 고르지 않았을 때) =====
+  const SHELF_MAX = 12;
+  function shelfCard(v, key) {
+    return card(v, -1).replace('class="card" href', `class="card card--shelf" data-shelf="${key}" data-id="${v.id}" href`);
+  }
+  function renderShelves() {
+    const box = $("#shelves");
+    const on = !state.q && !state.ch && state.cat !== NEW_KEY && state.cat !== BINGE_KEY && state.sort === "new";
+    state.shelves = new Map();
+    if (!on) { box.hidden = true; box.innerHTML = ""; return false; }
+    const pool = state.all.filter((v) => inCat(v)).sort((a, b) => new Date(b.published) - new Date(a.published));
+    const groups = [];
+    if (state.cat === "전체") {
+      const fresh = pool.filter((v) => isNew(v.published));
+      if (fresh.length) groups.push({ key: "new", title: "새로 올라온 영상", sub: "최근 3일", list: fresh, go: { cat: NEW_KEY } });
+      const binge = pool.filter(isBinge);
+      if (binge.length) groups.push({ key: "binge", title: "몰아보기 · 정주행", sub: "한 번에 이어 보기", list: binge, go: { cat: BINGE_KEY } });
+    }
+    const byCh = new Map();
+    for (const v of pool) { if (!byCh.has(v.channel)) byCh.set(v.channel, []); byCh.get(v.channel).push(v); }
+    for (const [ch, list] of byCh) groups.push({ key: "ch:" + ch, title: ch, channel: ch, list, go: { ch } }); // 최근에 올린 채널 순
+    if (groups.length < 2) { box.hidden = true; box.innerHTML = ""; return false; }
+    box.innerHTML = groups.map((g, gi) => {
+      state.shelves.set(String(gi), g);
+      const head = g.channel
+        ? `${avatarHtml(g.channel, "avatar shelf__av", g.list[0]?.cid)}<h3>${esc(g.title)}</h3><span class="shelf__n">${g.list.length}편</span>`
+        : `<h3>${esc(g.title)}</h3><span class="shelf__n">${esc(g.sub)} · ${g.list.length}편</span>`;
+      return `<section class="shelf" aria-label="${esc(g.title)}">
+        <div class="shelf__head">${head}
+          <button class="shelf__nav" type="button" data-dir="-1" aria-label="이전">‹</button>
+          <button class="shelf__nav" type="button" data-dir="1" aria-label="다음">›</button>
+          <button class="shelf__more" type="button" data-go="${gi}">전체 보기 ›</button></div>
+        <div class="shelf__row">${g.list.slice(0, SHELF_MAX).map((v) => shelfCard(v, gi)).join("")}</div></section>`;
+    }).join("");
+    box.hidden = false;
+    return true;
   }
 
   function renderHero() {
@@ -325,7 +371,7 @@
       </div>`;
     const img = hero.querySelector("img");
     img.addEventListener("error", () => { img.src = thumb(v.id); }, { once: true }); // 고화질 썸네일이 없을 때
-    hero.onclick = () => (pageMode() ? goToVideo(state.list[0]) : openPlayer(0));
+    hero.onclick = () => { if (pageMode()) return goToVideo(state.list[0]); state.queue = state.list.slice(); openPlayer(0); };
   }
 
   function card(v, i) {
@@ -389,7 +435,7 @@
   }
 
   function openPlayer(i, { push = true } = {}) {
-    const v = state.list[i];
+    const v = state.queue[i];
     if (!v) return;
     state.current = i;
     const p = $("#player");
@@ -409,14 +455,14 @@
     $("#pDesc").hidden = !v.description;
     if (v.description === undefined) getDesc().then((d) => {
       v.description = typeof d[v.id] === "string" ? clean({ ...v, description: d[v.id] }).description : "";
-      if (state.list[state.current] === v) { $("#pDesc").textContent = v.description; $("#pDesc").hidden = !v.description; }
+      if (state.queue[state.current] === v) { $("#pDesc").textContent = v.description; $("#pDesc").hidden = !v.description; }
     });
     $("#pPrev").disabled = i === 0;
-    $("#pNext").disabled = i >= state.list.length - 1;
+    $("#pNext").disabled = i >= state.queue.length - 1;
     document.title = `${v.title} – ${siteName()}`;
 
     // 다음 영상 목록
-    const next = state.list.slice(i + 1, i + 21);
+    const next = state.queue.slice(i + 1, i + 21);
     $("#upnext").innerHTML = next.map((n, k) =>
       `<li data-i="${i + 1 + k}"><img loading="lazy" src="${thumb(n.id, "mqdefault")}" alt="" />
        <div><b>${esc(n.title)}</b><span>${esc(n.channel)} · ${ago(n.published)}</span></div></li>`).join("");
@@ -451,7 +497,7 @@
 
   const step = (d) => {
     const i = state.current + d;
-    if (i >= 0 && i < state.list.length) openPlayer(i, { push: false });
+    if (i >= 0 && i < state.queue.length) openPlayer(i, { push: false });
   };
 
   // ===== 모바일: 아래로 스크롤하면 헤더 숨김, 위로 올리면 다시 표시 =====
@@ -483,11 +529,34 @@
   // ===== 이벤트 =====
   function bind() {
     trackHeaderHeight();
+    $("#shelves").addEventListener("click", (e) => {
+      const nav = e.target.closest(".shelf__nav");
+      if (nav) { const row = nav.closest(".shelf").querySelector(".shelf__row"); row.scrollBy({ left: +nav.dataset.dir * row.clientWidth * 0.9, behavior: "smooth" }); return; }
+      const go = e.target.closest(".shelf__more");
+      if (go) {
+        const g = state.shelves.get(go.dataset.go); if (!g) return;
+        if (g.go.cat) state.cat = g.go.cat;
+        if (g.go.ch) state.ch = g.go.ch;
+        renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      const c = e.target.closest(".card--shelf");
+      if (!c || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      const g = state.shelves.get(c.dataset.shelf); if (!g) return;
+      const i = g.list.findIndex((v) => v.id === c.dataset.id); if (i < 0) return;
+      if (pageMode()) {   // 채널 선반에서 고르면 그 채널 영상으로 다음 화가 이어지게
+        return goToVideo(g.list[i], { ch: g.go.ch || "" });
+      }
+      state.queue = g.list.slice();
+      openPlayer(i);
+    });
     $("#grid").addEventListener("click", (e) => {
       const c = e.target.closest(".card");
       if (!c || e.metaKey || e.ctrlKey || e.shiftKey) return; // 새 탭 열기는 허용
       e.preventDefault();
       if (pageMode()) return goToVideo(state.list[+c.dataset.i]);
+      state.queue = state.list.slice();
       openPlayer(+c.dataset.i);
     });
     const pick = (row, t) => {
@@ -532,7 +601,7 @@
     $("#pPrev").onclick = () => step(-1);
     $("#pNext").onclick = () => step(1);
     $("#pShare").onclick = async () => {
-      const v = state.list[state.current];
+      const v = state.queue[state.current];
       const url = location.origin + location.pathname + "?v=" + v.id;
       const b = $("#pShare");
       try {
@@ -582,12 +651,13 @@
     const want = location.pathname + (qs ? "?" + qs : "");
     if (location.pathname + location.search !== want) history.replaceState(null, "", want);
   }
-  function goToVideo(v) {
+  function goToVideo(v, { ch = "" } = {}) {
     if (!v || !VALID_ID.test(v.id)) return;
     syncListUrl();
     // 돌아왔을 때 보던 위치로 스크롤하기 위해 저장 (이 브라우저 탭에만, 실패해도 무시)
     try { sessionStorage.setItem("aic:list", JSON.stringify({ at: location.search, y: scrollY, shown: state.shown })); } catch {}
     const q = listQuery(); q.set("v", v.id);
+    if (ch) q.set("ch", ch);   // 채널 묶음에서 열면 다음 영상이 같은 채널로 이어지게
     location.assign("?" + q.toString());
   }
   function restoreListPosition() {
@@ -603,10 +673,11 @@
 
   function openById(id, push) {
     if (!VALID_ID.test(id)) return;
-    let i = state.list.findIndex((v) => v.id === id);
+    if ($("#player").hidden || !state.queue.some((v) => v.id === id)) state.queue = state.list.slice();
+    let i = state.queue.findIndex((v) => v.id === id);
     if (i < 0) { // 목록에 없는 영상(공유 링크 등)도 재생
       const v = state.all.find((x) => x.id === id) || { id, title: "", channel: "", cid: "", categories: [], published: new Date().toISOString() };
-      state.list.unshift(v); i = 0;
+      state.queue.unshift(v); i = 0;
     }
     openPlayer(i, { push });
   }
@@ -630,7 +701,7 @@
     const id = params.get("v");
     // 보던 카테고리·채널·정렬 이어서 보기 (영상 페이지 ↔ 목록 오갈 때)
     const c = params.get("c"), ch = params.get("ch"), so = params.get("s");
-    if (c && (c === NEW_KEY || catList().includes(c))) state.cat = c;
+    if (c && (c === NEW_KEY || c === BINGE_KEY || catList().includes(c))) state.cat = c;
     if (ch && state.all.some((v) => v.channel === ch)) state.ch = ch;
     if (so === "views") { state.sort = "views"; $("#sort").value = "views"; }
     urlReady = true;
