@@ -239,10 +239,16 @@
   // ===== 메뉴 (1줄: 장르·국가, 2줄: 유튜브 채널) =====
   const inCat = (v, cat = state.cat) => cat === "전체" || (cat === NEW_KEY ? isNew(v.published) : v.categories.includes(cat));
   const newCount = () => state.all.reduce((n, v) => n + (isNew(v.published) ? 1 : 0), 0);
+  // 1줄 메뉴 항목 + 영상 개수 (NEW 탭과 같은 모양)
+  const countLabel = (n) => (n > 999 ? "999+" : String(n));
+  function catTab(c, n) {
+    return `<button type="button" class="tab tab--count" data-key="${esc(c)}" aria-pressed="${c === state.cat}" aria-label="${esc(c)} 영상 ${n}개">` +
+      `${esc(c)}<span class="tab__count" aria-hidden="true">${countLabel(n)}</span></button>`;
+  }
   function newTab() {
     const n = newCount();
     return `<button type="button" class="tab tab--new" data-key="${NEW_KEY}" aria-pressed="${state.cat === NEW_KEY}" aria-label="NEW: 최근 3일 새 영상 ${n}개">` +
-      `<span class="tab__new" aria-hidden="true">NEW</span>${n ? `<span class="tab__count" aria-hidden="true">${n > 99 ? "99+" : n}</span>` : ""}</button>`;
+      `<span class="tab__new" aria-hidden="true">NEW</span><span class="tab__count" aria-hidden="true">${countLabel(n)}</span></button>`;
   }
   function catList() {
     if (state.site.menu.length) return state.site.menu;
@@ -253,8 +259,8 @@
   }
   function renderMenus() {
     // 전체 → NEW(최근 3일) → 관리자에서 정한 카테고리
-    $("#cats").innerHTML = chip("tab", "전체", "전체", state.cat === "전체") + newTab() +
-      catList().map((c) => chip("tab", c, c, c === state.cat)).join("");
+    $("#cats").innerHTML = catTab("전체", state.all.length) + newTab() +
+      catList().map((c) => catTab(c, state.all.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0))).join("");
     // 2줄: 현재 고른 장르·국가에 영상이 있는 채널만, 영상 많은 순
     const counts = new Map();
     for (const v of state.all) if (inCat(v) && v.channel) counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
