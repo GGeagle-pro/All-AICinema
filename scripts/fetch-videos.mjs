@@ -87,6 +87,8 @@ async function main() {
     const label = clean(ch?.name || ch?.url || ch?.handle || ch?.id, 80);
     try {
       const cid = await resolveChannel(ch);
+      // 서로 다른 두 채널 주소가 같은 채널로 연결되면, 뒤에 있는 것은 이름이 덮어써지지 않게 건너뜀
+      if (tracked.has(cid)) { console.warn(`✗ 채널 ${label}: 이미 등록된 '${tracked.get(cid).name}'과 같은 채널(${cid}) – 건너뜀`); continue; }
       const vids = parseFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${cid}`), ch, cid);
       for (const v of vids) map.set(v.id, { ...map.get(v.id), ...v }); // 조회수 등 갱신
       tracked.set(cid, { name: clean(ch.name, 80) || vids[0]?.channel || "", categories: catsOf(ch) });

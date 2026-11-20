@@ -74,9 +74,29 @@ export async function resolveChannel(ch) {
   if (!ref || ref.type !== "channel") throw new Error("채널 링크 형식이 올바르지 않음");
   if (ref.id) return ref.id;
   const html = await get("https://www.youtube.com" + ref.path.split("/").map((p) => encodeURIComponent(p).replace(/^%40/, "@")).join("/"));
-  const m = html.match(/"(?:externalId|channelId)":"(UC[\w-]{22})"/) || html.match(/channel\/(UC[\w-]{22})/);
-  if (!m) throw new Error("채널을 찾지 못함");
-  return m[1];
+  return channelIdFromPage(html);
+}
+
+// 채널 페이지에서 "그 채널 자신의" ID만 찾기.
+// 페이지 안에는 추천 채널·관련 채널·댓글 작성자 등 다른 채널의 "channelId"도 많이 들어 있어서,
+// 처음 보이는 channelId를 쓰면 엉뚱한 채널로 연결될 수 있다. (예: 웨이브트리 ↔ 씨네트릭스 뒤바뀜)
+// → 페이지 자신을 가리키는 표시(canonical 주소, 메타데이터)만 보고, 서로 다르면 실패 처리한다.
+const OWN_ID_PATTERNS = [
+  /<link rel="canonical" href="https?:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+  /<meta property="og:url" content="https?:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
+  /<meta itemprop="(?:identifier|channelId)" content="(UC[\w-]{22})"/,
+  /"channelMetadataRenderer":\{[^{}]*?"externalId":"(UC[\w-]{22})"/,
+  /"externalId":"(UC[\w-]{22})"/,
+];
+export function channelIdFromPage(html) {
+  const found = new Set();
+  for (const re of OWN_ID_PATTERNS) {
+    const m = String(html).match(re);
+    if (m) found.add(m[1]);
+  }
+  if (found.size > 1) throw new Error(`채널 ID가 여러 개라 확정하지 못함 (${[...found].join(", ")})`);
+  if (!found.size) throw new Error("채널을 찾지 못함");
+  return [...found][0];
 }
 
 // 채널 이름 조회 (RSS 피드의 채널 제목)
@@ -121,7 +141,9 @@ export async function fetchVideo(id) {
     if (vc) views = Number(vc[1]);
     const ds = html.match(/"shortDescription":"((?:[^"\\]|\\.){0,5000})"/);
     if (ds) description = clean(jsonStr(ds[1]), 400);
-    const c = html.match(/"channelId":"(UC[\w-]{22})"/);
+    // 영상 자신의 채널만 (추천 영상의 채널 ID를 잘못 잡지 않도록 videoDetails / 메타 태그 우선)
+    const c = html.match(/<meta itemprop="channelId" content="(UC[\w-]{22})"/) ||
+              html.match(/"videoDetails":\{"videoId":"[\w-]{11}"[^{}]*?"channelId":"(UC[\w-]{22})"/);
     if (c) cid = c[1];
   } catch { /* 날짜·조회수는 없어도 추가는 진행 */ }
 
