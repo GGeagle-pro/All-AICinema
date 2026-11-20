@@ -2,11 +2,6 @@
   "_설명": "channels = 계속 자동 수집할 채널, videos = 하나씩 추가한 영상, exclude = 사이트에서 숨길 영상. 링크는 유튜브 주소를 그대로 붙여넣으면 됩니다. GitHub 이슈(채널·영상 추가 양식)로 추가하면 이 파일이 자동으로 수정됩니다.",
   "channels": [
     {
-      "url": "https://www.youtube.com/@titaniumknight",
-      "name": "씨네트릭스",
-      "category": "AI 영화"
-    },
-    {
       "url": "https://www.youtube.com/@Dejavurangers",
       "name": "데자부레인저",
       "category": "AI 드라마"
