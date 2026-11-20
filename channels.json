@@ -42,7 +42,16 @@
       ]
     }
   ],
-  "videos": [],
+  "videos": [
+    {
+      "url": "https://www.youtube.com/watch?v=C0xQApgVtR8",
+      "categories": [
+        "AI 영화",
+        "한국"
+      ],
+      "name": "씬나루 AI Studio"
+    }
+  ],
   "exclude": [],
   "_예시": {
     "videos": [
