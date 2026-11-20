@@ -51,10 +51,11 @@ RedirectMatch 404 /\.(?!well-known/)
   AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
 </IfModule>
 
-# HTTPS 강제 이동·HSTS 는 Cloudways "Enforce HTTPS" 와 Cloudflare 설정으로 켭니다 (README 참고)
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteCond %{HTTPS} off
   RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
+
+
