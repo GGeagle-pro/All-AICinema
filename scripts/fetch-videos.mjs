@@ -91,11 +91,23 @@ async function main() {
       const cid = await resolveChannel(ch);
       // 서로 다른 두 채널 주소가 같은 채널로 연결되면, 뒤에 있는 것은 이름이 덮어써지지 않게 건너뜀
       if (tracked.has(cid)) { console.warn(`✗ 채널 ${label}: 이미 등록된 '${tracked.get(cid).name}'과 같은 채널(${cid}) – 건너뜀`); continue; }
-      const all = parseFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${cid}`), ch, cid);
-      const vids = SKIP_SHORTS ? all.filter((v) => !v.short) : all;
+      let vids = null, src = "채널";
+      if (SKIP_SHORTS) {
+        // 유튜브가 채널마다 자동으로 만드는 "일반 영상만" 재생목록(UULF…): 쇼츠 없이 최근 일반 영상 15개
+        // (채널 전체 피드는 최근 업로드 15개라, 쇼츠를 많이 올리는 채널은 일반 영상이 거의 안 남음)
+        try {
+          const xml = await get(`https://www.youtube.com/feeds/videos.xml?playlist_id=UULF${cid.slice(2)}`, { allow404: true });
+          if (xml) { vids = parseFeed(xml, ch, cid).filter((v) => !v.short); src = "일반 영상 목록"; }
+        } catch { /* 아래 채널 피드로 대체 */ }
+      }
+      if (!vids?.length) {
+        const all = parseFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${cid}`), ch, cid);
+        vids = SKIP_SHORTS ? all.filter((v) => !v.short) : all;
+        src = "채널";
+      }
       for (const v of vids) map.set(v.id, { ...map.get(v.id), ...v }); // 조회수 등 갱신
       tracked.set(cid, { name: clean(ch.name, 80) || vids[0]?.channel || "", categories: catsOf(ch) });
-      console.log(`✓ 채널 ${label}: ${vids.length}개`);
+      console.log(`✓ 채널 ${label}: ${vids.length}개 (${src})`);
     } catch (err) {
       failed++;
       console.warn(`✗ 채널 ${label}: ${err.message}`);
