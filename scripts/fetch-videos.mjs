@@ -16,6 +16,7 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
+import { apiKey, listUploads, viewCounts } from "./youtube-api.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CHANNELS_FILE = resolve(ROOT, "channels.json");
@@ -27,8 +28,10 @@ const MAX_VIDEOS = 3000;        // 보관할 최대 영상 수 (직접 추가한
 const MAX_CHANNELS = 200;
 const MAX_MANUAL = 1000;
 const AVATAR_REFRESH_HOURS = 24; // 채널 프로필 사진은 하루 1번만 다시 확인
-const VIEWS_REFRESH_HOURS = 6;
-const SKIP_SHORTS = true;       // 채널 자동 수집에서 쇼츠(Shorts) 영상 제외 (직접 추가한 영상은 그대로 보관)  // 바뀐 게 조회수뿐이면 이 간격으로만 저장
+const VIEWS_REFRESH_HOURS = 6;  // 바뀐 게 조회수뿐이면 이 간격으로만 저장
+const SKIP_SHORTS = true;       // 채널 자동 수집에서 쇼츠(Shorts) 영상 제외 (직접 추가한 영상은 그대로 보관)
+const BACKFILL_MAX = 200;       // 공식 API 키가 있을 때 채널마다 가져올 예전 영상 최대 수
+const BACKFILL_HOURS = 24;      // 채널마다 하루 1번 전체 목록 다시 확인 (API 정책: 저장 데이터 주기적 갱신)
 
 // 채널/영상 설정의 카테고리 → 배열 (예전 단일 category 도 지원, 최대 10개)
 export const catsOf = (x) => {
@@ -114,6 +117,37 @@ async function main() {
     }
   }
 
+  // 1-2) 공식 API로 예전 영상까지 (RSS는 최근 15개뿐) – YOUTUBE_API_KEY 가 있을 때만, 채널마다 하루 1번
+  const backfilled = {};
+  let didBackfill = false;
+  if (apiKey()) {
+    for (const [cid, t] of tracked) {
+      const last = existing.backfilled?.[cid];
+      if (last && (Date.now() - new Date(last)) / 3600e3 < BACKFILL_HOURS) { backfilled[cid] = last; continue; }
+      try {
+        const list = await listUploads(cid, { max: BACKFILL_MAX, skipShorts: SKIP_SHORTS });
+        const views = await viewCounts(list.map((v) => v.id));
+        for (const v of list) {
+          const prev = map.get(v.id);
+          map.set(v.id, { ...prev, ...v, channel: t.name || v.channel, categories: t.categories,
+            views: views.get(v.id) ?? prev?.views ?? 0, description: v.description || prev?.description || "" });
+        }
+        // 채널에서 삭제·비공개된 영상 정리 (가져온 범위 안에서만)
+        if (list.length) {
+          const ids = new Set(list.map((v) => v.id));
+          const oldest = Math.min(...list.map((v) => new Date(v.published)));
+          for (const [id, v] of map) if (v.cid === cid && !v.manual && !ids.has(id) && new Date(v.published) >= oldest) map.delete(id);
+        }
+        backfilled[cid] = new Date().toISOString();
+        didBackfill = true;
+        console.log(`✓ API ${t.name || cid}: ${list.length}개`);
+      } catch (err) {
+        if (last) backfilled[cid] = last;
+        console.warn(`✗ API ${t.name || cid}: ${err.message}`);
+      }
+    }
+  }
+
   // 2) 직접 추가한 영상
   const manualIds = new Set();
   for (const m of manual) {
@@ -180,7 +214,7 @@ async function main() {
   for (const cid of Object.keys(avatars)) if (!liveCids.has(cid)) delete avatars[cid];
   const index = { ...buildIndex(videos), avatars };
   const age = existing.generatedAt ? (Date.now() - new Date(existing.generatedAt)) / 3600e3 : Infinity;
-  if (signature(index) === signature({ ...buildIndex(existing.videos), avatars: existing.avatars || {} }) && age < VIEWS_REFRESH_HOURS && !refreshAll) {
+  if (signature(index) === signature({ ...buildIndex(existing.videos), avatars: existing.avatars || {} }) && age < VIEWS_REFRESH_HOURS && !refreshAll && !didBackfill) {
     console.log(`변경 없음 – 저장 생략 (마지막 저장 ${age.toFixed(1)}시간 전)`);
     return;
   }
@@ -193,7 +227,7 @@ async function main() {
   // 임시 파일에 쓴 뒤 교체 → 중간에 실패해도 반쯤 쓰인 파일이 공개되지 않음
   const save = async (file, obj) => { await writeFile(file + ".tmp", JSON.stringify(obj)); await rename(file + ".tmp", file); };
   await save(DESC_FILE, desc);
-  await save(OUT_FILE, { v: 2, generatedAt, avatarsCheckedAt, ...index });
+  await save(OUT_FILE, { v: 2, generatedAt, avatarsCheckedAt, backfilled, ...index });
   await save(META_FILE, meta);
   console.log(`완료: 총 ${videos.length}개 (신규 ${added}개, 삭제 ${[...prevIds].filter((id) => !map.has(id)).length}개)`);
 }
@@ -235,7 +269,9 @@ async function readExisting() {
   }));
   const avatars = Object.fromEntries(Object.entries(raw.avatars && typeof raw.avatars === "object" ? raw.avatars : {})
     .filter(([k, u]) => CHANNEL_ID.test(k) && isAvatarUrl(u)));
-  return { generatedAt: raw.generatedAt, avatarsCheckedAt: raw.avatarsCheckedAt, avatars, videos, manualIds: new Set(videos.filter((v) => v.manual).map((v) => v.id)) };
+  const backfilled = Object.fromEntries(Object.entries(raw.backfilled && typeof raw.backfilled === "object" ? raw.backfilled : {})
+    .filter(([k, t]) => CHANNEL_ID.test(k) && Number.isFinite(Date.parse(t))));
+  return { generatedAt: raw.generatedAt, avatarsCheckedAt: raw.avatarsCheckedAt, backfilled, avatars, videos, manualIds: new Set(videos.filter((v) => v.manual).map((v) => v.id)) };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
