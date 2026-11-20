@@ -63,8 +63,8 @@ async function main() {
         }
         const title = await channelTitle(id);
         if (title === null) { lines.push(`❌ ${shown} – 채널 영상 목록을 열 수 없어요.`); continue; }
-        const entry = { id, name: name || title || id, category, url: `https://www.youtube.com/channel/${id}` };
-        if (idx >= 0) { config.channels[idx] = { ...config.channels[idx], ...entry }; lines.push(`🔄 이미 등록된 채널 → 카테고리·이름 갱신: **${md(entry.name)}** (${md(category)})`); }
+        const entry = { id, name: name || title || id, categories: [category], url: `https://www.youtube.com/channel/${id}` };
+        if (idx >= 0) { const { category: _old, ...prevCh } = config.channels[idx]; config.channels[idx] = { ...prevCh, ...entry }; lines.push(`🔄 이미 등록된 채널 → 카테고리·이름 갱신: **${md(entry.name)}** (${md(category)})`); }
         else { config.channels.push(entry); lines.push(`✅ 채널 추가: **${md(entry.name)}** (${md(category)}) – 앞으로 새 영상이 자동으로 올라와요`); }
         changed++;
       } else {
@@ -81,7 +81,7 @@ async function main() {
         if (v.error) { lines.push(`❌ ${shown} – ${v.error}`); continue; }
         config.exclude = config.exclude.filter((x) => !same(x));
         const idx = config.videos.findIndex(same);
-        const entry = { url, category, ...(name ? { name } : {}) };
+        const entry = { url, categories: [category], ...(name ? { name } : {}) };
         if (idx >= 0) config.videos[idx] = entry; else config.videos.push(entry);
         changed++; lines.push(`✅ 영상 ${idx >= 0 ? "갱신" : "추가"}: **${md(v.title)}** – ${md(v.channel)} (${md(category)})`);
       }

@@ -3,7 +3,7 @@
 
 const TIMEOUT_MS = 15000;           // 요청당 최대 대기 시간
 const MAX_BYTES = 5 * 1024 * 1024;  // 응답 최대 크기 5MB
-const UA = { "User-Agent": "Mozilla/5.0 (compatible; AIScreenArchiveBot/1.0)", "Accept-Language": "ko-KR,ko;q=0.9" };
+const UA = { "User-Agent": "Mozilla/5.0 (compatible; AllAICinemaBot/1.0)", "Accept-Language": "ko-KR,ko;q=0.9" };
 
 export const VIDEO_ID = /^[\w-]{11}$/;
 export const CHANNEL_ID = /^UC[\w-]{22}$/;

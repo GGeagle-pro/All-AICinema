@@ -1,27 +1,42 @@
-/* AI Screen Archive – 프런트엔드 */
+/* All AI-Cinema – 프런트엔드
+ *
+ * 데이터
+ *  - data/videos.json : 영상 목록 (GitHub Actions 가 자동 생성)
+ *  - data/site.json   : 메뉴·광고 배너·애드센스 설정 (관리자 페이지에서 편집)
+ *
+ * 저작권·정책 준수
+ *  - 영상은 YouTube 공식 임베드 플레이어로만 재생 (다운로드·가공 없음, 조회수는 원 채널에 반영)
+ *  - 플레이어에 원본 영상·채널 링크 표시
+ *  - 자체 배너에는 "광고" 표시, 외부 링크는 rel="sponsored noopener noreferrer"
+ *  - 애드센스 고정(sticky) 광고는 정책상 데스크톱에서 한 개(오른쪽 세로 배너)만 사용
+ *    상·하단 고정(앵커)과 전면(비네트) 광고는 애드센스 '자동 광고'에서 켭니다
+ */
 (() => {
   "use strict";
 
   // ===== 설정 =====
-  const ADSENSE = {
-    client: "ca-pub-8096684162493748", // 본인 게시자 ID
-    feedSlot: "3333333333",            // 목록 사이 인피드 광고 슬롯
-    playerSlot: "4444444444",          // 플레이어 아래 광고 슬롯
-    feedEvery: 12,                     // 카드 N개마다 광고 1개
-  };
   const PAGE_SIZE = 24;
+  const FEED_EVERY = 12;              // 카드 N개마다 목록 사이 광고 1개
   const REFRESH_MS = 10 * 60 * 1000;  // 열려 있는 페이지에서 10분마다 새 영상 확인
   const NEW_HOURS = 48;               // NEW 배지 기준
+  const RAIL_MIN_WIDTH = 1480;        // 이 너비 이상(데스크톱)에서만 양옆 세로 배너 표시
+  const SITE_NAME_DEFAULT = "All AI-Cinema";
 
   // ===== 상태 =====
   const $ = (s) => document.querySelector(s);
-  const state = { all: [], list: [], shown: 0, cat: "전체", q: "", sort: "new", current: -1, latest: null };
+  const state = {
+    all: [], list: [], shown: 0,
+    cat: "전체", ch: "", q: "", sort: "new",
+    current: -1, latest: null, cids: [],
+    site: { siteName: SITE_NAME_DEFAULT, menu: [], adsense: { client: "", slots: {} }, banners: [] },
+  };
   let ytApi, ytPlayer;
 
   // ===== 유틸 =====
   // ── 보안: 외부(유튜브)에서 온 문자열은 항상 이 함수로 이스케이프한 뒤에만 HTML에 넣습니다
   const esc = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const VALID_ID = /^[\w-]{11}$/;                        // 유튜브 영상 ID 형식만 허용
+  const CHANNEL_ID = /^UC[\w-]{22}$/;
   const THUMB_Q = new Set(["mqdefault", "hqdefault", "maxresdefault"]);
   const thumb = (id, q = "hqdefault") =>
     VALID_ID.test(id) && THUMB_Q.has(q) ? `https://i.ytimg.com/vi/${id}/${q}.jpg` : "";
@@ -36,35 +51,82 @@
     return Math.floor(s / 31536000) + "년 전";
   };
   const isNew = (iso) => Date.now() - new Date(iso) < NEW_HOURS * 3600e3;
-  const pushAd = (el) => {
-    if (!AD_OK || !el) return;
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch { el.remove(); }
+  const str = (x, max) => (typeof x === "string" ? x : "").replace(/[\u0000-\u001f\u007f‪-‮⁦-⁩]/g, " ").trim().slice(0, max);
+  const safeLink = (u) => {
+    try { const x = new URL(u); return x.protocol === "https:" || x.protocol === "http:" ? x.href : ""; } catch { return ""; }
   };
-  const AD_OK = /^ca-pub-\d{16}$/.test(ADSENSE.client);   // 게시자 ID를 넣기 전에는 광고 요청 안 함
-  const adIns = (slot, cls) => {
-    const box = document.createElement("div");
-    box.className = "ad " + cls;
-    if (!AD_OK || !/^\d{6,12}$/.test(slot)) return box;
+  const SAFE_IMG = /^uploads\/[\w.-]{1,80}\.(webp|png|jpe?g|gif)$/i;   // 관리자에서 올린 이미지 경로만 허용
+  const siteName = () => state.site.siteName;
+
+  // ===== 애드센스 =====
+  const adClient = () => (/^ca-pub-\d{16}$/.test(state.site.adsense.client) ? state.site.adsense.client : "");
+  // 광고 단위 번호: 숫자 8~12자리, 1111111111 같은 예시 번호는 무시
+  const adSlot = (key) => {
+    const s = String(state.site.adsense.slots?.[key] || "");
+    return /^\d{8,12}$/.test(s) && !/^(\d)\1+$/.test(s) ? s : "";
+  };
+  function adIns(key, { fixed } = {}) {
+    const client = adClient(), slot = adSlot(key);
+    if (!client || !slot) return null;
     const ins = document.createElement("ins");
     ins.className = "adsbygoogle";
-    ins.style.display = "block";
-    Object.assign(ins.dataset, { adClient: ADSENSE.client, adSlot: slot, adFormat: "auto", fullWidthResponsive: "true" });
-    box.appendChild(ins);
-    return box;
-  };
+    if (fixed) {
+      ins.style.cssText = `display:inline-block;width:${fixed[0]}px;height:${fixed[1]}px`;
+    } else {
+      ins.style.display = "block";
+      ins.dataset.adFormat = "auto";
+      ins.dataset.fullWidthResponsive = "true";
+    }
+    ins.dataset.adClient = client;
+    ins.dataset.adSlot = slot;
+    return ins;
+  }
+  const pushAd = (ins) => { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch { ins?.remove(); } };
+  function placeAd(boxSel, key, opts) {
+    const box = typeof boxSel === "string" ? $(boxSel) : boxSel;
+    if (!box) return;
+    box.textContent = "";
+    const ins = adIns(key, opts);
+    box.hidden = !ins;
+    if (ins) { box.appendChild(ins); pushAd(ins); }
+  }
+  function renderAds() {
+    placeAd("#adTop", "top");
+    placeAd("#adBottom", "bottom");
+    // 양옆 세로 배너: 데스크톱에서만. 정책상 고정(sticky)은 오른쪽 하나만, 왼쪽은 페이지와 함께 스크롤
+    const wide = matchMedia(`(min-width:${RAIL_MIN_WIDTH}px)`).matches;
+    document.body.classList.toggle("has-rails", wide && !!(adSlot("left") || adSlot("right")));
+    if (wide) { placeAd("#railL", "left", { fixed: [160, 600] }); placeAd("#railR", "right", { fixed: [160, 600] }); }
+  }
+
+  // ===== 자체 광고 배너 (관리자에서 편집, 3칸) =====
+  function renderPromo() {
+    const box = $("#promo");
+    const items = (state.site.banners || []).slice(0, 3)
+      .map((b) => ({ img: SAFE_IMG.test(b?.image || "") ? b.image : "", link: safeLink(b?.link || ""), alt: str(b?.alt, 80) }))
+      .filter((b) => b.img);
+    box.hidden = !items.length;
+    box.style.setProperty("--cols", String(items.length || 1));
+    box.innerHTML = items.map((b) => {
+      const img = `<img src="${esc(b.img)}" alt="${esc(b.alt || "광고 배너")}" loading="lazy" decoding="async" /><span class="promo__label">광고</span>`;
+      return b.link
+        ? `<a class="promo__item" href="${esc(b.link)}" target="_blank" rel="sponsored noopener noreferrer">${img}</a>`
+        : `<div class="promo__item">${img}</div>`;
+    }).join("");
+  }
 
   // ===== 데이터 =====
-  // 압축 형식(v2)과 예전 형식 모두 읽기
   // ── 보안: 데이터 파일 내용도 믿지 않고 형식·길이를 검사해서 정상 항목만 사용
-  const str = (x, max) => (typeof x === "string" ? x : "").replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " ").slice(0, max);
   function clean(v) {
     if (!v || !VALID_ID.test(v.id)) return null;
     const t = Date.parse(v.published);
+    const cats = (Array.isArray(v.categories) ? v.categories : [v.category]).map((c) => str(c, 30)).filter(Boolean);
     return {
       id: v.id,
       title: str(v.title, 200) || "(제목 없음)",
       channel: str(v.channel, 80),
-      category: str(v.category, 30) || "기타",
+      cid: CHANNEL_ID.test(v.cid || "") ? v.cid : "",
+      categories: cats.length ? [...new Set(cats)] : ["기타"],
       published: new Date(Number.isFinite(t) ? t : 0).toISOString(),
       views: Number.isSafeInteger(v.views) && v.views > 0 ? v.views : 0,
       short: v.short === true,
@@ -75,11 +137,31 @@
     if (!data || typeof data !== "object") return [];
     const raw = Array.isArray(data.videos) ? data.videos
       : Array.isArray(data.items) ? data.items.map((r) => Array.isArray(r) ? {
-          id: r[0], title: r[1], channel: data.channels?.[r[2]], category: data.cats?.[r[3]],
+          id: r[0], title: r[1], channel: data.channels?.[r[2]],
+          categories: (Array.isArray(r[3]) ? r[3] : [r[3]]).map((i) => data.cats?.[i]),
           published: new Date(Number(r[4]) * 1000).toISOString(), views: r[5], short: r[6] === 1,
+          cid: data.cids?.[r[7]],
         } : null) : [];
     const seen = new Set();
     return raw.slice(0, 5000).map(clean).filter((v) => v && !seen.has(v.id) && seen.add(v.id));
+  }
+
+  async function loadSite() {
+    try {
+      const r = await fetch("data/site.json", { cache: "no-cache" });
+      if (!r.ok) return;
+      const s = await r.json();
+      if (!s || typeof s !== "object") return;
+      state.site = {
+        siteName: str(s.siteName, 40) || SITE_NAME_DEFAULT,
+        menu: (Array.isArray(s.menu) ? s.menu : []).map((m) => str(m, 30)).filter(Boolean).slice(0, 30),
+        adsense: {
+          client: str(s.adsense?.client, 30),
+          slots: Object.fromEntries(Object.entries(s.adsense?.slots || {}).map(([k, v]) => [str(k, 20), str(String(v ?? ""), 12)])),
+        },
+        banners: Array.isArray(s.banners) ? s.banners.slice(0, 3) : [],
+      };
+    } catch {}
   }
 
   // 설명은 플레이어를 처음 열 때 한 번만 받음 (목록 로딩을 가볍게)
@@ -106,52 +188,60 @@
     if (!res.ok) throw new Error("데이터를 불러오지 못했습니다");
     const data = await res.json();
     const vids = parseIndex(data);
+    state.latest = data.generatedAt;
+    $("#meta").textContent = data.generatedAt ? `업데이트 ${ago(data.generatedAt)}` : "";
     if (initial) {
       state.all = vids;
-      state.latest = data.generatedAt;
-      renderTabs();
+      renderMenus();
       apply();
-      $("#meta").textContent = data.generatedAt ? `업데이트 ${ago(data.generatedAt)}` : "";
-    } else {
-      state.latest = data.generatedAt;
-      const known = new Set(state.all.map((v) => v.id));
-      const fresh = vids.filter((v) => !known.has(v.id));
-      if (fresh.length) {
-        const t = $("#toast");
-        t.textContent = `새 영상 ${fresh.length}개 ↑`;
-        t.hidden = false;
-        t.onclick = () => { t.hidden = true; state.all = vids; renderTabs(); apply(); scrollTo({ top: 0, behavior: "smooth" }); };
-      }
-      $("#meta").textContent = data.generatedAt ? `업데이트 ${ago(data.generatedAt)}` : "";
+      return;
+    }
+    const known = new Set(state.all.map((v) => v.id));
+    const fresh = vids.filter((v) => !known.has(v.id));
+    if (fresh.length) {
+      const t = $("#toast");
+      t.textContent = `새 영상 ${fresh.length}개 ↑`;
+      t.hidden = false;
+      t.onclick = () => { t.hidden = true; state.all = vids; renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" }); };
     }
   }
 
-  // ===== 탭 / 필터 =====
-  function renderTabs() {
-    const cats = ["전체", ...new Set(state.all.map((v) => v.category).filter(Boolean))];
-    const channels = [...new Set(state.all.map((v) => v.channel).filter(Boolean))];
-    const items = [...cats.map((c) => ({ key: c, label: c })), ...(channels.length > 1 ? channels.map((c) => ({ key: "ch:" + c, label: "📺 " + c })) : [])];
-    $("#tabs").innerHTML = items.map((t) =>
-      `<button class="tab" data-cat="${esc(t.key)}" aria-pressed="${t.key === state.cat}">${esc(t.label)}</button>`).join("");
+  // ===== 메뉴 (1줄: 장르·국가, 2줄: 유튜브 채널) =====
+  const inCat = (v, cat = state.cat) => cat === "전체" || v.categories.includes(cat);
+  function catList() {
+    if (state.site.menu.length) return state.site.menu;
+    return [...new Set(state.all.flatMap((v) => v.categories))];   // 메뉴를 정하지 않았으면 영상의 카테고리로 자동 구성
+  }
+  function chip(cls, key, label, pressed, extra = "") {
+    return `<button type="button" class="${cls}" data-key="${esc(key)}" aria-pressed="${pressed}">${extra}${esc(label)}</button>`;
+  }
+  function renderMenus() {
+    $("#cats").innerHTML = ["전체", ...catList()].map((c) => chip("tab", c, c, c === state.cat)).join("");
+    // 2줄: 현재 고른 장르·국가에 영상이 있는 채널만, 영상 많은 순
+    const counts = new Map();
+    for (const v of state.all) if (inCat(v) && v.channel) counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
+    const chs = [...counts].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+    if (state.ch && !counts.has(state.ch)) state.ch = "";
+    $("#chs").innerHTML = chip("chtab", "", "모든 채널", !state.ch) +
+      chs.map((c) => chip("chtab", c, c, c === state.ch, `<span class="chtab__av" aria-hidden="true">${esc(c.trim()[0] || "?")}</span>`)).join("");
+    $("#chs").hidden = !chs.length;
   }
 
   function apply() {
     const q = state.q.trim().toLowerCase();
-    let list = state.all.filter((v) => {
-      if (state.cat.startsWith("ch:")) { if (v.channel !== state.cat.slice(3)) return false; }
-      else if (state.cat !== "전체" && v.category !== state.cat) return false;
-      return !q || (v.title + " " + v.channel).toLowerCase().includes(q);
-    });
+    let list = state.all.filter((v) => inCat(v) && (!state.ch || v.channel === state.ch) &&
+      (!q || (v.title + " " + v.channel).toLowerCase().includes(q)));
     list = state.sort === "views" ? list.sort((a, b) => b.views - a.views)
                                   : list.sort((a, b) => new Date(b.published) - new Date(a.published));
     state.list = list;
     state.shown = 0;
     $("#grid").innerHTML = "";
-    $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : state.cat === "전체" ? "최신 영상" : state.cat.replace(/^ch:/, "");
+    const where = [state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
+    $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : where || "최신 영상";
     renderHero();
     const empty = $("#empty");
     empty.hidden = list.length > 0;
-    empty.textContent = state.all.length ? "조건에 맞는 영상이 없습니다." : "아직 수집된 영상이 없습니다. channels.json 을 설정한 뒤 업데이트를 실행하세요.";
+    empty.textContent = state.all.length ? "이 메뉴에는 아직 영상이 없어요." : "아직 수집된 영상이 없습니다.";
     more();
   }
 
@@ -192,12 +282,15 @@
     if (start >= end) return;
     const frag = document.createDocumentFragment();
     const tmp = document.createElement("div");
+    const newAds = [];
     for (let i = start; i < end; i++) {
       tmp.innerHTML = card(state.list[i], i);
       frag.appendChild(tmp.firstElementChild);
-      if (AD_OK && (i + 1) % ADSENSE.feedEvery === 0 && i + 1 < state.list.length) frag.appendChild(adIns(ADSENSE.feedSlot, "ad--feed"));
+      if ((i + 1) % FEED_EVERY === 0 && i + 1 < state.list.length) {
+        const ins = adIns("feed");
+        if (ins) { const box = document.createElement("div"); box.className = "ad ad--feed"; box.appendChild(ins); frag.appendChild(box); newAds.push(ins); }
+      }
     }
-    const newAds = [...frag.querySelectorAll(".adsbygoogle")];
     grid.appendChild(frag);
     newAds.forEach(pushAd);
     state.shown = end;
@@ -221,7 +314,7 @@
     ytPlayer = new YT.Player("yt", {
       host: "https://www.youtube-nocookie.com",
       videoId: v.id,
-      playerVars: { autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1 },
+      playerVars: { autoplay: 1, playsinline: 1, rel: 0 },
       events: {
         onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && $("#pAuto").checked) step(1); },
         onError: () => { if ($("#pAuto").checked) setTimeout(() => step(1), 1500); },
@@ -241,6 +334,11 @@
     $("#pTitle").textContent = v.title;
     $("#pChannel").textContent = v.channel;
     $("#pMeta").textContent = [v.views && "조회수 " + fmtViews(v.views), ago(v.published)].filter(Boolean).join(" · ");
+    // 원본 영상·채널 링크 (저작자 표시)
+    $("#pYoutube").href = `https://www.youtube.com/watch?v=${v.id}`;
+    const chLink = $("#pChannelLink");
+    chLink.hidden = !v.cid;
+    if (v.cid) chLink.href = `https://www.youtube.com/channel/${v.cid}`;
     $("#pDesc").textContent = v.description || "";
     $("#pDesc").hidden = !v.description;
     if (v.description === undefined) getDesc().then((d) => {
@@ -249,7 +347,7 @@
     });
     $("#pPrev").disabled = i === 0;
     $("#pNext").disabled = i >= state.list.length - 1;
-    document.title = `${v.title} – AI Screen Archive`;
+    document.title = `${v.title} – ${siteName()}`;
 
     // 다음 영상 목록
     const next = state.list.slice(i + 1, i + 21);
@@ -258,10 +356,7 @@
        <div><b>${esc(n.title)}</b><span>${esc(n.channel)} · ${ago(n.published)}</span></div></li>`).join("");
 
     // 플레이어 아래 광고 (영상 위를 가리지 않도록 정보 영역 아래에 배치)
-    const adBox = $("#playerAd");
-    if (adBox) adBox.textContent = "";
-    const ins = adIns(ADSENSE.playerSlot, "").firstElementChild;
-    if (ins && adBox) { adBox.appendChild(ins); pushAd(ins); }
+    placeAd("#playerAd", "player");
 
     $(".player__main").scrollTop = 0;
     if (innerWidth <= 1100) $(".player__panel").scrollTop = 0;
@@ -281,7 +376,7 @@
     p.hidden = true;
     document.body.classList.remove("locked");
     try { ytPlayer?.stopVideo(); } catch {}
-    document.title = "AI Screen Archive – AI 영화·드라마·단편 모아보기";
+    document.title = `${siteName()} – AI 영화·드라마·단편 모아보기`;
     if (!fromPop) history.state?.v ? history.back() : history.replaceState(null, "", location.pathname);
     const c = document.querySelector(`.card[data-i="${state.current}"]`);
     c?.focus({ preventScroll: true });
@@ -292,25 +387,70 @@
     if (i >= 0 && i < state.list.length) openPlayer(i, { push: false });
   };
 
+  // ===== 모바일: 아래로 스크롤하면 헤더 숨김, 위로 올리면 다시 표시 =====
+  function bindHeaderAutoHide() {
+    const bar = $("#topbar");
+    const mobile = matchMedia("(max-width:760px)");
+    let lastY = scrollY, ticking = false;
+    addEventListener("scroll", () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = scrollY;
+        const hide = mobile.matches && y > 160 && y > lastY && !bar.classList.contains("search-open");
+        bar.classList.toggle("topbar--hidden", hide);
+        lastY = y;
+        ticking = false;
+      });
+    }, { passive: true });
+  }
+
+  // 헤더 실제 높이를 CSS 변수(--hdr)로 → 오른쪽 고정 배너·알림 위치 계산
+  function trackHeaderHeight() {
+    const bar = $("#topbar");
+    const set = () => document.documentElement.style.setProperty("--hdr", bar.offsetHeight + "px");
+    set();
+    if ("ResizeObserver" in window) new ResizeObserver(set).observe(bar);
+  }
+
   // ===== 이벤트 =====
   function bind() {
+    trackHeaderHeight();
     $("#grid").addEventListener("click", (e) => {
       const c = e.target.closest(".card");
       if (!c || e.metaKey || e.ctrlKey || e.shiftKey) return; // 새 탭 열기는 허용
       e.preventDefault();
       openPlayer(+c.dataset.i);
     });
-    $("#tabs").addEventListener("click", (e) => {
+    const pick = (row, t) => {
+      row.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === t)));
+      t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    };
+    $("#cats").addEventListener("click", (e) => {
       const t = e.target.closest(".tab");
       if (!t) return;
-      state.cat = t.dataset.cat;
-      document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-pressed", b === t));
-      t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+      state.cat = t.dataset.key;
+      pick($("#cats"), t);
+      renderMenus();
       apply();
     });
-    $(".search").addEventListener("submit", (e) => e.preventDefault());
+    $("#chs").addEventListener("click", (e) => {
+      const t = e.target.closest(".chtab");
+      if (!t) return;
+      state.ch = t.dataset.key;
+      pick($("#chs"), t);
+      apply();
+    });
+    $(".search").addEventListener("submit", (e) => { e.preventDefault(); $("#q").blur(); });
     let qt;
     $("#q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; apply(); }, 200); });
+    $("#searchBtn").addEventListener("click", () => {
+      const bar = $("#topbar");
+      const open = !bar.classList.contains("search-open");
+      bar.classList.toggle("search-open", open);
+      $("#searchBtn").setAttribute("aria-expanded", String(open));
+      if (open) $("#q").focus();
+    });
     $("#sort").addEventListener("change", (e) => { state.sort = e.target.value; apply(); });
 
     $("#player").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closePlayer(); });
@@ -320,7 +460,11 @@
     $("#pShare").onclick = async () => {
       const v = state.list[state.current];
       const url = location.origin + location.pathname + "?v=" + v.id;
-      try { navigator.share ? await navigator.share({ title: v.title, url }) : (await navigator.clipboard.writeText(url), alert("링크를 복사했습니다")); } catch {}
+      const b = $("#pShare");
+      try {
+        if (navigator.share) await navigator.share({ title: v.title, url });
+        else { await navigator.clipboard.writeText(url); b.textContent = "링크 복사됨"; setTimeout(() => (b.textContent = "공유"), 1600); }
+      } catch {}
     };
     try { $("#pAuto").checked = localStorage.getItem("autoNext") !== "0"; } catch {}
     $("#pAuto").onchange = (e) => { try { localStorage.setItem("autoNext", e.target.checked ? "1" : "0"); } catch {} };
@@ -344,13 +488,14 @@
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && Date.now() - lastCheck > 60e3) { lastCheck = Date.now(); checkUpdate(); }
     });
+    bindHeaderAutoHide();
   }
 
   function openById(id, push) {
     if (!VALID_ID.test(id)) return;
     let i = state.list.findIndex((v) => v.id === id);
     if (i < 0) { // 목록에 없는 영상(공유 링크 등)도 재생
-      const v = state.all.find((x) => x.id === id) || { id, title: "", channel: "", published: new Date().toISOString() };
+      const v = state.all.find((x) => x.id === id) || { id, title: "", channel: "", cid: "", categories: [], published: new Date().toISOString() };
       state.list.unshift(v); i = 0;
     }
     openPlayer(i, { push });
@@ -361,18 +506,18 @@
     try { window.top.location = window.self.location.href; } catch { document.documentElement.hidden = true; return; }
   }
 
-  // index.html 에 직접 넣은 상단/하단 광고 활성화
-  if (AD_OK) document.querySelectorAll("ins.adsbygoogle").forEach(pushAd);
-  else document.querySelectorAll(".ad--top, .ad--bottom").forEach((el) => el.remove());
-
   // 로딩 중 스켈레톤
   $("#grid").innerHTML = Array.from({ length: 8 }, () =>
     '<div class="card skeleton"><div class="thumb"></div><div class="line" style="width:90%"></div><div class="line" style="width:55%"></div></div>').join("");
 
   bind();
-  load(true).then(() => {
+  loadSite().then(() => {
+    renderAds();
+    renderPromo();
+    return load(true);
+  }).then(() => {
     const id = new URLSearchParams(location.search).get("v");
-    if (id && /^[\w-]{11}$/.test(id)) {
+    if (id && VALID_ID.test(id)) {
       history.replaceState(null, "", location.pathname);
       openById(id, true);
     }

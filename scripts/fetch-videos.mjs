@@ -3,8 +3,9 @@
 // 실행: node scripts/fetch-videos.mjs
 //
 // channels.json
-//   channels : 계속 자동 수집할 채널  { "url"|"handle"|"id": …, "name"?, "category" }
-//   videos   : 하나씩 직접 추가한 영상 { "url": …, "category", "name"? }
+//   channels : 계속 자동 수집할 채널  { "url"|"handle"|"id": …, "name"?, "categories": ["AI 드라마","한국"] }
+//   videos   : 하나씩 직접 추가한 영상 { "url": …, "categories": [...], "name"? }
+//   (예전 형식 "category": "AI 영화" 도 그대로 읽습니다)
 //   exclude  : 사이트에서 숨길 영상 링크(또는 영상 ID)
 //
 // 보안 원칙
@@ -26,6 +27,13 @@ const MAX_VIDEOS = 3000;        // 보관할 최대 영상 수 (직접 추가한
 const MAX_CHANNELS = 200;
 const MAX_MANUAL = 1000;
 const VIEWS_REFRESH_HOURS = 6;  // 바뀐 게 조회수뿐이면 이 간격으로만 저장
+
+// 채널/영상 설정의 카테고리 → 배열 (예전 단일 category 도 지원, 최대 10개)
+export const catsOf = (x) => {
+  const raw = Array.isArray(x?.categories) ? x.categories : [x?.category];
+  const out = [...new Set(raw.map((c) => clean(c, 30)).filter(Boolean))].slice(0, 10);
+  return out.length ? out : ["기타"];
+};
 
 const tag = (xml, name) => {
   const m = xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`));
@@ -51,7 +59,7 @@ export function parseFeed(xml, ch, cid) {
       published: new Date(published).toISOString(),
       views: Number.isSafeInteger(views) && views > 0 ? views : 0,
       channel: clean(ch.name || tag(e, "name"), 80),
-      category: clean(ch.category, 30) || "기타",
+      categories: catsOf(ch),
       short: attr(e, "link", "href").includes("/shorts/"),
     };
   }).filter(Boolean);
@@ -71,7 +79,7 @@ async function main() {
   const existing = await readExisting();
   const map = new Map(existing.videos.map((v) => [v.id, v]));
   const prevIds = new Set(map.keys());
-  const tracked = new Map();   // 채널ID → { name, category }
+  const tracked = new Map();   // 채널ID → { name, categories }
   let failed = 0;              // 실패한 채널 수 (실패가 있으면 삭제 작업 보류)
 
   // 1) 채널 자동 수집
@@ -81,7 +89,7 @@ async function main() {
       const cid = await resolveChannel(ch);
       const vids = parseFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${cid}`), ch, cid);
       for (const v of vids) map.set(v.id, { ...map.get(v.id), ...v }); // 조회수 등 갱신
-      tracked.set(cid, { name: clean(ch.name, 80) || vids[0]?.channel || "", category: clean(ch.category, 30) || "기타" });
+      tracked.set(cid, { name: clean(ch.name, 80) || vids[0]?.channel || "", categories: catsOf(ch) });
       console.log(`✓ 채널 ${label}: ${vids.length}개`);
     } catch (err) {
       failed++;
@@ -96,16 +104,16 @@ async function main() {
     if (!ref) { console.warn("✗ 영상 링크 형식 오류:", clean(m?.url ?? m, 80)); continue; }
     if (exclude.has(ref.id)) continue;
     manualIds.add(ref.id);
-    const cat = clean(m.category, 30) || "기타";
+    const cats = catsOf(m);
     const prev = map.get(ref.id);
     if (prev) { // 이미 있는 영상: 카테고리·이름만 반영
-      map.set(ref.id, { ...prev, manual: true, category: cat, ...(m.name ? { channel: clean(m.name, 80) } : {}) });
+      map.set(ref.id, { ...prev, manual: true, categories: cats, ...(m.name ? { channel: clean(m.name, 80) } : {}) });
       continue;
     }
     try {
       const v = await fetchVideo(ref.id);
       if (v.error) { console.warn(`✗ 영상 ${ref.id}: ${v.error}`); continue; }
-      map.set(ref.id, { ...v, manual: true, short: ref.short, category: cat, channel: clean(m.name, 80) || v.channel });
+      map.set(ref.id, { ...v, manual: true, short: ref.short, categories: cats, channel: clean(m.name, 80) || v.channel });
       console.log(`✓ 영상 추가: ${v.title}`);
     } catch (err) {
       console.warn(`✗ 영상 ${ref.id}: ${err.message}`);
@@ -117,7 +125,7 @@ async function main() {
   for (const [id, v] of map) {
     v.manual = manualIds.has(id);
     const t = v.cid && tracked.get(v.cid);
-    if (t && !v.manual) { v.category = t.category; if (t.name) v.channel = t.name; }
+    if (t && !v.manual) { v.categories = t.categories; if (t.name) v.channel = t.name; }
     // channels.json 에서 지운 채널의 영상은 삭제 (이번 실행에 실패한 채널이 있으면 안전하게 보류)
     if (!failed && !v.manual && v.cid && !tracked.has(v.cid)) map.delete(id);
     // videos 목록에서 지운 영상(채널 수집 영상이 아닌 것)도 삭제
@@ -153,13 +161,13 @@ async function main() {
 // 압축 형식: 목록용 최소 정보를 배열로 저장 (첫 방문 시 1회 다운로드)
 function buildIndex(videos) {
   const channels = [...new Set(videos.map((v) => v.channel || ""))];
-  const cats = [...new Set(videos.map((v) => v.category || "기타"))];
+  const cats = [...new Set(videos.flatMap((v) => v.categories?.length ? v.categories : ["기타"]))];
   const cids = [...new Set(videos.map((v) => v.cid || ""))];
   return {
     channels, cats, cids,
-    fields: ["id", "title", "channel", "category", "published", "views", "short", "cid", "manual"],
+    fields: ["id", "title", "channel", "categories", "published", "views", "short", "cid", "manual"],
     items: videos.map((v) => [
-      v.id, v.title, channels.indexOf(v.channel || ""), cats.indexOf(v.category || "기타"),
+      v.id, v.title, channels.indexOf(v.channel || ""), (v.categories?.length ? v.categories : ["기타"]).map((c) => cats.indexOf(c)),
       Math.round(new Date(v.published) / 1000), v.views || 0, v.short ? 1 : 0,
       cids.indexOf(v.cid || ""), v.manual ? 1 : 0,
     ]),
@@ -173,13 +181,14 @@ async function readExisting() {
   let raw;
   try { raw = JSON.parse(await readFile(OUT_FILE, "utf8")); } catch { return { videos: [], manualIds: new Set() }; }
   if (Array.isArray(raw.videos)) {
-    return { ...raw, manualIds: new Set(), videos: raw.videos.filter((v) => v && VIDEO_ID.test(v.id)) };
+    return { ...raw, manualIds: new Set(), videos: raw.videos.filter((v) => v && VIDEO_ID.test(v.id)).map((v) => ({ ...v, categories: catsOf(v) })) };
   }
   let desc = {};
   try { desc = JSON.parse(await readFile(DESC_FILE, "utf8")); } catch {}
   const items = (Array.isArray(raw.items) ? raw.items : []).filter((r) => Array.isArray(r) && VIDEO_ID.test(r[0]));
   const videos = items.map(([id, title, ch, cat, pub, views, short, cid, manual]) => ({
-    id, title, channel: raw.channels?.[ch] || "", category: raw.cats?.[cat] || "기타",
+    id, title, channel: raw.channels?.[ch] || "",
+    categories: (Array.isArray(cat) ? cat : [cat]).map((i) => raw.cats?.[i]).filter(Boolean),
     published: new Date(pub * 1000).toISOString(), views, short: !!short,
     cid: CHANNEL_ID.test(raw.cids?.[cid] || "") ? raw.cids[cid] : null,
     manual: manual === 1, description: desc[id] || "",

@@ -1,4 +1,4 @@
-# AI Screen Archive – Cloudways 운영 가이드 (보안 강화판)
+# All AI-Cinema – Cloudways 운영 가이드 (보안 강화판)
 
 ```
 [내 PC / GitHub 웹에서 코드 수정] ──push──▶ [GitHub 저장소] ──자동 배포──▶ [Cloudways 서버 = 실제 사이트]
@@ -8,6 +8,24 @@
 
 - GitHub 저장소가 **원본**, Cloudways는 그 복사본을 보여주는 서버입니다.
 - 코드는 항상 GitHub에서 고치세요.
+
+## 🆕 2026-11 개편 요약
+- 사이트 이름: **All AI-Cinema**
+- **메뉴 2줄:** 1줄은 장르·국가(AI 드라마, AI 영화, 한국, 중국, 일본 …), 2줄은 유튜브 채널 이름(자동)
+  - 1줄 메뉴는 관리자 → **메뉴·배너**에서 추가·삭제·순서 변경
+  - 채널마다 여러 메뉴를 고를 수 있음(예: AI 드라마 + 한국) → 관리자 → **채널 관리**
+- **채널 추가:** 관리자 → 채널 관리에서 주소 붙여넣기 → 메뉴 선택 → "추가하고 바로 반영"
+  - 화면 위쪽에 저장 → 수집·배포 → 반영 완료 진행 상황이 표시돼요 (보통 1~3분)
+- **자체 광고 배너 3칸:** "지금 보기" 영역과 "최신 영상" 사이. 관리자 → 메뉴·배너에서 이미지·링크 편집
+  - 이미지는 브라우저에서 WebP로 다시 그려 올립니다(숨은 내용 제거). SVG는 받지 않아요
+  - 사이트에는 "광고" 표시, 링크에는 `rel="sponsored"`가 붙어요
+- **애드센스 광고 번호:** 관리자 → **광고 설정**에서 입력 (파일을 직접 고칠 필요 없음)
+  - 자리: 상단, 하단, 왼쪽 세로(데스크톱), 오른쪽 세로(데스크톱·고정), 목록 사이, 플레이어 아래
+  - 애드센스 정책상 직접 넣는 고정 광고는 데스크톱에서 하나만 허용 → 오른쪽 세로 배너만 고정
+  - **상·하단 고정(앵커) 광고와 전면(비네트) 광고**는 애드센스 → 광고 → 사이트 기준 → 자동 광고 → 오버레이 형식에서 켜기
+- **모바일:** 아래로 스크롤하면 헤더 숨김, 돋보기 버튼으로 검색, 메뉴·배너는 옆으로 밀어서 보기, 하단 고정 광고용 여백
+- **저작권:** 재생 화면에 "YouTube에서 보기", "채널 방문" 링크. 소개 페이지에 게시 중단 요청 안내
+- 설정 파일: `public/data/site.json` (메뉴·배너·애드센스), 배너 이미지: `public/uploads/`
 
 ## 폴더 구조
 
@@ -156,7 +174,7 @@ AllAI-Cinema/
 
 ### 방법 B. PC 브라우저 북마크 버튼 (원클릭)
 1. 브라우저 북마크바에서 **새 북마크**를 만듭니다.
-2. 이름은 "AI Screen Archive에 추가", URL에는 아래 한 줄을 붙여넣습니다. `아이디/저장소`는 본인 것으로 바꾸세요.
+2. 이름은 "All AI-Cinema에 추가", URL에는 아래 한 줄을 붙여넣습니다. `아이디/저장소`는 본인 것으로 바꾸세요.
 ```
 javascript:void(window.open('https://github.com/아이디/저장소/issues/new?template=add.yml&title='+encodeURIComponent('[추가] '+document.title)+'&links='+encodeURIComponent(location.href)))
 ```
@@ -204,7 +222,7 @@ GitHub 웹에서 `channels.json`을 열고 ✏️ 아이콘으로 수정한 뒤 
 1. GitHub 오른쪽 위 프로필 사진 → **Settings** → 왼쪽 맨 아래 **Developer settings**
 2. **Personal access tokens → Fine-grained tokens → Generate new token**
 3. 아래처럼 입력합니다.
-   - Token name: `AI Screen Archive 관리자`
+   - Token name: `All AI-Cinema 관리자`
    - Expiration: **90 days** (만료되면 같은 방법으로 새로 만들면 됩니다)
    - Repository access: **Only select repositories** → `AllAI-Cinema` 선택
    - Permissions → Repository permissions → **Contents: Read and write** (나머지는 건드리지 않음)

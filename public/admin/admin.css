@@ -9,7 +9,7 @@
 .adm-login h1{margin:0 0 8px;font-size:22px}
 .adm form{display:grid;gap:8px}
 .adm label{font-size:13px;font-weight:600;color:#d6d6e4}
-.adm input[type=text],.adm input[type=password],.adm input[type=search],.adm input:not([type]),.adm textarea,.adm select{
+.adm input[type=text],.adm input[type=password],.adm input[type=search],.adm input[type=url],.adm input:not([type]),.adm textarea,.adm select{
   width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;color:var(--text)}
 .adm input:focus,.adm textarea:focus,.adm select:focus{outline:2px solid var(--accent2);outline-offset:1px}
 .adm textarea{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
@@ -57,4 +57,94 @@
   .adm-item.no-check > .btn{grid-column:1/-1}
   .adm-item.no-thumb > .btn{grid-column:auto}
   .adm-row{grid-template-columns:1fr}
+}
+
+/* ───── 2024-11 개편: 채널 추가·반영 진행·메뉴·배너·광고 설정 ───── */
+.adm-top{position:sticky}
+.adm-tabs{padding:0 0 4px;margin:0 0 16px}
+.adm-busy{cursor:progress}
+.adm-label{font-size:13px;font-weight:600;color:#d6d6e4}
+.adm-inputrow{display:flex;gap:8px;align-items:center}
+.adm-inputrow input{flex:1;min-width:0}
+.adm-hint{margin:0;font-size:13px;min-height:1.4em;color:var(--muted)}
+.adm-hint.ok{color:#7ee2a8}
+.adm-hint.bad{color:#ff8fa8}
+.adm-big{min-height:48px;font-size:15px;padding:10px 22px}
+.adm-add h2{margin:0 0 4px;font-size:18px}
+.adm-add{margin-bottom:20px}
+
+/* 메뉴 선택 칩 */
+.adm-chips{display:flex;flex-wrap:wrap;gap:8px}
+.adm-chip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 14px;font-size:14px;cursor:pointer;min-height:38px}
+.adm-chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.adm-chip[aria-pressed="true"]::before{content:"✓ "}
+.adm-chip.stale{border-style:dashed;opacity:.75}
+.small-chips .adm-chip{padding:5px 12px;font-size:13px;min-height:34px}
+
+/* 저장 후 반영 진행 */
+.adm-pub{background:var(--bg2);border:1px solid var(--accent2);border-radius:12px;padding:12px 16px;margin:0 0 16px;font-size:14px}
+.adm-pub b{display:block;margin-bottom:6px}
+.adm-pub ol{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px}
+.adm-pub li{color:var(--muted)}
+.adm-pub li::before{content:"○ "}
+.adm-pub li.now{color:var(--text);font-weight:700}
+.adm-pub li.now::before{content:"◌ ";display:inline-block;animation:spin 1s linear infinite}
+.adm-pub li.ok{color:#7ee2a8}
+.adm-pub li.ok::before{content:"● "}
+.adm-pub p{margin:8px 0 0;color:var(--muted);font-size:13px}
+.adm-pub.done{border-color:#3fbf7f}
+.adm-pub.warn{border-color:#ff8fa8}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 채널 카드 */
+.adm-row-head{display:flex;align-items:center;justify-content:space-between}
+.adm-chcard{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
+.adm-chhead{display:flex;align-items:center;gap:10px;min-width:0}
+.adm-chhead .chtab__av{width:36px;height:36px;font-size:15px;flex:none}
+.adm-chinfo{min-width:0}
+.adm-chinfo b{display:block;font-size:15px;overflow-wrap:anywhere}
+.adm-chinfo .meta{font-size:12px;color:var(--muted)}
+.adm-chinfo a{color:var(--muted)}
+.adm-actions{display:flex;flex-wrap:wrap;gap:8px}
+
+/* 메뉴 편집 */
+.adm-menu{list-style:none;margin:8px 0 12px;padding:0;display:grid;gap:6px}
+.adm-menuitem{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 8px 6px 14px}
+.adm-menuname{font-weight:700;overflow-wrap:anywhere}
+.adm-menubtns{display:flex;gap:4px}
+.adm-menubtns .btn{min-height:34px;padding:4px 10px}
+#menuSave{margin-top:10px}
+
+/* 배너 편집 */
+.adm-banners{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.adm-banner{display:grid;gap:8px;align-content:start;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px}
+.adm-banner__head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.adm-banner__preview{aspect-ratio:16/7;border-radius:10px;overflow:hidden;background:var(--card);display:grid;place-items:center;border:1px dashed var(--line)}
+.adm-banner__preview img{width:100%;height:100%;object-fit:cover;display:block}
+.adm-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.adm-filebtn{display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.adm-file:focus-visible + input,.adm-filebtn:focus-within{outline:2px solid var(--accent2)}
+.pill.on{display:inline-block;background:var(--accent2);color:#fff;margin:0}
+
+/* 광고 설정 */
+.adm-adsform{display:grid;gap:8px}
+.adm-slots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:6px 0 4px}
+.adm-slot{display:grid;gap:4px}
+.adm-note ol{margin:8px 0;padding-left:20px;display:grid;gap:4px}
+.adm-note p{margin:6px 0}
+.adm-card + .adm-card{margin-top:16px}
+.adm code{background:var(--bg);padding:1px 6px;border-radius:6px;font-size:12px}
+
+@media (max-width:900px){
+  .adm-banners{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .adm{padding-top:12px}
+  .adm-card{padding:16px}
+  .adm-slots{grid-template-columns:1fr}
+  .adm-inputrow #pasteBtn{flex:none}
+  .adm-big{width:100%;justify-self:stretch}
+  .adm-head-right #who{display:none}
+  .adm-status{gap:4px 12px}
+  .adm-actions .btn{flex:1}
 }
