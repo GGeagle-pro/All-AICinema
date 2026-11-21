@@ -16,7 +16,8 @@
 
   // ===== 설정 =====
   const PAGE_SIZE = 24;
-  const FEED_EVERY = 12;              // 카드 N개마다 목록 사이 광고 1개
+  const FEED_EVERY_DEFAULT = 36;      // 카드 N개마다 목록 사이 광고 1개 (관리자 > 광고 설정에서 변경)
+  const feedEvery = () => { const n = +state.site.adsense?.feedEvery; return Number.isInteger(n) && n >= 6 && n <= 120 ? n : FEED_EVERY_DEFAULT; };
   const REFRESH_MS = 10 * 60 * 1000;  // 열려 있는 페이지에서 10분마다 새 영상 확인
   const NEW_HOURS = 72;               // NEW 배지·NEW 메뉴 기준: 최근 3일
   const BINGE_KEY = "__binge__";      // 1줄 메뉴의 "몰아보기" 탭 (제목으로 자동 분류: 몰아보기·모아보기·통합본·완결판…)
@@ -203,6 +204,7 @@
         adsense: {
           client: str(s.adsense?.client, 30),
           slots: Object.fromEntries(Object.entries(s.adsense?.slots || {}).map(([k, v]) => [str(k, 20), str(String(v ?? ""), 12)])),
+          feedEvery: +s.adsense?.feedEvery || 0,
         },
         banners: Array.isArray(s.banners) ? s.banners.slice(0, 3) : [],
         // 영상 여는 방식: "page" = 목록에서 누르면 실제로 영상 페이지로 이동(애드센스 전면 광고 기회),
@@ -470,7 +472,7 @@
     for (let i = start; i < end; i++) {
       tmp.innerHTML = card(state.list[i], i);
       frag.appendChild(tmp.firstElementChild);
-      if ((i + 1) % FEED_EVERY === 0 && i + 1 < state.list.length) {
+      if ((i + 1) % feedEvery() === 0 && i + 1 < state.list.length) {
         const ins = adIns("feed");
         if (ins) { const box = document.createElement("div"); box.className = "ad ad--feed"; box.appendChild(ins); frag.appendChild(box); newAds.push(ins); }
       }

@@ -31,7 +31,7 @@
     ["bottom", "하단 배너", "모든 화면 맨 아래 (가로형)"],
     ["left", "왼쪽 세로 배너", "PC 전용 · 160×600 · 비워두면 오른쪽 번호를 같이 사용"],
     ["right", "오른쪽 세로 배너", "PC 전용 · 160×600 · 비워두면 왼쪽 번호를 같이 사용"],
-    ["feed", "목록 사이", "영상 12개마다"],
+    ["feed", "목록 사이", "아래 '목록 사이 광고 간격'마다 1개 (반응형)"],
     ["player", "플레이어 아래", "영상 재생 화면"],
   ];
 
@@ -608,6 +608,13 @@
         el("span", { class: "muted small", text: desc }),
       ));
     }
+    // 목록 사이 광고 간격 (영상 N개마다 1개)
+    const every = [12, 24, 36, 48, 60].includes(+a.feedEvery) ? +a.feedEvery : 36;
+    const sel = el("select", { id: "feedEvery" }, ...[12, 24, 36, 48, 60].map((n) => el("option", { value: String(n), text: `영상 ${n}개마다` })));
+    sel.value = String(every);
+    box.append(el("div", { class: "adm-slot" },
+      el("label", { for: "feedEvery", text: "목록 사이 광고 간격" }), sel,
+      el("span", { class: "muted small", text: "간격이 넓을수록 광고 수가 줄어 화면이 깔끔해져요" })));
   }
 
   // 영상 여는 방식 (page: 실제 페이지 이동 → 전면 광고 기회 / inline: 이동 없이 바로 재생)
@@ -821,7 +828,8 @@
       slots[k] = v;
     }
     run(async () => {
-      await saveSite("애드센스 설정 변경", (s) => { s.adsense = { client, slots }; return true; });
+      const feedEvery = [12, 24, 36, 48, 60].includes(+$("#feedEvery").value) ? +$("#feedEvery").value : 36;
+      await saveSite("애드센스 설정 변경", (s) => { s.adsense = { client, slots, feedEvery }; return true; });
       renderAds();
       toast("광고 설정을 저장했어요.");
       afterSiteSave("광고 설정 반영 중");

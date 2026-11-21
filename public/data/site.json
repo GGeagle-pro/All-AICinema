@@ -21,7 +21,8 @@
       "right": "",
       "feed": "",
       "player": "2941084910"
-    }
+    },
+    "feedEvery": 36
   },
   "openMode": "inline",
   "banners": [
