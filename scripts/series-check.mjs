@@ -6,6 +6,7 @@ if (!apiKey()) { console.log("API 키 없음"); process.exit(0); }
 const d = JSON.parse(await readFile(new URL("../public/data/videos.json", import.meta.url), "utf8"));
 const byCid = new Map();
 for (const x of d.items) { const cid = d.cids[x[7]]; if (!cid) continue; if (!byCid.has(cid)) byCid.set(cid, { name: d.channels[x[2]], vids: [] }); byCid.get(cid).vids.push({ id: x[0], title: x[1] }); }
+const all = {};
 for (const [cid, { name, vids }] of byCid) {
   const site = new Set(vids.map((v) => v.id));
   let pls = [];
@@ -17,7 +18,9 @@ for (const [cid, { name, vids }] of byCid) {
     try { ids = await playlistVideoIds(p.id); } catch {}
     withIds.push({ title: p.title, ids });
   }
-  const r = assignSeries(vids, withIds); const c = new Map(); for (const n of r.values()) c.set(n, (c.get(n) || 0) + 1);
+  const r = assignSeries(vids, withIds);
+  for (const [id, n] of r) all[id] = n; const c = new Map(); for (const n of r.values()) c.set(n, (c.get(n) || 0) + 1);
   console.log(`   => 묶임 ${r.size}/${vids.length}: ${[...c].sort((a, b) => b[1] - a[1]).map(([n, k]) => `${n}(${k})`).join(", ") || "-"}`);
   if (process.argv.includes("-v")) for (const v of vids) console.log(`      ${r.get(v.id) ? "[" + r.get(v.id) + "]" : "[ -- ]"} ${v.title.slice(0, 60)}`);
 }
+console.log("SERIESMAP:" + JSON.stringify(all));

@@ -16,10 +16,13 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
-import { apiKey, listUploads, viewCounts } from "./youtube-api.mjs";
+import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds } from "./youtube-api.mjs";
+import { assignSeries } from "./series.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CHANNELS_FILE = resolve(ROOT, "channels.json");
+// 채널 재생목록 저장 (작품 묶기용, 하루 1번 갱신) – 사이트에는 올리지 않는 내부 파일
+const PLAYLISTS_FILE = resolve(ROOT, "cache/playlists.json");
 const DATA_DIR = resolve(ROOT, "public/data");   // 웹에 공개되는 폴더는 public/ 뿐
 const OUT_FILE = resolve(DATA_DIR, "videos.json");
 const DESC_FILE = resolve(DATA_DIR, "desc.json");
@@ -109,7 +112,8 @@ async function main() {
         src = "채널";
       }
       for (const v of vids) map.set(v.id, { ...map.get(v.id), ...v }); // 조회수 등 갱신
-      tracked.set(cid, { name: clean(ch.name, 80) || vids[0]?.channel || "", categories: catsOf(ch) });
+      tracked.set(cid, { name: clean(ch.name, 80) || vids[0]?.channel || "", categories: catsOf(ch),
+        series: ch.series && typeof ch.series === "object" ? ch.series : {} });   // 관리자 작품 설정
       console.log(`✓ 채널 ${label}: ${vids.length}개 (${src})`);
     } catch (err) {
       failed++;
@@ -120,10 +124,29 @@ async function main() {
   // 1-2) 공식 API로 예전 영상까지 (RSS는 최근 15개뿐) – YOUTUBE_API_KEY 가 있을 때만, 채널마다 하루 1번
   const backfilled = {};
   let didBackfill = false;
+  let plCache = {};
+  try { plCache = JSON.parse(await readFile(PLAYLISTS_FILE, "utf8")) || {}; } catch {}
+  let plChanged = false;
+  // 작품 묶기용 재생목록 (제작자가 만든 것) – 실패해도 수집은 계속
+  async function refreshPlaylists(cid, t) {
+    try {
+      const lists = [];
+      for (const p of (await listPlaylists(cid, { max: 60 })).filter((p) => p.count > 0 && p.count <= 500)) {
+        lists.push({ t: p.title, ids: await playlistVideoIds(p.id, { max: 300 }) });
+      }
+      plCache[cid] = { at: new Date().toISOString(), lists };
+      plChanged = true;
+    } catch (err) { console.warn(`✗ 재생목록 ${t.name || cid}: ${err.message}`); }
+  }
   if (apiKey()) {
     for (const [cid, t] of tracked) {
       const last = existing.backfilled?.[cid];
-      if (last && (Date.now() - new Date(last)) / 3600e3 < BACKFILL_HOURS) { backfilled[cid] = last; continue; }
+      const plAge = plCache[cid]?.at ? (Date.now() - new Date(plCache[cid].at)) / 3600e3 : Infinity;
+      if (last && (Date.now() - new Date(last)) / 3600e3 < BACKFILL_HOURS) {
+        backfilled[cid] = last;
+        if (plAge >= BACKFILL_HOURS) await refreshPlaylists(cid, t);   // 재생목록만 아직 없으면 가져오기
+        continue;
+      }
       try {
         const list = await listUploads(cid, { max: BACKFILL_MAX, skipShorts: SKIP_SHORTS });
         const views = await viewCounts(list.map((v) => v.id));
@@ -138,6 +161,7 @@ async function main() {
           const oldest = Math.min(...list.map((v) => new Date(v.published)));
           for (const [id, v] of map) if (v.cid === cid && !v.manual && !ids.has(id) && new Date(v.published) >= oldest) map.delete(id);
         }
+        await refreshPlaylists(cid, t);
         backfilled[cid] = new Date().toISOString();
         didBackfill = true;
         console.log(`✓ API ${t.name || cid}: ${list.length}개`);
@@ -212,6 +236,19 @@ async function main() {
   const liveCids = new Set(videos.map((v) => v.cid).filter(Boolean));
   for (const cid of liveCids) if (!avatars[cid] && isAvatarUrl(existing.avatars?.[cid])) avatars[cid] = existing.avatars[cid];
   for (const cid of Object.keys(avatars)) if (!liveCids.has(cid)) delete avatars[cid];
+  // 작품(시리즈) 정하기: 관리자 규칙 → 채널 재생목록 → 제목 분석
+  const seriesConf = new Map();
+  for (const [cid, t] of tracked) seriesConf.set(cid, t.series || {});
+  const byCid = new Map();
+  for (const v of videos) { if (!v.cid) continue; if (!byCid.has(v.cid)) byCid.set(v.cid, []); byCid.get(v.cid).push(v); }
+  for (const [cid, list] of byCid) {
+    const pl = (plCache[cid]?.lists || []).map((x) => ({ title: x.t, ids: x.ids }));
+    let m = new Map();
+    try { m = assignSeries(list.map((v) => ({ id: v.id, title: v.title })), pl, seriesConf.get(cid) || {}); } catch (err) { console.warn("작품 묶기 실패:", err.message); }
+    for (const v of list) v.series = m.get(v.id) || "";
+  }
+  for (const cid of Object.keys(plCache)) if (!byCid.has(cid)) { delete plCache[cid]; plChanged = true; }
+  if (plChanged) { await mkdir(dirname(PLAYLISTS_FILE), { recursive: true }); await writeFile(PLAYLISTS_FILE, JSON.stringify(plCache)); }
   const index = { ...buildIndex(videos), avatars };
   const age = existing.generatedAt ? (Date.now() - new Date(existing.generatedAt)) / 3600e3 : Infinity;
   if (signature(index) === signature({ ...buildIndex(existing.videos), avatars: existing.avatars || {} }) && age < VIEWS_REFRESH_HOURS && !refreshAll && !didBackfill) {
@@ -239,18 +276,19 @@ function buildIndex(videos) {
   const channels = [...new Set(videos.map((v) => v.channel || ""))];
   const cats = [...new Set(videos.flatMap((v) => v.categories?.length ? v.categories : ["기타"]))];
   const cids = [...new Set(videos.map((v) => v.cid || ""))];
+  const series = [...new Set(videos.map((v) => v.series || "").filter(Boolean))];
   return {
-    channels, cats, cids,
-    fields: ["id", "title", "channel", "categories", "published", "views", "short", "cid", "manual"],
+    channels, cats, cids, series,
+    fields: ["id", "title", "channel", "categories", "published", "views", "short", "cid", "manual", "series"],
     items: videos.map((v) => [
       v.id, v.title, channels.indexOf(v.channel || ""), (v.categories?.length ? v.categories : ["기타"]).map((c) => cats.indexOf(c)),
       Math.round(new Date(v.published) / 1000), v.views || 0, v.short ? 1 : 0,
-      cids.indexOf(v.cid || ""), v.manual ? 1 : 0,
+      cids.indexOf(v.cid || ""), v.manual ? 1 : 0, v.series ? series.indexOf(v.series) : -1,
     ]),
   };
 }
 // 조회수를 뺀 내용이 같으면 "변경 없음"
-const signature = (ix) => JSON.stringify([ix.channels, ix.cats, ix.cids, ix.avatars || {}, ix.items.map((r) => r.filter((_, i) => i !== 5))]);
+const signature = (ix) => JSON.stringify([ix.channels, ix.cats, ix.cids, ix.series || [], ix.avatars || {}, ix.items.map((r) => r.filter((_, i) => i !== 5))]);
 
 // 이전 저장 파일 읽기 (예전 형식 {videos:[…]} 과 압축 형식 모두 지원)
 async function readExisting() {
@@ -262,7 +300,8 @@ async function readExisting() {
   let desc = {};
   try { desc = JSON.parse(await readFile(DESC_FILE, "utf8")); } catch {}
   const items = (Array.isArray(raw.items) ? raw.items : []).filter((r) => Array.isArray(r) && VIDEO_ID.test(r[0]));
-  const videos = items.map(([id, title, ch, cat, pub, views, short, cid, manual]) => ({
+  const videos = items.map(([id, title, ch, cat, pub, views, short, cid, manual, ser]) => ({
+    series: typeof raw.series?.[ser] === "string" ? raw.series[ser] : "",
     id, title, channel: raw.channels?.[ch] || "",
     categories: (Array.isArray(cat) ? cat : [cat]).map((i) => raw.cats?.[i]).filter(Boolean),
     published: new Date(pub * 1000).toISOString(), views, short: !!short,
