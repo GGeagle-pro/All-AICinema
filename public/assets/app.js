@@ -309,6 +309,7 @@
     $("#grid").innerHTML = "";
     const where = [state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat === BINGE_KEY ? "몰아보기 · 정주행" : state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
     const shelvesOn = renderShelves();
+    $("#backBtn").hidden = !state.backTo;
     $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : (shelvesOn ? `${where || "전체"} 최신 영상` : where || "최신 영상");
     renderHero();
     const empty = $("#empty");
@@ -355,6 +356,15 @@
     }).join("");
     box.hidden = false;
     return true;
+  }
+
+  // "전체 보기"로 들어간 화면 → 원래 화면(메뉴·스크롤 위치)으로 돌아가기
+  function restoreBack() {
+    const b = state.backTo; if (!b) return;
+    state.backTo = null;
+    state.cat = b.cat; state.ch = b.ch;
+    renderMenus(); apply();
+    requestAnimationFrame(() => scrollTo(0, b.y));
   }
 
   function renderHero() {
@@ -535,8 +545,11 @@
       const go = e.target.closest(".shelf__more");
       if (go) {
         const g = state.shelves.get(go.dataset.go); if (!g) return;
+        // 돌아올 화면(지금 메뉴·스크롤 위치) 기억 + 브라우저/휴대폰 뒤로가기로도 돌아오게 기록
+        state.backTo = { cat: state.cat, ch: state.ch, y: scrollY, label: g.title };
         if (g.go.cat) state.cat = g.go.cat;
         if (g.go.ch) state.ch = g.go.ch;
+        history.pushState({ list: 1, back: state.backTo }, "", location.href);
         renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
@@ -566,7 +579,7 @@
     $("#cats").addEventListener("click", (e) => {
       const t = e.target.closest(".tab");
       if (!t) return;
-      state.cat = t.dataset.key;
+      state.backTo = null; state.cat = t.dataset.key;
       pick($("#cats"), t);
       renderMenus();
       apply();
@@ -576,7 +589,7 @@
     $("#chs").addEventListener("click", (e) => {
       const t = e.target.closest(".chtab");
       if (!t) return;
-      state.ch = t.dataset.key;
+      state.backTo = null; state.ch = t.dataset.key;
       pick($("#chs"), t);
       if ($("#chrow").classList.contains("open")) setChOpen(false);   // 고르면 다시 접기
       apply();
@@ -621,8 +634,12 @@
     });
     addEventListener("popstate", () => {
       const id = new URLSearchParams(location.search).get("v");
-      if (!id || !VALID_ID.test(id)) closePlayer({ fromPop: true });
-      else openById(id, false);
+      if (id && VALID_ID.test(id)) return openById(id, false);
+      if (!$("#player").hidden) closePlayer({ fromPop: true });
+      if (state.backTo && !history.state?.list) restoreBack();   // "전체 보기" 전 화면으로
+    });
+    $("#backBtn").addEventListener("click", () => {
+      if (history.state?.list) history.back(); else restoreBack();
     });
 
     new IntersectionObserver((es) => es[0].isIntersecting && more(), { rootMargin: "800px" }).observe($("#sentinel"));
@@ -649,7 +666,7 @@
     if (!urlReady || !pageMode() || !$("#player").hidden) return;
     const qs = listQuery().toString();
     const want = location.pathname + (qs ? "?" + qs : "");
-    if (location.pathname + location.search !== want) history.replaceState(null, "", want);
+    if (location.pathname + location.search !== want) history.replaceState(history.state, "", want);
   }
   function goToVideo(v, { ch = "" } = {}) {
     if (!v || !VALID_ID.test(v.id)) return;
@@ -705,7 +722,10 @@
     if (ch && state.all.some((v) => v.channel === ch)) state.ch = ch;
     if (so === "views") { state.sort = "views"; $("#sort").value = "views"; }
     urlReady = true;
-    if (c || ch || so) { renderMenus(); apply(); }
+    // 영상 페이지에 다녀와서 목록을 새로 불러온 경우에도 "돌아가기" 유지
+    const hb = history.state?.list && history.state.back;
+    if (hb && typeof hb === "object") state.backTo = { cat: String(hb.cat || "전체"), ch: String(hb.ch || ""), y: +hb.y || 0 };
+    if (c || ch || so || state.backTo) { renderMenus(); apply(); }
     if (!id) restoreListPosition();
     if (id && VALID_ID.test(id)) {
       let fromList = false;

@@ -237,3 +237,10 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
   .shelf__row{grid-auto-columns:68%;gap:12px;margin:0 calc(var(--gutter) * -1);padding:2px var(--gutter) 4px;scroll-padding:0 var(--gutter)}
   .shelf__head h3{font-size:16px}
 }
+
+/* "전체 보기" 화면에서 돌아가기 */
+.toolbar__left{display:flex;align-items:center;gap:10px;min-width:0}
+.backbtn{flex:none;display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 14px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);color:var(--text);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.backbtn span{font-size:20px;line-height:1;margin-top:-2px}
+.backbtn:hover{border-color:var(--text)}
+@media (max-width:560px){.backbtn{height:32px;font-size:13px;padding:0 12px 0 8px}}
