@@ -816,8 +816,8 @@
     document.addEventListener("click", (e) => { if (!menu.hidden && !e.target.closest(".lang, #langMenu")) open(false); });
     let lastW = innerWidth;   // 화면 폭이 바뀔 때만 닫음 (모바일 주소창 높이 변화는 무시)
     addEventListener("resize", () => { if (innerWidth !== lastW) { lastW = innerWidth; if (!menu.hidden) open(false); } });
-    function choose(code) {
-      if (!I18N.setLang(code)) return;
+    function choose(code, persist = true) {
+      if (!I18N.setLang(code, persist)) return;
       paint();
       // 주소의 ?lang= 은 지움 (고른 언어는 이 브라우저에 기억)
       // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
@@ -830,6 +830,7 @@
       if (!$("#player").hidden) { const v = state.queue[state.current]; if (v) { setFavBtn(fav.has(v.id)); $("#pMeta").textContent = [v.views && views(v.views), ago(v.published)].filter(Boolean).join(" · "); } }
     }
     paint();
+    if (I18N.onGeo) I18N.onGeo((code) => choose(code, false));   // 접속 국가(IP)로 정한 언어 적용
   }
 
   // ===== 검색 패널 =====

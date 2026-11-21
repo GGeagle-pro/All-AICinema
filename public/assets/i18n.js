@@ -188,6 +188,54 @@
   };
   const IDX = { en: 0, ja: 1, zh: 2, es: 3 };
 
+  // ── 접속 국가 → 언어 ──
+  const IS_BOT = /bot|crawl|spider|slurp|lighthouse|yeti|daum/i.test(navigator.userAgent || "");
+  const ES_CC = "ES MX AR CO CL PE VE EC GT CU BO DO HN PY SV NI CR PA UY PR GQ".split(" ");
+  const fromCountry = (cc) => {
+    cc = String(cc || "").trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(cc)) return "";
+    if (cc === "KR") return "ko";
+    if (cc === "JP") return "ja";
+    if (["CN", "TW", "HK", "MO"].includes(cc)) return "zh";
+    if (ES_CC.includes(cc)) return "es";
+    return "en";   // 미국·영국·싱가포르 등 그 밖의 나라
+  };
+  // 시간대로 미리 짐작 (IP 확인 결과가 오기 전 첫 화면용)
+  function fromTimeZone() {
+    let tz = "";
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch {}
+    if (!tz) return "";
+    if (tz === "Asia/Seoul") return "ko";
+    if (tz === "Asia/Tokyo") return "ja";
+    if (/^Asia\/(Shanghai|Chongqing|Chungking|Harbin|Urumqi|Kashgar|Hong_Kong|Macau|Taipei)$|^PRC$|^ROC$/.test(tz)) return "zh";
+    if (/^(Europe\/Madrid|Atlantic\/Canary|Africa\/Ceuta|America\/(Mexico_City|Cancun|Merida|Monterrey|Matamoros|Chihuahua|Ojinaga|Mazatlan|Bahia_Banderas|Hermosillo|Tijuana|Argentina\/.+|Buenos_Aires|Bogota|Santiago|Punta_Arenas|Lima|Caracas|Guayaquil|Guatemala|Havana|La_Paz|Santo_Domingo|Tegucigalpa|Asuncion|El_Salvador|Managua|Costa_Rica|Panama|Montevideo|Puerto_Rico)|Pacific\/Galapagos|Africa\/Malabo)$/.test(tz)) return "es";
+    if (/^(America|Europe|Australia|Pacific|Atlantic|Africa|Indian)\//.test(tz) || /^Asia\/(Singapore|Kolkata|Calcutta|Manila|Dubai|Kuala_Lumpur|Jakarta|Bangkok|Ho_Chi_Minh|Saigon|Karachi|Dhaka)$/.test(tz)) return "en";
+    return "";
+  }
+  const GEO_KEY = "aic:geo", GEO_TTL = 7 * 86400000;
+  function cachedGeo() {
+    try { const g = JSON.parse(localStorage.getItem(GEO_KEY) || "null"); if (g && Date.now() - g.t < GEO_TTL) return fromCountry(g.c); } catch {}
+    return "";
+  }
+  // IP로 국가 확인 (국가 코드만 받고, 브라우저에 7일 보관 · 서버에는 저장하지 않음)
+  async function lookupCountry() {
+    const tries = [
+      ["https://get.geojs.io/v1/ip/country", (r) => r.text()],
+      ["https://api.country.is/", (r) => r.json().then((j) => j && j.country)],
+    ];
+    for (const [url, read] of tries) {
+      try {
+        const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500);
+        const res = await fetch(url, { signal: ctl.signal, credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store" });
+        clearTimeout(tm);
+        if (!res.ok) continue;
+        const cc = String(await read(res) || "").trim().toUpperCase();
+        if (/^[A-Z]{2}$/.test(cc)) return cc;
+      } catch {}
+    }
+    return "";
+  }
+
   // ── 언어 정하기 ──
   function detect() {
     try { const q = new URLSearchParams(location.search).get("lang"); if (CODES.includes(q)) return q; } catch {}
@@ -195,12 +243,31 @@
     const m = location.pathname.match(/^\/(en|ja|zh|es)(\/|$)/); if (m) return m[1];
     try { const s = localStorage.getItem("aic:lang"); if (CODES.includes(s)) return s; } catch {}
     // 기본 주소(/)는 검색 로봇에게 항상 한국어로 (언어별 페이지는 hreflang 으로 따로 알려 줌)
-    if (/bot|crawl|spider|slurp|lighthouse|yeti|daum/i.test(navigator.userAgent || "")) return "ko";
+    if (IS_BOT) return "ko";
+    // 접속 위치(IP 국가) 우선: 저장해 둔 국가 → 기기 시간대(바로 판단, 깜빡임 없음) → 브라우저 언어
+    const g = cachedGeo(); if (g) return g;
+    const z = fromTimeZone(); if (z) return z;
     const nav = (navigator.languages && navigator.languages[0]) || navigator.language || "ko";
     const p = nav.toLowerCase().slice(0, 2);
     return CODES.includes(p) ? p : (p === "ko" ? "ko" : "en");   // 지원하지 않는 언어는 영어
   }
   let lang = detect();
+
+  // 기본 주소(/)이고 사용자가 직접 고른 언어가 없으면 IP 국가를 확인해서 맞춰 줌
+  let geoCode = "", geoCbs = [];
+  (function geo() {
+    let picked = null; try { picked = localStorage.getItem("aic:lang"); } catch {}
+    const fixed = /[?&]lang=/.test(location.search) || /^\/(en|ja|zh|es)(\/|$)/.test(location.pathname);
+    if (IS_BOT || fixed || CODES.includes(picked) || cachedGeo() || typeof fetch !== "function") return;
+    lookupCountry().then((cc) => {
+      if (!cc) return;
+      try { localStorage.setItem(GEO_KEY, JSON.stringify({ c: cc, t: Date.now() })); } catch {}
+      geoCode = fromCountry(cc);
+      if (geoCode && geoCode !== lang) for (const cb of geoCbs) cb(geoCode);
+    });
+  })();
+  // 앱이 "IP로 정한 언어"를 받아 화면을 다시 그릴 수 있게
+  const onGeo = (cb) => { geoCbs.push(cb); if (geoCode && geoCode !== lang) cb(geoCode); };
 
   function t(ko, vars) {
     let s = ko;
@@ -258,16 +325,16 @@
     document.documentElement.lang = L.html;
   }
 
-  function setLang(code) {
+  function setLang(code, persist = true) {   // persist=false: 자동으로 정한 언어 (사용자 선택으로 기억하지 않음)
     if (!CODES.includes(code) || code === lang) return false;
     lang = code; nf = null; rtf = null;
-    try { localStorage.setItem("aic:lang", code); } catch {}
+    if (persist) try { localStorage.setItem("aic:lang", code); } catch {}
     applyStatic();
     return true;
   }
 
   window.AIC_I18N = {
-    LANGS, t, name, views, viewsShort, ago, applyStatic, setLang,
+    LANGS, t, name, views, viewsShort, ago, applyStatic, setLang, onGeo,
     get lang() { return lang; },
     get meta() { return LANGS.find((l) => l.code === lang); },
   };
