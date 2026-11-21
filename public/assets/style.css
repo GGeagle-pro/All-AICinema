@@ -251,3 +251,19 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
 .menu--countries .tab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .menu--countries .tab[aria-pressed="true"] .tab__count{color:#fff;opacity:.85}
 .menu--countries .tab:not([aria-pressed="true"]):hover{border-color:var(--line)}
+
+/* ───────── 모바일 영상 화면: 버튼 글자 줄바꿈 방지, 2칸 × 2줄 정렬 ───────── */
+.btn,.switch{white-space:nowrap}
+@media (max-width:760px){
+  .player__actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+  .player__actions .btn{width:100%;min-height:44px;padding:8px 10px;font-size:15px}
+  .player__actions .switch{justify-content:center;margin:0;min-height:44px;border:1px solid var(--line);border-radius:999px;font-size:14px}
+  .player__links{gap:4px 18px;font-size:14px}
+  .player__links a{padding:8px 0}
+  .player__desc{font-size:13.5px;max-height:132px}
+}
+@media (max-width:560px){
+  /* 닫기 버튼: 유튜브 플레이어 오른쪽 위 메뉴를 덜 가리도록 작게 */
+  .player__close{width:38px;height:38px;font-size:15px;top:calc(6px + env(safe-area-inset-top));right:6px}
+  .player__info h1{font-size:17px;margin-top:12px}
+}
