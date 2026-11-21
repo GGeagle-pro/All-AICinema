@@ -205,6 +205,10 @@
           feedEvery: +s.adsense?.feedEvery || 0,
         },
         banners: Array.isArray(s.banners) ? s.banners.slice(0, 3) : [],
+        // 목록 사이 띠 배너 (관리자 > 카테고리·배너): 아이콘 + 제목 + 설명 + 버튼
+        strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 5)
+          .map((b) => ({ on: b?.on !== false, icon: SAFE_IMG.test(b?.icon || "") ? b.icon : "", title: str(b?.title, 40), desc: str(b?.desc, 80), cta: str(b?.cta, 12), link: safeLink(b?.link || "") }))
+          .filter((b) => b.on && b.title && b.link),
         // 영상 여는 방식: "page" = 목록에서 누르면 실제로 영상 페이지로 이동(애드센스 전면 광고 기회),
         //                 "inline" = 페이지 이동 없이 바로 플레이어 열기 (관리자 > 광고 설정에서 변경)
         openMode: s.openMode === "page" ? "page" : "inline",
@@ -432,6 +436,7 @@
     }
     box.innerHTML = groups.map((g, gi) => {
       state.shelves.set(String(gi), g);
+      const strip = gi + 1 < groups.length && gi + 1 >= STRIP_SHELF_FIRST && (gi + 1 - STRIP_SHELF_FIRST) % STRIP_SHELF_EVERY === 0 ? stripHtml() : "";
       // 채널 줄 제목 옆에 그 채널의 작품 바로가기 (작품이 2개 이상일 때)
       const chWorks = g.channel ? worksOf(g.list).sort((a, b) => b.latest - a.latest) : [];
       const chips = chWorks.length >= 2 ? `<div class="shelf__works">${chWorks.slice(0, 4).map((w) =>
@@ -447,7 +452,7 @@
           <button class="shelf__nav" type="button" data-dir="-1" aria-label="${T("이전")}">‹</button>
           <button class="shelf__nav" type="button" data-dir="1" aria-label="${T("다음")}">›</button>
           ${more}</div>${chips}
-        <div class="shelf__row">${body}</div></section>`;
+        <div class="shelf__row">${body}</div></section>${strip}`;
     }).join("");
     box.hidden = false;
     return true;
@@ -483,6 +488,24 @@
     img.addEventListener("error", () => { img.src = thumb(v.id); }, { once: true }); // 고화질 썸네일이 없을 때
     hero.onclick = () => { if (pageMode()) return goToVideo(state.list[0]); state.queue = state.list.slice(); openPlayer(0); };
   }
+
+  // ===== 목록 사이 띠 배너 =====
+  // 규칙: 메인 줄 사이 → 2번째 줄 다음, 그 뒤 5줄마다 / 영상 목록 → 애드센스 광고(36개마다)의 정확히 중간(18, 54, 90…)
+  //       → 광고끼리 붙지 않고, 한 화면에 광고가 둘 이상 겹치지 않게
+  let stripTurn = Math.floor(Math.random() * 5);   // 여러 개면 돌아가며 (첫 배너는 방문마다 다르게)
+  const isOwnLink = (u) => { try { return new URL(u).origin === location.origin; } catch { return false; } };
+  function stripHtml(tag = "div") {
+    const list = state.site.strips || [];
+    if (!list.length) return "";
+    const b = list[stripTurn++ % list.length];
+    const own = isOwnLink(b.link);
+    const icon = b.icon ? `<img src="${esc(b.icon)}" alt="" width="44" height="44" loading="lazy" decoding="async" />` : `<img src="assets/logo.svg?v=2" alt="" width="44" height="44" />`;
+    return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored noopener noreferrer"'}>
+      <span class="strip__ad">${T("광고")}</span>${icon}
+      <span class="strip__txt"><b>${esc(b.title)}</b>${b.desc ? `<span>${esc(b.desc)}</span>` : ""}</span>
+      ${b.cta ? `<span class="strip__go">${esc(b.cta)}</span>` : ""}</a></${tag}>`;
+  }
+  const STRIP_SHELF_FIRST = 2, STRIP_SHELF_EVERY = 5;
 
   // ===== 작품(시리즈) =====
   const worksOn = () => state.site.works !== false;   // 관리자 > 작품 탭의 스위치 (끄면 원래 화면)
@@ -574,6 +597,10 @@
     for (let i = start; i < end; i++) {
       tmp.innerHTML = card(state.list[i], i);
       frag.appendChild(tmp.firstElementChild);
+      // 띠 배너: 광고 간격의 중간 지점 (기본 18·54·90번째 뒤)
+      if ((i + 1) % feedEvery() === Math.floor(feedEvery() / 2) && i + 1 < state.list.length) {
+        const h = stripHtml(); if (h) { tmp.innerHTML = h; frag.appendChild(tmp.firstElementChild); }
+      }
       if ((i + 1) % feedEvery() === 0 && i + 1 < state.list.length) {
         const ins = adIns("feed");
         if (ins) { const box = document.createElement("div"); box.className = "ad ad--feed"; box.appendChild(ins); frag.appendChild(box); newAds.push(ins); }

@@ -206,6 +206,7 @@
     s.banners = s.banners.slice(0, 3);
     if (s.openMode !== "page" && s.openMode !== "inline") s.openMode = "inline";
     if (s.works !== false) s.works = true;
+    if (!Array.isArray(s.strips)) s.strips = [];
     return s;
   };
   const saveConfig = (msg, mutate) => saveJson(CONFIG, msg, mutate, { normalize: normConfig }).then((r) => { state.config = r.doc; return r.changed; });
@@ -604,6 +605,98 @@
     });
   }
 
+  // ───────── 목록 사이 띠 배너 ─────────
+  state.stripFiles = {};
+  function renderStrips() {
+    const box = $("#stripList");
+    if (!box) return;
+    box.textContent = "";
+    const list = Array.isArray(state.site?.strips) ? state.site.strips : [];
+    $("#stripAdd").disabled = list.length >= 5;
+    if (!list.length) box.append(el("p", { class: "muted small", text: "아직 띠 배너가 없어요. '+ 띠 배너 추가'를 눌러 만들어 보세요." }));
+    list.forEach((b, i) => {
+      const pick = state.stripFiles[i];
+      const iconSrc = pick ? pick.url : SAFE_IMG.test(b.icon || "") ? "../" + b.icon : "../assets/logo.svg?v=2";
+      const on = el("input", { type: "checkbox", id: `st-on-${i}` }); on.checked = b.on !== false;
+      const title = el("input", { type: "text", maxlength: "40", value: b.title || "", placeholder: "제목 (예: 홈 화면에 All AI-Cinema 추가)", "aria-label": `띠 배너 ${i + 1} 제목` });
+      const desc = el("input", { type: "text", maxlength: "80", value: b.desc || "", placeholder: "설명 한 줄 (선택)", "aria-label": `띠 배너 ${i + 1} 설명` });
+      const cta = el("input", { type: "text", maxlength: "12", value: b.cta || "", placeholder: "버튼 글자 (예: 보러 가기)", "aria-label": `띠 배너 ${i + 1} 버튼` });
+      const link = el("input", { type: "url", inputmode: "url", value: b.link || "", placeholder: "https://클릭하면-이동할-주소", "aria-label": `띠 배너 ${i + 1} 링크` });
+      const fileIn = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", id: `st-f-${i}`, class: "adm-file" });
+      // 미리보기 (사이트와 같은 모양)
+      const pv = { img: el("img", { src: iconSrc, alt: "" }), t: el("b", { text: b.title || "제목" }), d: el("span", { text: b.desc || "" }), go: el("span", { class: "strip__go", text: b.cta || "" }) };
+      const sync = () => { pv.t.textContent = title.value || "제목"; pv.d.textContent = desc.value; pv.go.textContent = cta.value; pv.go.hidden = !cta.value; };
+      for (const x of [title, desc, cta]) x.addEventListener("input", sync);
+      fileIn.addEventListener("change", () => {
+        const f = fileIn.files?.[0];
+        if (state.stripFiles[i]) URL.revokeObjectURL(state.stripFiles[i].url);
+        state.stripFiles[i] = f ? { file: f, url: URL.createObjectURL(f) } : null;
+        pv.img.src = f ? state.stripFiles[i].url : iconSrc;
+      });
+      sync();
+      box.append(el("div", { class: "adm-strip" },
+        el("div", { class: "adm-strip__head" }, el("b", { text: `띠 배너 ${i + 1}` }),
+          el("label", { class: "adm-check", for: `st-on-${i}` }, on, " 사이트에 보이기")),
+        el("div", { class: "adm-strip__pv strip" }, el("div", { class: "strip__in" }, el("span", { class: "strip__ad", text: "광고" }), pv.img, el("span", { class: "strip__txt" }, pv.t, pv.d), pv.go)),
+        el("div", { class: "adm-strip__grid" },
+          el("label", { class: "btn adm-filebtn", for: `st-f-${i}` }, "아이콘 고르기"), fileIn, title, desc, cta, link),
+        el("div", { class: "adm-actions" },
+          el("button", { class: "btn btn--primary", type: "button", text: "저장", onclick: () => saveStrip(i, { on: on.checked, title: title.value, desc: desc.value, cta: cta.value, link: link.value }) }),
+          el("button", { class: "btn", type: "button", text: "삭제", onclick: () => deleteStrip(i) })),
+      ));
+    });
+  }
+  function addStrip() {
+    const list = Array.isArray(state.site?.strips) ? state.site.strips : [];
+    if (list.length >= 5) return toast("띠 배너는 5개까지 만들 수 있어요.", true);
+    state.site.strips = [...list, { on: true, icon: "", title: "", desc: "", cta: "", link: "" }];   // 저장 전 빈 칸 (저장해야 사이트에 반영)
+    renderStrips();
+    $("#stripList").lastElementChild?.querySelector('input[type="text"]')?.focus();
+  }
+  function saveStrip(i, raw) {
+    const title = clean(raw.title, 40), desc = clean(raw.desc, 80), cta = clean(raw.cta, 12);
+    const link = safeLink(String(raw.link || "").trim());
+    if (!title) return toast("제목을 넣어 주세요.", true);
+    if (!link) return toast("링크는 https:// 로 시작하는 주소로 넣어 주세요.", true);
+    const pick = state.stripFiles[i];
+    run(async () => {
+      const old = state.site?.strips?.[i]?.icon || "";
+      let icon = old;
+      if (pick) {
+        const { b64, ext } = await toWebp(pick.file, { max: 192, square: true });
+        const name = `strip-${i + 1}-${Date.now()}.${ext}`;
+        await putFile(`${UPLOADS}/${name}`, b64, `띠 배너 ${i + 1} 아이콘 업로드`);
+        icon = `uploads/${name}`;
+      }
+      await saveSite(`띠 배너 ${i + 1} 저장`, (s) => {
+        s.strips = Array.isArray(s.strips) ? s.strips : [];
+        s.strips[i] = { on: !!raw.on, icon, title, desc, cta, link };
+        s.strips = s.strips.filter(Boolean).slice(0, 5);
+        return true;
+      });
+      if (pick) {
+        URL.revokeObjectURL(pick.url); state.stripFiles[i] = null;
+        if (old && old !== icon && SAFE_IMG.test(old)) await deleteFile(`public/${old}`, `이전 띠 배너 ${i + 1} 아이콘 삭제`);
+      }
+      renderStrips();
+      toast(`띠 배너 ${i + 1}을 저장했어요.`);
+      afterSiteSave(`띠 배너 ${i + 1} 반영 중`);
+    });
+  }
+  function deleteStrip(i) {
+    const saved = (state.site?.strips || [])[i];
+    if (state.stripFiles[i]) { URL.revokeObjectURL(state.stripFiles[i].url); }
+    state.stripFiles = {};
+    if (!saved?.title) { state.site.strips.splice(i, 1); return renderStrips(); }   // 저장 안 한 빈 칸
+    run(async () => {
+      await saveSite(`띠 배너 ${i + 1} 삭제`, (s) => { if (!Array.isArray(s.strips) || !s.strips[i]) return false; s.strips.splice(i, 1); return true; });
+      if (SAFE_IMG.test(saved.icon || "")) await deleteFile(`public/${saved.icon}`, `띠 배너 ${i + 1} 아이콘 삭제`);
+      renderStrips();
+      toast(`띠 배너 ${i + 1}을 지웠어요.`);
+      afterSiteSave(`띠 배너 삭제 반영 중`);
+    });
+  }
+
   function renderAds() {
     const a = state.site?.adsense || { client: "", slots: {} };
     $("#adClient").value = a.client || "";
@@ -654,6 +747,7 @@
     renderHidden();
     renderMenu();
     renderBanners();
+    renderStrips();
     renderAds(); renderOpenMode();
     renderWorks();
   }
@@ -882,7 +976,7 @@
   }
 
   // 이미지를 브라우저에서 다시 그려 WebP 로 변환 (최대 가로 1600px) → 숨은 데이터·스크립트 제거, 용량 감소
-  async function toWebp(file) {
+  async function toWebp(file, { max = 1600, square = false } = {}) {
     if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) throw Object.assign(new Error("bad"), { userMessage: "PNG, JPG, WEBP, GIF 이미지만 올릴 수 있어요." });
     if (file.size > 8 * 1024 * 1024) throw Object.assign(new Error("big"), { userMessage: "이미지가 너무 커요. 8MB 이하로 올려 주세요." });
     const url = URL.createObjectURL(file);
@@ -890,11 +984,17 @@
       const img = new Image();
       img.src = url;
       await img.decode();
-      const scale = Math.min(1, 1600 / img.naturalWidth);
       const c = document.createElement("canvas");
-      c.width = Math.max(1, Math.round(img.naturalWidth * scale));
-      c.height = Math.max(1, Math.round(img.naturalHeight * scale));
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      if (square) {   // 가운데를 정사각형으로 잘라서 max×max
+        const side = Math.min(img.naturalWidth, img.naturalHeight), out = Math.min(max, side);
+        c.width = c.height = Math.max(1, out);
+        c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+      } else {
+        const scale = Math.min(1, max / img.naturalWidth);
+        c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      }
       let blob = await new Promise((r) => c.toBlob(r, "image/webp", 0.86));
       let ext = "webp";
       if (!blob || blob.type !== "image/webp") { blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.88)); ext = "jpg"; }
@@ -1071,6 +1171,7 @@
   $("#adsForm").addEventListener("submit", saveAds);
   $("#openModeForm").addEventListener("submit", saveOpenMode);
   $("#worksQ").addEventListener("input", () => renderWorks());
+  $("#stripAdd").addEventListener("click", addStrip);
   $("#worksSwitch").addEventListener("submit", saveWorksSwitch);
 
   // 시작
