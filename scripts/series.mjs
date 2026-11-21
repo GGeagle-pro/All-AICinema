@@ -10,6 +10,7 @@
 // 반환: Map(videoId → 작품 이름). 작품을 못 찾은 영상은 넣지 않는다(단편·공지 등).
 
 const SEP = /\s+[|lㅣI│｜]\s+|[|ㅣ│｜]|\s[-–—─]\s|[─—]|\s·\s|[〈〉《》【】「」『』\[\]]|[!?！？]+(?:\s|$)|\s\/\s|\.{2,}|…/;
+const MARK = /\b(?:ep|episode)\.?\s*\d+|\d+\s*(?:화|회|편|부)\b|\d+\s*(?:화|회|편|부)(?=\s|$|[^가-힣])|(?:시즌|season)\s*\d+|\bs\d+\s*ep|몰아\s*보기|모아\s*보기|통합본|완결판|최종화|마지막화|\d+\s*[~-]\s*\d+\s*화/i;
 const EP = new RegExp([
   "\\b(?:ep|e|episode|epi)\\.?\\s*\\d+(?:\\s*[-~+]\\s*\\d+)?", // EP.3, EP 3~5, Episode 2
   "\\d+\\s*(?:[-~～+]\\s*\\d+\\s*)?(?:화|회|편|부|장)", // 3화, 1~9화, 2부, 3장
@@ -38,10 +39,10 @@ function candidates(title) {
     segs.push(seg);
     // "미지의 여행 EP.2: 사막의 도시" → 회차 표시 앞부분 "미지의 여행"도 후보로
     EP.lastIndex = 0; const m = EP.exec(seg); EP.lastIndex = 0;
-    if (m && m.index > 1) segs.push(seg.slice(0, m.index) + " EP");
+    if (m && m.index > 1) segs.push(seg.slice(0, m.index) + " EP1");
     // "미지의 여행 : 지하도시" → 쌍점 앞부분도 후보로 (RE:GENESIS 처럼 붙어 있는 건 제외)
     const c = seg.match(/^(.{2,30}?)\s+[:：]\s|^(.{2,30}?)[:：]\s/);
-    if (c) segs.push(c[1] || c[2]);
+    if (c && /[가-힣]/.test(c[1] || c[2])) segs.push(c[1] || c[2]);   // 한글 이름만 (HWARANG: ZERO 는 그대로)
   }
   for (let seg of segs) {
     const had = EP.test(seg); EP.lastIndex = 0;
@@ -80,6 +81,8 @@ export function detectSeries(videos, rules = []) {
   // 다른 작품 이름을 포함하는 긴 조각은 짧은 쪽으로 (예: "낙하 707 리부트" ⊃ "낙하 707")
   const strong = [...freq].filter(([, n]) => n >= 2).map(([k]) => k).sort((a, b) => a.length - b.length);
   const canonical = (k) => strong.find((s) => s !== k && s.length >= 3 && k.startsWith(s) && freq.get(s) >= freq.get(k)) || k;
+  const marked = new Map();
+  const titleOf = new Map(videos.map((v) => [v.id, v.title]));
   for (const [id, list] of cands) {
     let best = null, bestScore = 0;
     for (const c of list) {
@@ -92,6 +95,16 @@ export function detectSeries(videos, rules = []) {
     const k = canonical(best.key);
     const pick = [...(names.get(k) || names.get(best.key))].sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)[0][0];
     result.set(id, pick);
+    marked.set(id, MARK.test(titleOf.get(id) || ""));
+  }
+  // 회차 표시(EP·화)가 거의 없는 묶음은 채널 영상의 30% 이상일 때만 인정
+  // (예: "초능력소녀 세아 - 고마의 피" 는 인정, 매번 다른 이야기의 "노후사연"·"Explosive action" 같은 말은 제외)
+  const groups = new Map();
+  for (const [id, n] of result) { const g = groups.get(n) || { ids: [], marked: 0 }; g.ids.push(id); if (marked.get(id)) g.marked++; groups.set(n, g); }
+  for (const [, g] of groups) {
+    const share = g.ids.length / Math.max(1, videos.length);
+    const ok = g.marked >= Math.max(2, g.ids.length / 2) || (g.ids.length >= 3 && share >= 0.3) || (g.ids.length >= 2 && share >= 0.6);
+    if (!ok) for (const id of g.ids) result.delete(id);
   }
   // 한 채널에서 작품이 하나뿐이고 거의 모든 영상이 거기 속하면 그대로 (채널 = 작품)
   return result;
