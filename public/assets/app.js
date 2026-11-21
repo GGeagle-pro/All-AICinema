@@ -41,7 +41,7 @@
   function addHist(id) { hist = [id, ...hist.filter((x) => x !== id)].slice(0, 50); my.set("aic:hist", hist); }
   const byIds = (ids) => { const m = new Map(state.all.map((v) => [v.id, v])); return ids.map((id) => m.get(id)).filter(Boolean); };
   const SPECIAL = { [FAV_KEY]: "찜한 영상", [HIST_KEY]: "최근 본 영상", [SINCE_KEY]: "지난 방문 이후 새 영상" };          // 1줄 메뉴의 NEW 탭 (관리자 카테고리 이름과 겹치지 않는 내부 값)
-  const RAIL_MIN_WIDTH = 1480;        // 이 너비 이상(데스크톱)에서만 양옆 세로 배너 표시
+  const RAIL_MIN_WIDTH = 1280;        // 이 너비 이상(데스크톱)에서만 양옆 세로 배너 표시
   const SITE_NAME_DEFAULT = "All AI-Cinema";
 
   // ===== 상태 =====
