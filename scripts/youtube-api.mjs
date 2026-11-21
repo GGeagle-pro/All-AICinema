@@ -77,3 +77,34 @@ export async function viewCounts(ids) {
   }
   return views;
 }
+
+/** 채널의 재생목록 (제작자가 직접 만든 것) */
+export async function listPlaylists(cid, { max = 100 } = {}) {
+  if (!CHANNEL_ID.test(cid)) return [];
+  const out = [];
+  let pageToken = "";
+  while (out.length < max) {
+    const d = await apiGet("playlists", { part: "snippet,contentDetails", channelId: cid, maxResults: 50, ...(pageToken ? { pageToken } : {}) });
+    for (const it of d?.items || []) {
+      if (!/^[\w-]{10,64}$/.test(it?.id || "")) continue;
+      out.push({ id: it.id, title: clean(it?.snippet?.title, 120), count: Number(it?.contentDetails?.itemCount) || 0 });
+    }
+    pageToken = typeof d?.nextPageToken === "string" ? d.nextPageToken : "";
+    if (!pageToken) break;
+  }
+  return out;
+}
+
+/** 재생목록 안의 영상 ID (순서대로) */
+export async function playlistVideoIds(playlistId, { max = 300 } = {}) {
+  const ids = [];
+  let pageToken = "";
+  while (ids.length < max) {
+    const d = await apiGet("playlistItems", { part: "contentDetails", playlistId, maxResults: 50, ...(pageToken ? { pageToken } : {}) });
+    if (!d) break;
+    for (const it of d.items || []) { const id = it?.contentDetails?.videoId; if (VIDEO_ID.test(id || "")) ids.push(id); }
+    pageToken = typeof d.nextPageToken === "string" ? d.nextPageToken : "";
+    if (!pageToken) break;
+  }
+  return ids;
+}
