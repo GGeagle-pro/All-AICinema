@@ -87,6 +87,88 @@ export function detectSeries(videos, rules = []) {
   return result;
 }
 
+// ===== 재생목록으로 묶기 =====
+// 작품이 아닌 재생목록(모음·메이킹·뮤직비디오·OST·쇼츠 등)은 버리고, 시즌·부 표시는 지워서 같은 작품으로 합침
+const NOT_WORK = /메이킹|making|비하인드|behind|뮤직\s*비디오|music\s*video|\bmv\b|ost|soundtrack|사운드트랙|숏폼|shorts?\b|#shorts|playlist|플레이리스트|작업실|collab|brand|브랜드|오리지널\s*(?:무비|드라마)|original\s*(?:movie|drama)|좋아하는\s*노래|노래|트로트|예고\s*&|하이라이트|^모아보기$|^몰아보기$|^전체\s*영상$|^인기|^최신|^업로드/i;
+const GENRE_ONLY = /^(?:ai\s*)?(?:현대\s*|조선\s*|이세계\s*)?(?:판타지|액션|sf|무협|로맨스|오피스|스릴러|공포|코미디|휴먼|가족)?\s*(?:드라마|영화|애니메이션|시리즈)$/i;
+function cleanWork(seg) {
+  let t = seg.replace(/\s*「[^」]*」.*$/, "")
+    .replace(/\s*[—–-]?\s*(?:season|시즌)\s*\d+.*$/i, "")
+    .replace(/\s*(?:\d+\s*부|프롤로그|에필로그|본편|외전|전편\s*몰아보기|전체\s*(?:시청하기|보기|재생)|정주행.*|처음부터.*|start\s*here|\d+\s*화부터.*|\d+\s*[~-]\s*\d+\s*화.*|몰아보기|모아보기)\s*$/i, "")
+    .replace(/\s*\([^)]*[A-Za-z][^)]*\)\s*/g, " ")             // (Bound Chronicles)
+    .replace(/\s*\[[^\]]*\]\s*$/, "");                        // [화랑 제로]
+  if (/[가-힣]/.test(t)) t = t.replace(/(?:\s+[A-Za-z][A-Za-z0-9!?.:'’&-]*)+[!?.\s]*$/, "");   // 한글 이름 뒤 영문 병기
+  t = t.replace(/[\s:—–\-!?.,]+$/, "").replace(/\s{2,}/g, " ").trim();
+  return t.length >= 2 && t.length <= 40 && !GENERIC.test(t) && !GENRE_ONLY.test(t) ? t : "";
+}
+function workName(title) {
+  const t = String(title || "")
+    .replace(/\p{Extended_Pictographic}|\uFE0F/gu, " ")
+    .replace(/^\s*\[[^\]]*\]\s*/, "")                       // 앞쪽 [SF드라마] [모아보기]
+    .replace(/【([^】]+)】/g, "$1 ");
+  // "처음부터 몰아보기 | FALL 707: REBOOT — Start Here" 처럼 앞 조각이 비면 다음 조각에서
+  for (const seg of t.split(/\s+[|ㅣ│｜]\s+|\s[—–]\s(?=start|전체|1화)/i)) { const n = cleanWork(seg); if (n) return n; }
+  return "";
+}
+
+/**
+ * 채널 하나의 작품 정하기
+ * @param videos  [{id,title}]
+ * @param playlists [{title, ids:[...]}]  유튜브 재생목록 (없으면 [])
+ * @param conf { rules:[{match, to}], rename:{원래이름: 새이름} }  관리자 설정 ("to"가 빈 문자열이면 묶지 않음)
+ * @returns Map(id → 작품 이름)
+ */
+export function assignSeries(videos, playlists = [], conf = {}) {
+  const site = new Set(videos.map((v) => v.id));
+  const out = new Map();
+  // 1) 재생목록 → 작품 (작은 재생목록이 더 구체적이라 우선)
+  const works = [];
+  for (const p of playlists) {
+    if (NOT_WORK.test(p.title)) continue;
+    const name = workName(p.title);
+    const ids = (p.ids || []).filter((id) => site.has(id));
+    if (!name || ids.length < 1) continue;
+    if (ids.length >= Math.max(6, site.size * 0.9) && videos.length > 8) continue;   // 채널 전체 모음은 작품 아님
+    works.push({ name, key: keyOf(name), ids });
+  }
+  works.sort((a, b) => a.ids.length - b.ids.length);
+  for (const w of works) for (const id of w.ids) if (!out.has(id)) out.set(id, w);
+  // 2) 제목 분석 (재생목록에 없는 영상) – 제목 이름이 재생목록 작품과 주로 겹치면 그 작품으로
+  const byTitle = detectSeries(videos);
+  const titleToWork = new Map();
+  for (const [id, n] of byTitle) {
+    const w = out.get(id); if (!w) continue;
+    const m = titleToWork.get(n) || new Map(); m.set(w, (m.get(w) || 0) + 1); titleToWork.set(n, m);
+  }
+  const result = new Map();
+  for (const v of videos) {
+    const w = out.get(v.id);
+    if (w) { result.set(v.id, w.name); continue; }
+    const n = byTitle.get(v.id); if (!n) continue;
+    const m = titleToWork.get(n);
+    result.set(v.id, m ? [...m].sort((a, b) => b[1] - a[1])[0][0].name : n);
+  }
+  // 이름 표시: 같은 작품을 제목에서 한글로 부르는 이름이 있으면 그걸로 (예: The Black Tower → 더블랙타워)
+  const prefer = new Map();
+  for (const [id, n] of result) {
+    const tn = byTitle.get(id); if (!tn || keyOf(tn) === keyOf(n)) continue;
+    if (/[가-힣]/.test(tn) && !/[가-힣]/.test(n)) { const m = prefer.get(n) || new Map(); m.set(tn, (m.get(tn) || 0) + 1); prefer.set(n, m); }
+  }
+  const total = new Map(); for (const n of result.values()) total.set(n, (total.get(n) || 0) + 1);
+  for (const [n, m] of prefer) { const [tn, c] = [...m].sort((a, b) => b[1] - a[1])[0]; if (c >= Math.max(2, total.get(n) * 0.5)) for (const [id, x] of result) if (x === n) result.set(id, tn); }
+  // 3) 관리자 설정: 키워드 규칙이 가장 먼저, 그다음 이름 바꾸기·합치기·묶지 않기
+  const rules = (conf.rules || []).map((r) => ({ keys: String(r.match || "").split(",").map(keyOf).filter((k) => k.length >= 2), to: String(r.to ?? "").trim() })).filter((r) => r.keys.length);
+  const rename = conf.rename || {};
+  for (const v of videos) {
+    const tk = keyOf(v.title);
+    const rule = rules.find((r) => r.keys.some((k) => tk.includes(k)));
+    let n = rule ? rule.to : result.get(v.id);
+    if (n && Object.prototype.hasOwnProperty.call(rename, n)) n = String(rename[n] || "").trim();
+    if (n) result.set(v.id, n.slice(0, 40)); else result.delete(v.id);
+  }
+  return result;
+}
+
 // 단독 실행: node scripts/series.mjs  → 지금 데이터로 묶인 결과 출력 (점검용)
 if (process.argv[1] && process.argv[1].endsWith("series.mjs")) {
   const { readFile } = await import("node:fs/promises");
@@ -103,3 +185,4 @@ if (process.argv[1] && process.argv[1].endsWith("series.mjs")) {
   }
   console.log(`\n묶인 영상 ${grouped}/${total}`);
 }
+export { workName as _workName, NOT_WORK as _NOT_WORK };
