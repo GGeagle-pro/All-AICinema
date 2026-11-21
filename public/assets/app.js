@@ -263,7 +263,7 @@
     const all = state.site.menu.length ? state.site.menu : [...new Set(state.all.flatMap((v) => v.categories))];   // 메뉴를 정하지 않았으면 영상의 카테고리로 자동 구성
     return all.filter((c) => !countries.has(c));
   }
-  // 나라 필터 (빈 값 = 모든 나라)
+  // 나라 필터 (빈 값 = 모든 국가)
   const inCountry = (v) => !state.country || v.categories.includes(state.country);
   const countryPool = () => state.all.filter(inCountry);
   function chip(cls, key, label, pressed, extra = "") {
@@ -272,7 +272,7 @@
   function renderMenus() {
     // 전체 → NEW(최근 3일) → 관리자에서 정한 카테고리
     // 맨 위: 나라 줄 (개수는 전체 영상 기준)
-    $("#countries").innerHTML = catTab("", state.all.length, "모든 나라", !state.country) +
+    $("#countries").innerHTML = catTab("", state.all.length, "모든 국가", !state.country) +
       state.site.countries.map((c) => catTab(c, state.all.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0), c, c === state.country)).join("");
     const pool = countryPool();   // 아래 줄들의 개수는 고른 나라 안에서
     const binge = pool.reduce((n, v) => n + (isBinge(v) ? 1 : 0), 0);
