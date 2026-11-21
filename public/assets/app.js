@@ -49,7 +49,7 @@
   const $ = (s) => document.querySelector(s);
   const state = {
     all: [], list: [], shown: 0,
-    cat: "전체", ch: "", q: "", sort: "new", country: "",
+    cat: "전체", ch: "", q: "", sort: "new", country: "", work: "",
     current: -1, latest: null, cids: [], avatars: {}, queue: [],
     site: { siteName: SITE_NAME_DEFAULT, menu: [], adsense: { client: "", slots: {} }, banners: [] },
   };
@@ -156,6 +156,7 @@
       published: new Date(Number.isFinite(t) ? t : 0).toISOString(),
       views: Number.isSafeInteger(v.views) && v.views > 0 ? v.views : 0,
       short: v.short === true,
+      series: str(v.series, 40),   // 작품(시리즈) 이름 – 수집할 때 재생목록·제목으로 자동 분류
       ...(typeof v.description === "string" ? { description: str(v.description.replace(/\n/g, "\u2029"), 1000).replace(/\u2029/g, "\n") } : {}),
     };
   }
@@ -167,6 +168,7 @@
           categories: (Array.isArray(r[3]) ? r[3] : [r[3]]).map((i) => data.cats?.[i]),
           published: new Date(Number(r[4]) * 1000).toISOString(), views: r[5], short: r[6] === 1,
           cid: data.cids?.[r[7]],
+          series: Number.isInteger(r[9]) && r[9] >= 0 ? data.series?.[r[9]] : "",
         } : null) : [];
     const seen = new Set();
     return raw.slice(0, 5000).map(clean).filter((v) => v && !seen.has(v.id) && seen.add(v.id));
@@ -358,16 +360,20 @@
     const q = state.q.trim().toLowerCase();
     let list = state.all.filter((v) => inCountry(v) && inCat(v) && (!state.ch || v.channel === state.ch) &&
       (!q || (v.title + " " + v.channel).toLowerCase().includes(q)));
-    list = state.sort === "views" ? list.sort((a, b) => b.views - a.views)
+    if (state.work) list = state.all.filter((v) => workKey(v) === state.work).sort(epSort);   // 작품: 1화부터 순서대로
+    else list = state.sort === "views" ? list.sort((a, b) => b.views - a.views)
                                   : list.sort((a, b) => new Date(b.published) - new Date(a.published));
     state.list = list;
     state.shown = 0;
     $("#grid").innerHTML = "";
     const where = [state.country, state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat === BINGE_KEY ? "몰아보기 · 정주행" : SPECIAL[state.cat] || (state.cat !== "전체" ? state.cat : ""), state.ch].filter(Boolean).join(" · ");
-    const shelvesOn = renderShelves();
+    const work = renderWorkHead();
+    if (work) { $("#shelves").hidden = true; $("#shelves").innerHTML = ""; }
+    const shelvesOn = !work && renderShelves();
     $("#backBtn").hidden = !state.backTo;
     $("#clearQ").hidden = !state.q;
-    $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : (shelvesOn ? `${where || "전체"} 최신 영상` : where || "최신 영상");
+    $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : work ? `${work.name} 전체 회차` : (shelvesOn ? `${where || "전체"} 최신 영상` : where || "최신 영상");
+    $("#sort").hidden = !!work;
     renderHero();
     const empty = $("#empty");
     empty.hidden = list.length > 0;
@@ -387,53 +393,77 @@
   }
   function renderShelves() {
     const box = $("#shelves");
-    const on = !state.q && !state.ch && state.cat !== NEW_KEY && state.cat !== BINGE_KEY && !SPECIAL[state.cat] && state.sort === "new";
     state.shelves = new Map();
-    if (!on) { box.hidden = true; box.innerHTML = ""; return false; }
+    const off = () => { box.hidden = true; box.innerHTML = ""; return false; };
+    if (state.q || state.cat === NEW_KEY || state.cat === BINGE_KEY || SPECIAL[state.cat] || state.sort !== "new") return off();
     const pool = state.all.filter((v) => inCountry(v) && inCat(v)).sort((a, b) => new Date(b.published) - new Date(a.published));
     const groups = [];
-    if (state.cat === "전체") {
-      const watched = byIds(hist).filter(inCountry);
-      if (watched.length) groups.push({ key: "hist", title: "이어서 보기", sub: "최근 본 영상", list: watched, go: { cat: HIST_KEY } });
-      const liked = byIds([...fav].reverse()).filter(inCountry);
-      if (liked.length) groups.push({ key: "fav", title: "♥ 찜한 영상", sub: "내가 찜한", list: liked, go: { cat: FAV_KEY } });
-      const fresh = pool.filter((v) => isNew(v.published));
-      if (fresh.length) groups.push({ key: "new", title: "새로 올라온 영상", sub: "최근 3일", list: fresh, go: { cat: NEW_KEY } });
-      const binge = pool.filter(isBinge);
-      if (binge.length) groups.push({ key: "binge", title: "몰아보기 · 정주행", sub: "한 번에 이어 보기", list: binge, go: { cat: BINGE_KEY } });
+    // 채널을 고른 화면: 그 채널의 작품들을 맨 위에
+    if (state.ch) {
+      const ws = worksOf(pool.filter((v) => v.channel === state.ch)).sort((a, b) => b.latest - a.latest);
+      if (!ws.length) return off();
+      groups.push({ key: "works:" + state.ch, title: `${state.ch}의 작품`, sub: "작품을 누르면 1화부터 볼 수 있어요", works: ws });
+    } else {
+      if (state.cat === "전체") {
+        const watched = byIds(hist).filter(inCountry);
+        if (watched.length) groups.push({ key: "hist", title: "이어서 보기", sub: "최근 본 영상", list: watched, go: { cat: HIST_KEY } });
+        const liked = byIds([...fav].reverse()).filter(inCountry);
+        if (liked.length) groups.push({ key: "fav", title: "♥ 찜한 영상", sub: "내가 찜한", list: liked, go: { cat: FAV_KEY } });
+        const fresh = pool.filter((v) => isNew(v.published));
+        if (fresh.length) groups.push({ key: "new", title: "새로 올라온 영상", sub: "최근 3일", list: fresh, go: { cat: NEW_KEY } });
+      }
+      // 작품별로 보기: 조회수 높은 작품 순 (장르 탭에서는 그 장르의 작품)
+      const ws = worksOf(pool).sort((a, b) => b.views - a.views);
+      if (ws.length >= 2) groups.push({ key: "works", title: "인기 작품", sub: "작품별로 정주행", works: ws });
+      if (state.cat === "전체") {
+        const binge = pool.filter(isBinge);
+        if (binge.length) groups.push({ key: "binge", title: "몰아보기 · 정주행", sub: "한 번에 이어 보기", list: binge, go: { cat: BINGE_KEY } });
+      }
+      const byCh = new Map();
+      for (const v of pool) { if (!byCh.has(v.channel)) byCh.set(v.channel, []); byCh.get(v.channel).push(v); }
+      for (const [ch, list] of byCh) groups.push({ key: "ch:" + ch, title: ch, channel: ch, list, go: { ch } }); // 최근에 올린 채널 순
+      if (groups.length < 2) return off();
     }
-    const byCh = new Map();
-    for (const v of pool) { if (!byCh.has(v.channel)) byCh.set(v.channel, []); byCh.get(v.channel).push(v); }
-    for (const [ch, list] of byCh) groups.push({ key: "ch:" + ch, title: ch, channel: ch, list, go: { ch } }); // 최근에 올린 채널 순
-    if (groups.length < 2) { box.hidden = true; box.innerHTML = ""; return false; }
     box.innerHTML = groups.map((g, gi) => {
       state.shelves.set(String(gi), g);
+      // 채널 줄 제목 옆에 그 채널의 작품 바로가기 (작품이 2개 이상일 때)
+      const chWorks = g.channel ? worksOf(g.list).sort((a, b) => b.latest - a.latest) : [];
+      const chips = chWorks.length >= 2 ? `<div class="shelf__works">${chWorks.slice(0, 4).map((w) =>
+        `<button type="button" class="wchip" data-work="${esc(w.key)}">${esc(w.name)} <span>${w.list.length}</span></button>`).join("")}</div>` : "";
+      const n = g.works ? g.works.length : g.list.length;
       const head = g.channel
-        ? `${avatarHtml(g.channel, "avatar shelf__av", g.list[0]?.cid)}<h3>${esc(g.title)}</h3><span class="shelf__n">${g.list.length}편</span>`
-        : `<h3>${esc(g.title)}</h3><span class="shelf__n">${esc(g.sub)} · ${g.list.length}편</span>`;
-      return `<section class="shelf" aria-label="${esc(g.title)}">
+        ? `${avatarHtml(g.channel, "avatar shelf__av", g.list[0]?.cid)}<h3>${esc(g.title)}</h3><span class="shelf__n">${n}편</span>`
+        : `<h3>${esc(g.title)}</h3><span class="shelf__n">${esc(g.sub)} · ${n}${g.works ? "작품" : "편"}</span>`;
+      const more = g.go ? `<button class="shelf__more" type="button" data-go="${gi}">전체 보기 ›</button>` : "";
+      const body = g.works ? g.works.slice(0, 16).map(workCard).join("") : g.list.slice(0, SHELF_MAX).map((v) => shelfCard(v, gi)).join("");
+      return `<section class="shelf${g.works ? " shelf--works" : ""}" aria-label="${esc(g.title)}">
         <div class="shelf__head">${head}
           <button class="shelf__nav" type="button" data-dir="-1" aria-label="이전">‹</button>
           <button class="shelf__nav" type="button" data-dir="1" aria-label="다음">›</button>
-          <button class="shelf__more" type="button" data-go="${gi}">전체 보기 ›</button></div>
-        <div class="shelf__row">${g.list.slice(0, SHELF_MAX).map((v) => shelfCard(v, gi)).join("")}</div></section>`;
+          ${more}</div>${chips}
+        <div class="shelf__row">${body}</div></section>`;
     }).join("");
     box.hidden = false;
     return true;
   }
 
+
   // "전체 보기"로 들어간 화면 → 원래 화면(메뉴·스크롤 위치)으로 돌아가기
   function restoreBack() {
     const b = state.backTo; if (!b) return;
     state.backTo = null;
-    state.cat = b.cat; state.ch = b.ch; state.country = b.country || "";
+    state.cat = b.cat; state.ch = b.ch; state.country = b.country || ""; state.work = "";
     renderMenus(); apply();
     requestAnimationFrame(() => scrollTo(0, b.y));
   }
 
   function renderHero() {
     const hero = $("#hero");
-    const v = !state.q && state.sort === "new" ? state.list[0] : null;
+    const v = !state.q && !state.work && state.sort === "new" ? state.list[0] : null;
+    // 작품 화면에서는 작품 정보가 맨 위 (대표 영상·광고 배너는 숨김)
+    const promo = $("#promo");
+    if (state.work) { if (!promo.hidden) promo.dataset.wasShown = "1"; promo.hidden = true; }
+    else if (promo.dataset.wasShown) { promo.hidden = false; delete promo.dataset.wasShown; }
     if (!v) { hero.hidden = true; return; }
     hero.hidden = false;
     hero.innerHTML = `<img src="${thumb(v.id, "maxresdefault")}" alt="" />
@@ -446,6 +476,71 @@
     const img = hero.querySelector("img");
     img.addEventListener("error", () => { img.src = thumb(v.id); }, { once: true }); // 고화질 썸네일이 없을 때
     hero.onclick = () => { if (pageMode()) return goToVideo(state.list[0]); state.queue = state.list.slice(); openPlayer(0); };
+  }
+
+  // ===== 작품(시리즈) =====
+  const workKey = (v) => (v && v.series ? v.channel + "\u0001" + v.series : "");
+  const epSort = (a, b) => {
+    const ea = epNum(a.title), eb = epNum(b.title);
+    if (ea != null && eb != null && ea !== eb && isBinge(a) === isBinge(b)) return ea - eb;
+    return new Date(a.published) - new Date(b.published);
+  };
+  // 작품 목록: [{key, name, channel, cid, list(1화부터), latest, views, cover}]
+  function worksOf(pool) {
+    const m = new Map();
+    for (const v of pool) {
+      const k = workKey(v); if (!k) continue;
+      let w = m.get(k);
+      if (!w) m.set(k, (w = { key: k, name: v.series, channel: v.channel, cid: v.cid, list: [], views: 0, latest: 0 }));
+      w.list.push(v); w.views += v.views || 0; w.latest = Math.max(w.latest, Date.parse(v.published));
+    }
+    const out = [...m.values()].filter((w) => w.list.length >= 2);
+    for (const w of out) {
+      w.list.sort(epSort);
+      const regular = w.list.filter((x) => !isBinge(x));
+      w.cover = regular.length ? regular[regular.length - 1] : w.list[w.list.length - 1];   // 최신 회차 썸네일
+      w.lastEp = [...regular].reverse().map((x) => epNum(x.title)).find((n) => n != null) ?? null;
+    }
+    return out;
+  }
+  const workByKey = (k) => worksOf(state.all.filter((v) => workKey(v) === k))[0] || null;
+  function workCard(w) {
+    const fresh = isNew(new Date(w.latest).toISOString());
+    return `<a class="wcard" href="?w=${encodeURIComponent(w.name)}&ch=${encodeURIComponent(w.channel)}" data-work="${esc(w.key)}">
+      <div class="wcard__img"><img loading="lazy" decoding="async" src="${thumb(w.cover.id, "mqdefault")}" width="320" height="180" alt="" />
+        ${fresh ? '<span class="badge">새 회차</span>' : ""}
+        <span class="wcard__count">${w.lastEp ? `EP.${w.lastEp}까지 · ` : ""}${w.list.length}편</span></div>
+      <div class="wcard__body"><b>${esc(w.name)}</b>
+        <span>${avatarHtml(w.channel, "avatar wcard__av", w.cid)}${esc(w.channel)}${w.views ? ` · 조회수 ${fmtViews(w.views)}` : ""}</span></div></a>`;
+  }
+  function renderWorkHead() {
+    const box = $("#workHead");
+    const w = state.work && workByKey(state.work);
+    if (!w || state.q) { box.hidden = true; box.innerHTML = ""; return null; }
+    box.innerHTML = `<div class="whead__bg" style="background-image:url('${thumb(w.cover.id, "hqdefault")}')"></div>
+      <div class="whead__in">
+        <img class="whead__poster" src="${thumb(w.cover.id, "mqdefault")}" alt="" width="320" height="180" />
+        <div class="whead__txt">
+          <span class="whead__eyebrow">작품</span>
+          <h2>${esc(w.name)}</h2>
+          <p class="whead__ch">${avatarHtml(w.channel, "avatar", w.cid)}<span>${esc(w.channel)}</span></p>
+          <p class="whead__meta">총 ${w.list.length}편${w.lastEp ? ` · EP.${w.lastEp}까지` : ""}${w.views ? ` · 조회수 ${fmtViews(w.views)}` : ""} · 최근 업데이트 ${ago(new Date(w.latest).toISOString())}</p>
+          <div class="whead__btns"><button type="button" class="btn btn--primary" data-play="first">▶ 1화부터 보기</button>
+            <button type="button" class="btn" data-play="last">최신화 보기</button></div>
+        </div></div>`;
+    box.hidden = false;
+    return w;
+  }
+  function openWork(key, { remember = true } = {}) {
+    if (!key) return;
+    if (remember && !state.work) {
+      state.backTo = { cat: state.cat, ch: state.ch, country: state.country, y: scrollY };
+      history.pushState({ list: 1, back: state.backTo }, "", location.href);
+    }
+    const w = workByKey(key);
+    state.work = key; state.q = ""; $("#q").value = "";
+    if (w) state.ch = w.channel;
+    renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function card(v, i) {
@@ -521,6 +616,10 @@
     if (/^[\w-]{11}$/.test(v.id)) addHist(v.id);
     setFavBtn(fav.has(v.id));
     $("#pChannel").innerHTML = avatarHtml(v.channel, "avatar avatar--sm", v.cid) + `<span>${esc(v.channel)}</span>`;
+    const w = v.series ? workByKey(workKey(v)) : null;
+    const pw = $("#pWork");
+    pw.hidden = !w;
+    if (w) { pw.dataset.work = w.key; pw.innerHTML = `<span class="pwork__tag">작품</span><b>${esc(w.name)}</b><span>전체 ${w.list.length}편 보기 ›</span>`; }
     $("#pMeta").textContent = [v.views && "조회수 " + fmtViews(v.views), ago(v.published)].filter(Boolean).join(" · ");
     // 원본 영상·채널 링크 (저작자 표시)
     $("#pYoutube").href = `https://www.youtube.com/watch?v=${v.id}`;
@@ -690,6 +789,9 @@
       const chViews = new Map();
       for (const v of state.all) if (v.channel) chViews.set(v.channel, (chViews.get(v.channel) || 0) + (v.views || 0));
       const topCh = [...chViews].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c);
+      const topWorks = worksOf(state.all).sort((a, b) => b.views - a.views).slice(0, 8);
+      html += sec("인기 작품", topWorks.length ? `<div class="sp-chips">${topWorks.map((w) =>
+        `<button type="button" class="sp-item sp-chip" data-act="work" data-key="${esc(w.key)}">${esc(w.name)}</button>`).join("")}</div>` : "");
       html += sec("인기 채널", `<div class="sp-chips">${topCh.map((c) =>
         `<button type="button" class="sp-item sp-chip sp-chip--ch" data-act="ch" data-key="${esc(c)}">${avatarHtml(c)}<span>${esc(c)}</span></button>`).join("")}</div>`);
       html += sec("장르로 찾기", `<div class="sp-chips">${[[BINGE_KEY, "몰아보기"], ...catList().map((c) => [c, c])]
@@ -700,6 +802,10 @@
       const chs = [...new Set(state.all.map((v) => v.channel))].filter((c) => c && c.toLowerCase().includes(ql)).slice(0, 4);
       const hits = state.all.filter((v) => (v.title + " " + v.channel).toLowerCase().includes(ql));
       search.shown = hits.slice().sort(byViews).slice(0, 8);
+      const ws = worksOf(state.all).filter((w) => w.name.toLowerCase().includes(ql)).sort((a, b) => b.views - a.views).slice(0, 4);
+      html += sec("작품", ws.map((w) => `<button type="button" class="sp-item sp-vid" data-act="work" data-key="${esc(w.key)}">
+        <img src="${thumb(w.cover.id, "mqdefault")}" alt="" loading="lazy" />
+        <span class="sp-t"><b>${hl(w.name, q)}</b><small>${esc(w.channel)} · 전체 ${w.list.length}편</small></span></button>`).join(""));
       html += sec("채널", chs.map((c) => `<button type="button" class="sp-item sp-row" data-act="ch" data-key="${esc(c)}">${avatarHtml(c, "avatar")}<span class="sp-t"><b>${hl(c, q)}</b><small>채널 영상 ${state.all.filter((v) => v.channel === c).length}편</small></span></button>`).join(""));
       html += sec("영상", search.shown.map((v, k) => vid(v, k)).join(""));
       html += hits.length
@@ -748,7 +854,7 @@
   function runSearch(q) {
     q = String(q || "").trim();
     addRecent(q);
-    state.backTo = null; state.q = q;
+    state.backTo = null; state.work = ""; state.q = q;
     $("#q").value = q; $("#spq").value = q;
     closeSearch();
     $("#q").blur();
@@ -769,9 +875,10 @@
       state.queue = list; openPlayer(k);
       return;
     }
+    if (act === "work") { if (q) addRecent(q); closeSearch(); openWork(el.dataset.key); return; }
     if (act === "cat" || act === "ch") {
       if (q) addRecent(q);
-      state.backTo = null; state.q = ""; $("#q").value = "";
+      state.backTo = null; state.work = ""; state.q = ""; $("#q").value = "";
       if (act === "cat") { state.cat = el.dataset.key; state.ch = ""; } else { state.cat = "전체"; state.ch = el.dataset.key; }
       closeSearch(); renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -819,7 +926,9 @@
   const epNum = (t) => { const m = String(t).match(EP_RE); return m ? +(m[1] || m[2]) : null; };
   function buildUpNext(v, i) {
     const binge = isBinge(v);
-    const seq = state.all.filter((x) => x.channel === v.channel && (x.id === v.id || isBinge(x) === binge))
+    // 같은 작품(없으면 같은 채널)의 회차 순서
+    const same = (x) => x.channel === v.channel && (!v.series || x.series === v.series);
+    const seq = state.all.filter((x) => same(x) && (x.id === v.id || isBinge(x) === binge))
       .sort((a, b) => {
         const ea = epNum(a.title), eb = epNum(b.title);
         if (ea != null && eb != null && ea !== eb) return ea - eb;
@@ -831,7 +940,7 @@
     const range = binge && String(v.title).match(/0*(\d{1,3})\s*[-~～]\s*0*(\d{1,3})\s*(?:화|회|편)?/);
     if (range) {
       const end = +range[2];
-      const after = state.all.filter((x) => x.channel === v.channel && !isBinge(x) && epNum(x.title) > end)
+      const after = state.all.filter((x) => same(x) && !isBinge(x) && epNum(x.title) > end)
         .sort((a, b) => epNum(a.title) - epNum(b.title));
       nextEps = [...after, ...nextEps].slice(0, 10);
     }
@@ -840,7 +949,7 @@
     // 남는 자리: 같은 채널의 다른 영상(최신순) → 보던 목록의 다음 영상 → 사이트 전체 최신 영상
     const byNew = (a, b) => new Date(b.published) - new Date(a.published);
     const others = [];
-    for (const x of [...state.all.filter((x) => x.channel === v.channel).sort(byNew),
+    for (const x of [...state.all.filter(same).sort(byNew), ...state.all.filter((x) => x.channel === v.channel).sort(byNew),
                      ...state.queue.slice(i + 1), ...state.queue.slice(0, i),
                      ...state.all.slice().sort(byNew)]) {
       if (others.length >= 15) break;
@@ -886,6 +995,8 @@
   function bind() {
     trackHeaderHeight();
     $("#shelves").addEventListener("click", (e) => {
+      const wk = e.target.closest("[data-work]");
+      if (wk && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); openWork(wk.dataset.work); return; }
       const nav = e.target.closest(".shelf__nav");
       if (nav) { const row = nav.closest(".shelf").querySelector(".shelf__row"); row.scrollBy({ left: +nav.dataset.dir * row.clientWidth * 0.9, behavior: "smooth" }); return; }
       const go = e.target.closest(".shelf__more");
@@ -910,6 +1021,12 @@
       state.queue = g.list.slice();
       openPlayer(i);
     });
+    $("#workHead").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-play]"); if (!b || !state.list.length) return;
+      const i = b.dataset.play === "first" ? 0 : state.list.length - 1;
+      if (pageMode()) return goToVideo(state.list[i], { ch: state.ch });
+      state.queue = state.list.slice(); openPlayer(i);
+    });
     $("#grid").addEventListener("click", (e) => {
       const c = e.target.closest(".card");
       if (!c || e.metaKey || e.ctrlKey || e.shiftKey) return; // 새 탭 열기는 허용
@@ -925,14 +1042,14 @@
     $("#countries").addEventListener("click", (e) => {
       const t = e.target.closest(".tab");
       if (!t) return;
-      state.backTo = null; state.country = t.dataset.key || "";
+      state.backTo = null; state.work = ""; state.country = t.dataset.key || "";
       renderMenus();
       apply();
     });
     $("#cats").addEventListener("click", (e) => {
       const t = e.target.closest(".tab");
       if (!t) return;
-      state.backTo = null; state.cat = t.dataset.key;
+      state.backTo = null; state.work = ""; state.cat = t.dataset.key;
       pick($("#cats"), t);
       renderMenus();
       apply();
@@ -942,7 +1059,7 @@
     $("#chs").addEventListener("click", (e) => {
       const t = e.target.closest(".chtab");
       if (!t) return;
-      state.backTo = null; state.ch = t.dataset.key;
+      state.backTo = null; state.work = ""; state.ch = t.dataset.key;
       pick($("#chs"), t);
       if ($("#chrow").classList.contains("open")) setChOpen(false);   // 고르면 다시 접기
       apply();
@@ -961,6 +1078,12 @@
     });
     $("#pPrev").onclick = () => step(-1);
     $("#pNext").onclick = () => step(1);
+    $("#pWork").onclick = () => {
+      const k = $("#pWork").dataset.work; if (!k) return;
+      closePlayer({ fromPop: true });
+      history.replaceState(null, "", location.pathname);
+      openWork(k);
+    };
     $("#pFav").onclick = () => {
       const v = state.queue[state.current]; if (!v) return;
       setFavBtn(toggleFav(v.id));
@@ -1010,6 +1133,7 @@
   function listQuery() {
     const q = new URLSearchParams();
     if (state.country) q.set("n", state.country);
+    if (state.work) q.set("w", state.work.split("\u0001")[1] || "");
     if (state.cat !== "전체") q.set("c", state.cat);
     if (state.ch) q.set("ch", state.ch);
     if (state.sort !== "new") q.set("s", state.sort);
@@ -1081,7 +1205,9 @@
     // 영상 페이지에 다녀와서 목록을 새로 불러온 경우에도 "돌아가기" 유지
     const hb = history.state?.list && history.state.back;
     if (hb && typeof hb === "object") state.backTo = { cat: String(hb.cat || "전체"), ch: String(hb.ch || ""), country: state.site.countries.includes(hb.country) ? hb.country : "", y: +hb.y || 0 };
-    if (c || ch || so || na || state.backTo) { renderMenus(); apply(); }
+    const wn = (params.get("w") || "").slice(0, 40);
+    if (wn && state.ch) { const k = state.ch + "\u0001" + wn; if (state.all.some((v) => workKey(v) === k)) state.work = k; }
+    if (c || ch || so || na || wn || state.backTo) { renderMenus(); apply(); }
     // 검색 주소 (?q=검색어) – 구글 검색결과의 사이트 내 검색창에서 들어올 때
     const sq = (params.get("q") || "").trim().slice(0, 40);
     if (sq && !id) { state.q = sq; $("#q").value = sq; $("#spq").value = sq; apply(); }

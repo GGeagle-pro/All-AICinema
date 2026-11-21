@@ -48,11 +48,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="assets/style.css?v=20261121m" />
+  <link rel="stylesheet" href="assets/style.css?v=20261121n" />
 
   <!-- Google 태그 (Google Ads) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-947429542"></script>
-  <script src="assets/gtag-init.js?v=20261121m"></script>
+  <script src="assets/gtag-init.js?v=20261121n"></script>
   <!-- Google AdSense (자동 광고: 상·하단 고정 앵커 광고, 전면 비네트 광고는 애드센스 화면에서 켭니다) -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8096684162493748" crossorigin="anonymous"></script>
 </head>
@@ -119,6 +119,9 @@
         <span class="icard__go">추가</span>
         <button type="button" class="icard__x" aria-label="안내 닫기">×</button>
       </div>
+
+      <!-- 작품 화면 머리 (작품을 고르면 표시) -->
+      <section id="workHead" class="whead" aria-label="작품 정보" hidden></section>
 
       <!-- 채널별로 묶어 보기 (전체·장르 탭) -->
       <div id="shelves" class="shelves" hidden></div>
@@ -197,6 +200,7 @@
             <span id="pChannel"></span>
             <span id="pMeta" class="muted"></span>
           </div>
+          <button id="pWork" class="pwork" type="button" hidden></button>
           <div class="player__actions">
             <button id="pPrev" class="btn">◀ 이전</button>
             <button id="pNext" class="btn btn--primary">다음 ▶</button>
@@ -219,6 +223,6 @@
     </div>
   </div>
 
-  <script src="assets/app.js?v=20261121m" defer></script>
+  <script src="assets/app.js?v=20261121n" defer></script>
 </body>
 </html>

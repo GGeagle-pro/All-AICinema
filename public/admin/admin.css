@@ -166,3 +166,26 @@
 .adm-radio input{margin-top:3px;width:18px;height:18px;accent-color:var(--accent);flex:none}
 .adm-radio:has(input:checked){border-color:var(--accent)}
 .adm-radios .btn{justify-self:start}
+
+/* 작품(시리즈) 관리 */
+.adm-works{display:grid;gap:10px;margin-top:12px}
+.adm-work{border:1px solid var(--line);border-radius:14px;background:var(--bg2);padding:0 14px}
+.adm-work summary{display:flex;align-items:center;gap:10px;min-height:52px;cursor:pointer;list-style:none}
+.adm-work summary::-webkit-details-marker{display:none}
+.adm-work summary::after{content:"▾";margin-left:auto;color:var(--muted)}
+.adm-work[open] summary::after{content:"▴"}
+.adm-work__name{font-weight:800}
+.adm-work__list,.adm-work__rules{list-style:none;margin:4px 0 12px;padding:0;display:grid;gap:8px}
+.adm-work__list li{display:grid;grid-template-columns:52px minmax(0,1fr) auto minmax(0,180px) auto;gap:8px;align-items:center}
+.adm-work__count{font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.adm-work__rules li{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 12px;border:1px dashed var(--line);border-radius:10px;font-size:14px}
+.adm-work__add{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:4px 0 6px}
+.adm-work .adm-label{margin:10px 0 4px}
+.adm-work{padding-bottom:2px}
+.adm-work[open]{padding-bottom:12px}
+@media (max-width:760px){
+  .adm-work__list li{grid-template-columns:44px minmax(0,1fr) auto;row-gap:6px}
+  .adm-work__list li select{grid-column:2 / 3}
+  .adm-work__list li .btn--danger{grid-column:3}
+  .adm-work__add{grid-template-columns:1fr}
+}
