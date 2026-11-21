@@ -487,3 +487,12 @@ button.sp-chip:hover,.sp-chip.is-sel{border-color:var(--text)}
   .strip__txt span{font-size:12px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   .strip__go{padding:8px 13px;font-size:13px}
 }
+
+/* 검색 패널: 인기 영상 TOP 5 카테고리 탭 */
+.sp-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 4px 10px;margin-bottom:2px;scroll-padding-inline:4px;-webkit-overflow-scrolling:touch}
+.sp-tabs::-webkit-scrollbar{display:none}
+.sp-tab{flex:none;height:30px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--bg);color:var(--muted);font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer}
+.sp-tab:hover{color:var(--text);border-color:var(--text)}
+.sp-tab.is-on{background:var(--accent);border-color:var(--accent);color:#fff}
+.sp--sheet .sp-tab{height:34px;padding:0 14px;font-size:13px}
+.sp-tabs{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);padding-right:24px}

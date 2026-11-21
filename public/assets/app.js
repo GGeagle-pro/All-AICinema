@@ -822,7 +822,7 @@
   // PC: 검색창 아래로 펼쳐지는 패널 / 모바일: 전체 화면 검색 (뒤로가기로 닫힘)
   // 입력 전: 최근 검색어 · 인기 영상 TOP 5(조회수) · 인기 채널 · 장르 바로가기
   // 입력 중: 채널 · 영상 미리보기(조회수 순) · "전체 결과 보기"
-  const search = { open: false, mobile: false, sel: -1, items: [], shown: [] };
+  const search = { open: false, mobile: false, sel: -1, items: [], shown: [], topCat: "전체" };
   const mqMobile = matchMedia("(max-width:760px)");
   const RECENT_KEY = "aic:recent";
   const getRecent = () => { try { const a = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string").slice(0, 8) : []; } catch { return []; } };
@@ -836,6 +836,17 @@
     return i < 0 ? esc(text) : esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
   }
   const byViews = (a, b) => (b.views || 0) - (a.views || 0);
+  // TOP 5 탭: 영상이 5개 이상 있는 국가·장르만
+  function topTabs() {
+    const has = (k) => state.all.reduce((n, v) => n + (v.views > 0 && inCat(v, k) ? 1 : 0), 0) >= 5;
+    return [["전체", T("전체")], [NEW_KEY, "NEW"], ...countryList().map((c) => [c, nm(c)]), ...catList().map((c) => [c, nm(c)])]
+      .filter(([k], i) => i === 0 || has(k));
+  }
+  function topHtml(vid) {
+    search.shown = state.all.filter((v) => v.views > 0 && inCat(v, search.topCat)).sort(byViews).slice(0, 5);
+    return search.shown.map((v, k) => vid(v, k, k + 1)).join("") || `<p class="sp-empty">${T("아직 영상이 없어요.")}</p>`;
+  }
+  let spVid = null;
   function renderSearch() {
     const q = sInput().value.trim();
     const sec = (title, body, extra = "") => body ? `<section class="sp__sec"><div class="sp__h"><h4>${title}</h4>${extra}</div>${body}</section>` : "";
@@ -843,14 +854,20 @@
         ${rank ? `<span class="sp-rank${rank <= 3 ? " sp-rank--top" : ""}">${rank}</span>` : ""}
         <img src="${thumb(v.id, "mqdefault")}" alt="" loading="lazy" />
         <span class="sp-t"><b>${hl(v.title, q)}</b><small>${esc(v.channel)}${v.views ? " · " + views(v.views) : ""}</small></span></button>`;
+    spVid = vid;
     let html = "";
     if (!q) {
       const recent = getRecent();
       html += sec(T("최근 검색어"), recent.length ? `<div class="sp-chips">${recent.map((r) =>
         `<span class="sp-chip"><button type="button" class="sp-item" data-act="q" data-q="${esc(r)}">${esc(r)}</button><button type="button" class="sp-x" data-act="delrecent" data-q="${esc(r)}" aria-label="${esc(T("{q} 삭제", { q: r }))}">×</button></span>`).join("")}</div>` : "",
         `<button type="button" class="sp-link" data-act="clearrecent">${T("전체 삭제")}</button>`);
-      search.shown = state.all.filter((v) => v.views > 0).sort(byViews).slice(0, 5);
-      html += sec(T("인기 영상 TOP 5"), search.shown.map((v, k) => vid(v, k, k + 1)).join(""), `<span class="sp-sub">${T("조회수 기준")}</span>`);
+      // 인기 영상 TOP 5: 위의 탭(전체·NEW·국가·장르)으로 순위를 바꿔 볼 수 있음
+      const tabs = topTabs();
+      if (!tabs.some(([k]) => k === search.topCat)) search.topCat = "전체";
+      html += `<section class="sp__sec"><div class="sp__h"><h4>${T("인기 영상 TOP 5")}</h4><span class="sp-sub">${T("조회수 기준")}</span></div>
+        <div class="sp-tabs" role="tablist" aria-label="${esc(T("인기 영상 TOP 5"))}">${tabs.map(([k, label]) =>
+          `<button type="button" class="sp-tab${k === search.topCat ? " is-on" : ""}" role="tab" aria-selected="${k === search.topCat}" data-act="topcat" data-key="${esc(k)}">${esc(label)}</button>`).join("")}</div>
+        <div id="spTop">${topHtml(vid)}</div></section>`;
       const chViews = new Map();
       for (const v of state.all) if (v.channel) chViews.set(v.channel, (chViews.get(v.channel) || 0) + (v.views || 0));
       const topCh = [...chViews].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c);
@@ -929,6 +946,15 @@
   function searchAct(el) {
     const act = el.dataset.act, q = sInput().value.trim();
     if (act === "q") return runSearch(el.dataset.q);
+    if (act === "topcat") {   // 순위 목록만 바꿈 (패널은 그대로, 탭도 그대로 남겨 둠)
+      search.topCat = el.dataset.key;
+      for (const b of $("#spBody").querySelectorAll(".sp-tab")) { const on = b === el; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", String(on)); }
+      $("#spTop").innerHTML = topHtml(spVid);
+      search.items = [...$("#spBody").querySelectorAll(".sp-item")]; search.sel = -1;
+      el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      if (!search.mobile) sInput().focus();
+      return;
+    }
     if (act === "submit") return runSearch(q);
     if (act === "delrecent") { setRecent(getRecent().filter((x) => x !== el.dataset.q)); renderSearch(); sInput().focus(); return; }
     if (act === "clearrecent") { setRecent([]); renderSearch(); sInput().focus(); return; }
@@ -963,6 +989,11 @@
     $("#spClear").addEventListener("click", () => { mi.value = ""; renderSearch(); mi.focus(); });
     $("#sp").addEventListener("mousedown", (e) => { if (!search.mobile) e.preventDefault(); });   // PC: 패널 클릭해도 검색창 포커스 유지
     $("#sp").addEventListener("click", (e) => { const el = e.target.closest("[data-act]"); if (el) searchAct(el); });
+    $("#sp").addEventListener("wheel", (e) => {   // PC: TOP 5 탭 줄은 마우스 휠로 옆으로 넘김
+      const row = e.target.closest(".sp-tabs");
+      if (!row || Math.abs(e.deltaY) <= Math.abs(e.deltaX) || row.scrollWidth <= row.clientWidth) return;
+      e.preventDefault(); row.scrollLeft += e.deltaY;
+    }, { passive: false });
     document.addEventListener("click", (e) => {
       if (search.open && !search.mobile && !e.target.closest("#sp, .search")) closeSearch();
     });

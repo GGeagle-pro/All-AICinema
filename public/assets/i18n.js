@@ -44,6 +44,7 @@
     "업데이트 {t}": ["Updated {t}", "{t}更新", "{t}更新", "Actualizado {t}"],
     "모든 국가": ["All countries", "すべての国", "全部国家", "Todos los países"],
     "전체": ["All", "すべて", "全部", "Todo"],
+    "아직 영상이 없어요.": ["No videos yet.", "まだ動画がありません。", "暂无视频。", "Aún no hay videos."],
     "모든 채널": ["All channels", "すべてのチャンネル", "全部频道", "Todos los canales"],
     "몰아보기": ["Binge-watch", "一気見", "连看合集", "Maratón"],
     "몰아보기 · 정주행": ["Binge-watch · Full series", "一気見・全話", "连看 · 全集", "Maratón · Serie completa"],
