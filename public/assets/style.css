@@ -290,3 +290,54 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
 .upnext .upnext__h:first-child{padding-top:0}
 .upnext .upnext__h:hover{background:none}
 .upnext__tag{display:inline-block;font-style:normal;font-size:11px;font-weight:800;color:#fff;background:var(--accent);border-radius:5px;padding:2px 6px;margin-bottom:4px}
+
+/* ───────── 검색 패널 ───────── */
+.sp{position:fixed;z-index:40;background:var(--bg2);border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.55);max-height:min(72vh,640px);overflow:auto;overscroll-behavior:contain;padding:14px 8px 10px}
+.sp__bar{display:none}
+.sp__sec{padding:4px 6px 10px}
+.sp__sec + .sp__sec{border-top:1px solid var(--line);padding-top:12px}
+.sp__h{display:flex;align-items:baseline;gap:8px;margin:0 4px 8px}
+.sp__h h4{margin:0;font-size:13px;font-weight:800;color:var(--text)}
+.sp-sub{font-size:12px;color:var(--muted)}
+.sp-link{margin-left:auto;border:0;background:none;color:var(--muted);font:inherit;font-size:12px;cursor:pointer;padding:2px 4px}
+.sp-link:hover{color:var(--text)}
+.sp-item{font:inherit;color:inherit;cursor:pointer}
+.sp-vid,.sp-row{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;text-align:left;padding:7px 6px;border-radius:10px}
+.sp-vid:hover,.sp-row:hover,.sp-item.is-sel{background:rgba(255,255,255,.07)}
+.sp-vid img{width:96px;aspect-ratio:16/9;object-fit:cover;border-radius:7px;flex:none;background:#000}
+.sp-rank{flex:none;width:22px;text-align:center;font-size:18px;font-weight:900;color:var(--muted);font-variant-numeric:tabular-nums}
+.sp-rank--top{color:var(--accent)}
+.sp-t{min-width:0;display:flex;flex-direction:column;gap:3px}
+.sp-t b{font-size:14px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}
+.sp-t small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-t mark,.sp-row mark{background:none;color:var(--accent);font-weight:800}
+.sp-row .avatar{width:36px;height:36px;flex:none}
+.sp-chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 4px}
+.sp-chip{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--bg);font-size:13px;white-space:nowrap}
+button.sp-chip:hover,.sp-chip.is-sel{border-color:var(--text)}
+.sp-chip--ch{padding-left:4px}
+.sp-chip--ch .chtab__av{width:26px;height:26px;font-size:11px}
+.sp-chip > .sp-item{border:0;background:none;padding:0;height:100%;font-size:13px}
+.sp-chip:has(.sp-x){padding-right:6px}
+.sp-x{border:0;background:none;color:var(--muted);font-size:16px;cursor:pointer;width:22px;height:22px;border-radius:50%;line-height:1}
+.sp-x:hover{color:var(--text);background:rgba(255,255,255,.08)}
+.sp-all{display:block;width:calc(100% - 12px);margin:6px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);font-weight:700;font-size:14px;text-align:center}
+.sp-all:hover,.sp-all.is-sel{border-color:var(--accent)}
+.sp-empty{margin:18px 10px;color:var(--muted);font-size:14px;text-align:center}
+.clearq{flex:none;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.clearq:hover{color:var(--text);border-color:var(--text)}
+
+/* 모바일: 전체 화면 검색 (유튜브·넷플릭스 앱 방식) */
+.sp--sheet{inset:0;max-height:none;border:0;border-radius:0;box-shadow:none;background:var(--bg);padding:0 0 calc(24px + env(safe-area-inset-bottom));z-index:45}
+.sp--sheet .sp__bar{display:flex;align-items:center;gap:6px;position:sticky;top:0;z-index:1;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 12px 10px 6px;border-bottom:1px solid var(--line)}
+.sp__back{flex:none;width:44px;height:44px;border:0;background:none;display:grid;place-items:center;cursor:pointer;border-radius:50%}
+.sp__back svg{width:24px;height:24px;fill:var(--text)}
+.sp__bar input{flex:1;min-width:0;height:42px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);padding:0 16px;font-size:16px;outline:0}
+.sp__bar input:focus{border-color:var(--accent2)}
+.sp__bar input::-webkit-search-cancel-button{display:none}
+.sp__clear{flex:none;width:36px;height:36px;margin-left:-44px;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;z-index:1}
+.sp--sheet .sp__body{padding:12px 10px 0}
+.sp--sheet .sp__sec{padding:6px 6px 14px}
+.sp--sheet .sp-vid{padding:9px 6px;min-height:64px}
+.sp--sheet .sp-vid img{width:112px}
+.sp--sheet .sp-chip{height:36px}

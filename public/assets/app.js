@@ -320,6 +320,7 @@
     const where = [state.country, state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat === BINGE_KEY ? "몰아보기 · 정주행" : state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
     const shelvesOn = renderShelves();
     $("#backBtn").hidden = !state.backTo;
+    $("#clearQ").hidden = !state.q;
     $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : (shelvesOn ? `${where || "전체"} 최신 영상` : where || "최신 영상");
     renderHero();
     const empty = $("#empty");
@@ -522,6 +523,164 @@
     c?.focus({ preventScroll: true });
   }
 
+  // ===== 검색 패널 =====
+  // PC: 검색창 아래로 펼쳐지는 패널 / 모바일: 전체 화면 검색 (뒤로가기로 닫힘)
+  // 입력 전: 최근 검색어 · 인기 영상 TOP 5(조회수) · 인기 채널 · 장르 바로가기
+  // 입력 중: 채널 · 영상 미리보기(조회수 순) · "전체 결과 보기"
+  const search = { open: false, mobile: false, sel: -1, items: [], shown: [] };
+  const mqMobile = matchMedia("(max-width:760px)");
+  const RECENT_KEY = "aic:recent";
+  const getRecent = () => { try { const a = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string").slice(0, 8) : []; } catch { return []; } };
+  const setRecent = (a) => { try { localStorage.setItem(RECENT_KEY, JSON.stringify(a.slice(0, 8))); } catch {} };
+  const addRecent = (q) => { q = q.trim().slice(0, 40); if (q) setRecent([q, ...getRecent().filter((x) => x !== q)]); };
+  const sInput = () => (search.mobile ? $("#spq") : $("#q"));
+  // 검색어 부분 강조 (텍스트는 모두 이스케이프)
+  function hl(text, q) {
+    text = String(text || "");
+    const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+    return i < 0 ? esc(text) : esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
+  }
+  const byViews = (a, b) => (b.views || 0) - (a.views || 0);
+  function renderSearch() {
+    const q = sInput().value.trim();
+    const sec = (title, body, extra = "") => body ? `<section class="sp__sec"><div class="sp__h"><h4>${title}</h4>${extra}</div>${body}</section>` : "";
+    const vid = (v, k, rank) => `<button type="button" class="sp-item sp-vid" data-act="play" data-k="${k}">
+        ${rank ? `<span class="sp-rank${rank <= 3 ? " sp-rank--top" : ""}">${rank}</span>` : ""}
+        <img src="${thumb(v.id, "mqdefault")}" alt="" loading="lazy" />
+        <span class="sp-t"><b>${hl(v.title, q)}</b><small>${esc(v.channel)}${v.views ? " · 조회수 " + fmtViews(v.views) : ""}</small></span></button>`;
+    let html = "";
+    if (!q) {
+      const recent = getRecent();
+      html += sec("최근 검색어", recent.length ? `<div class="sp-chips">${recent.map((r) =>
+        `<span class="sp-chip"><button type="button" class="sp-item" data-act="q" data-q="${esc(r)}">${esc(r)}</button><button type="button" class="sp-x" data-act="delrecent" data-q="${esc(r)}" aria-label="${esc(r)} 삭제">×</button></span>`).join("")}</div>` : "",
+        `<button type="button" class="sp-link" data-act="clearrecent">전체 삭제</button>`);
+      search.shown = state.all.filter((v) => v.views > 0).sort(byViews).slice(0, 5);
+      html += sec("인기 영상 TOP 5", search.shown.map((v, k) => vid(v, k, k + 1)).join(""), `<span class="sp-sub">조회수 기준</span>`);
+      const chViews = new Map();
+      for (const v of state.all) if (v.channel) chViews.set(v.channel, (chViews.get(v.channel) || 0) + (v.views || 0));
+      const topCh = [...chViews].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c);
+      html += sec("인기 채널", `<div class="sp-chips">${topCh.map((c) =>
+        `<button type="button" class="sp-item sp-chip sp-chip--ch" data-act="ch" data-key="${esc(c)}">${avatarHtml(c)}<span>${esc(c)}</span></button>`).join("")}</div>`);
+      html += sec("장르로 찾기", `<div class="sp-chips">${[[BINGE_KEY, "몰아보기"], ...catList().map((c) => [c, c])]
+        .filter(([k]) => state.all.some((v) => inCat(v, k)))
+        .map(([k, label]) => `<button type="button" class="sp-item sp-chip" data-act="cat" data-key="${esc(k)}">${esc(label)}</button>`).join("")}</div>`);
+    } else {
+      const ql = q.toLowerCase();
+      const chs = [...new Set(state.all.map((v) => v.channel))].filter((c) => c && c.toLowerCase().includes(ql)).slice(0, 4);
+      const hits = state.all.filter((v) => (v.title + " " + v.channel).toLowerCase().includes(ql));
+      search.shown = hits.slice().sort(byViews).slice(0, 8);
+      html += sec("채널", chs.map((c) => `<button type="button" class="sp-item sp-row" data-act="ch" data-key="${esc(c)}">${avatarHtml(c, "avatar")}<span class="sp-t"><b>${hl(c, q)}</b><small>채널 영상 ${state.all.filter((v) => v.channel === c).length}편</small></span></button>`).join(""));
+      html += sec("영상", search.shown.map((v, k) => vid(v, k)).join(""));
+      html += hits.length
+        ? `<button type="button" class="sp-item sp-all" data-act="submit">"${esc(q)}" 검색 결과 ${hits.length}개 모두 보기 ›</button>`
+        : `<p class="sp-empty">"${esc(q)}"에 맞는 영상이 없어요. 다른 단어로 찾아보세요.</p>`;
+    }
+    $("#spBody").innerHTML = html;
+    search.items = [...$("#spBody").querySelectorAll(".sp-item")];
+    search.sel = -1;
+    $("#spClear").hidden = !$("#spq").value;
+  }
+  function placeSearch() {   // PC: 검색창 바로 아래에 맞춤
+    if (search.mobile) return;
+    const r = $(".search").getBoundingClientRect(), sp = $("#sp");
+    sp.style.top = Math.round(r.bottom + 8) + "px";
+    sp.style.left = Math.round(r.left) + "px";
+    sp.style.width = Math.round(Math.max(r.width, 380)) + "px";
+  }
+  function openSearch() {
+    if (search.open) return;
+    search.open = true;
+    search.mobile = mqMobile.matches;
+    const sp = $("#sp");
+    sp.classList.toggle("sp--sheet", search.mobile);
+    sp.removeAttribute("style");
+    sp.hidden = false;
+    $("#searchBtn").setAttribute("aria-expanded", "true");
+    if (search.mobile) {
+      $("#spq").value = state.q;
+      document.body.classList.add("locked");
+      history.pushState({ ...(history.state || {}), search: 1 }, "", location.href);   // 휴대폰 뒤로가기로 닫기
+      setTimeout(() => $("#spq").focus(), 30);
+    } else placeSearch();
+    renderSearch();
+  }
+  function closeSearch({ fromPop = false } = {}) {
+    if (!search.open) return;
+    search.open = false;
+    $("#sp").hidden = true;
+    $("#searchBtn").setAttribute("aria-expanded", "false");
+    if (search.mobile) {
+      if ($("#player").hidden) document.body.classList.remove("locked");
+      if (!fromPop && history.state?.search) history.back();
+    }
+  }
+  function runSearch(q) {
+    q = String(q || "").trim();
+    addRecent(q);
+    state.backTo = null; state.q = q;
+    $("#q").value = q; $("#spq").value = q;
+    closeSearch();
+    $("#q").blur();
+    apply();
+    scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function searchAct(el) {
+    const act = el.dataset.act, q = sInput().value.trim();
+    if (act === "q") return runSearch(el.dataset.q);
+    if (act === "submit") return runSearch(q);
+    if (act === "delrecent") { setRecent(getRecent().filter((x) => x !== el.dataset.q)); renderSearch(); sInput().focus(); return; }
+    if (act === "clearrecent") { setRecent([]); renderSearch(); sInput().focus(); return; }
+    if (act === "play") {
+      const list = search.shown.slice(), k = +el.dataset.k;
+      if (q) addRecent(q);
+      closeSearch();
+      if (pageMode()) return goToVideo(list[k]);
+      state.queue = list; openPlayer(k);
+      return;
+    }
+    if (act === "cat" || act === "ch") {
+      if (q) addRecent(q);
+      state.backTo = null; state.q = ""; $("#q").value = "";
+      if (act === "cat") { state.cat = el.dataset.key; state.ch = ""; } else { state.cat = "전체"; state.ch = el.dataset.key; }
+      closeSearch(); renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+  function bindSearch() {
+    const qi = $("#q"), mi = $("#spq");
+    $(".search").addEventListener("submit", (e) => { e.preventDefault(); runSearch(qi.value); });
+    $("#spForm").addEventListener("submit", (e) => { e.preventDefault(); runSearch(mi.value); });
+    qi.addEventListener("focus", () => { if (!mqMobile.matches) openSearch(); });
+    qi.addEventListener("click", () => { if (!mqMobile.matches) openSearch(); });
+    let t;
+    const typed = () => { clearTimeout(t); t = setTimeout(() => { if (!search.open) openSearch(); else renderSearch(); }, 120); };
+    qi.addEventListener("input", () => { typed(); if (!qi.value && state.q) { state.q = ""; apply(); } });
+    mi.addEventListener("input", typed);
+    $("#searchBtn").addEventListener("click", () => (search.open ? closeSearch() : openSearch()));
+    $("#spBack").addEventListener("click", () => closeSearch());
+    $("#spClear").addEventListener("click", () => { mi.value = ""; renderSearch(); mi.focus(); });
+    $("#sp").addEventListener("mousedown", (e) => { if (!search.mobile) e.preventDefault(); });   // PC: 패널 클릭해도 검색창 포커스 유지
+    $("#sp").addEventListener("click", (e) => { const el = e.target.closest("[data-act]"); if (el) searchAct(el); });
+    document.addEventListener("click", (e) => {
+      if (search.open && !search.mobile && !e.target.closest("#sp, .search")) closeSearch();
+    });
+    // 키보드: ↑↓로 고르고 Enter, Esc로 닫기
+    const keys = (e) => {
+      if (!search.open) return;
+      if (e.key === "Escape") { e.preventDefault(); closeSearch(); sInput().blur(); return; }
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
+      if (e.key === "Enter") { if (search.sel >= 0 && search.items[search.sel]) { e.preventDefault(); searchAct(search.items[search.sel]); } return; }
+      e.preventDefault();
+      const n = search.items.length; if (!n) return;
+      search.sel = (search.sel + (e.key === "ArrowDown" ? 1 : -1) + n) % n;
+      search.items.forEach((el, k) => el.classList.toggle("is-sel", k === search.sel));
+      search.items[search.sel].scrollIntoView({ block: "nearest" });
+    };
+    qi.addEventListener("keydown", keys); mi.addEventListener("keydown", keys);
+    addEventListener("resize", () => { if (search.open && !search.mobile) placeSearch(); }, { passive: true });
+    addEventListener("scroll", () => { if (search.open && !search.mobile) placeSearch(); }, { passive: true });
+    $("#clearQ").addEventListener("click", () => { state.q = ""; qi.value = ""; mi.value = ""; apply(); });
+  }
+
   // ===== 다음 영상 순서 정하기 =====
   // 같은 채널 영상을 올린 순서(화수 표기가 있으면 화수)대로 줄 세워서 지금 영상의 바로 다음 화·이전 화를 찾음.
   // 몰아보기·통합본은 회차 순서에서 빼고(지금 보는 게 몰아보기면 포함), 남는 자리는 지금 보던 목록의 다른 영상으로 채움.
@@ -657,16 +816,7 @@
       if ($("#chrow").classList.contains("open")) setChOpen(false);   // 고르면 다시 접기
       apply();
     });
-    $(".search").addEventListener("submit", (e) => { e.preventDefault(); $("#q").blur(); });
-    let qt;
-    $("#q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; apply(); }, 200); });
-    $("#searchBtn").addEventListener("click", () => {
-      const bar = $("#topbar");
-      const open = !bar.classList.contains("search-open");
-      bar.classList.toggle("search-open", open);
-      $("#searchBtn").setAttribute("aria-expanded", String(open));
-      if (open) $("#q").focus();
-    });
+    bindSearch();
     $("#chMore").addEventListener("click", () => setChOpen(!$("#chrow").classList.contains("open")));
     let rt;
     addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(updateChMore, 150); }, { passive: true });
@@ -699,6 +849,7 @@
       if (e.key === "ArrowLeft" && e.shiftKey) step(-1);
     });
     addEventListener("popstate", () => {
+      if (search.open && !history.state?.search) { closeSearch({ fromPop: true }); return; }
       const id = new URLSearchParams(location.search).get("v");
       if (id && VALID_ID.test(id)) return openById(id, false);
       if (!$("#player").hidden) closePlayer({ fromPop: true });
