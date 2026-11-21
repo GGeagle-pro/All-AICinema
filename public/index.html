@@ -48,11 +48,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="assets/style.css?v=20261121o" />
+  <link rel="stylesheet" href="assets/style.css?v=20261121r" />
 
   <!-- Google 태그 (Google Ads) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-947429542"></script>
-  <script src="assets/gtag-init.js?v=20261121o"></script>
+  <script src="assets/gtag-init.js?v=20261121r"></script>
   <!-- Google AdSense (자동 광고: 상·하단 고정 앵커 광고, 전면 비네트 광고는 애드센스 화면에서 켭니다) -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8096684162493748" crossorigin="anonymous"></script>
 </head>
@@ -65,37 +65,45 @@
       </a>
       <form class="search" role="search">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2-1.4 1.4-4.2-4.2A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
-        <input id="q" type="search" placeholder="제목·채널 검색" autocomplete="off" enterkeyhint="search" aria-label="영상 검색" />
+        <input id="q" type="search" placeholder="제목·채널 검색" autocomplete="off" enterkeyhint="search" aria-label="영상 검색" data-i18n-attr="placeholder,aria-label" />
       </form>
-      <button id="saveBtn" class="save-btn" type="button" aria-label="즐겨찾기 · 홈 화면에 추가" aria-haspopup="dialog" aria-expanded="false" aria-controls="install" title="즐겨찾기 · 홈 화면에 추가">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.8 2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg><span>즐겨찾기</span>
+      <button id="saveBtn" class="save-btn" type="button" aria-label="즐겨찾기 · 홈 화면에 추가" aria-haspopup="dialog" aria-expanded="false" aria-controls="install" title="즐겨찾기 · 홈 화면에 추가" data-i18n-attr="aria-label,title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.8 2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg><span data-i18n>즐겨찾기</span>
       </button>
-      <button id="searchBtn" class="search-btn" type="button" aria-label="검색 열기" aria-expanded="false" aria-controls="q">
+      <!-- 언어 선택 (한국어·English·日本語·中文) -->
+      <div class="lang">
+        <button id="langBtn" class="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="langMenu" aria-label="언어" data-i18n-attr="aria-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 6h-3a15.6 15.6 0 0 0-1.4-3.9A8 8 0 0 1 18.9 8ZM12 4.1c.8 1.1 1.5 2.4 1.9 3.9h-3.8c.4-1.5 1.1-2.8 1.9-3.9ZM4.3 14a8.2 8.2 0 0 1 0-4h3.4a16.5 16.5 0 0 0 0 4H4.3Zm.8 2h3a15.6 15.6 0 0 0 1.4 3.9A8 8 0 0 1 5.1 16Zm3-8h-3a8 8 0 0 1 4.4-3.9A15.6 15.6 0 0 0 8.1 8ZM12 19.9c-.8-1.1-1.5-2.4-1.9-3.9h3.8c-.4 1.5-1.1 2.8-1.9 3.9Zm2.3-5.9H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4Zm.3 5.9a15.6 15.6 0 0 0 1.4-3.9h3a8 8 0 0 1-4.4 3.9Zm1.7-5.9a16.5 16.5 0 0 0 0-4h3.4a8.2 8.2 0 0 1 0 4h-3.4Z"/></svg>
+          <span id="langCur">KO</span>
+        </button>
+        <ul id="langMenu" class="lang-menu" role="listbox" aria-label="언어" data-i18n-attr="aria-label" hidden></ul>
+      </div>
+      <button id="searchBtn" class="search-btn" type="button" aria-label="검색 열기" data-i18n-attr="aria-label" aria-expanded="false" aria-controls="q">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2-1.4 1.4-4.2-4.2A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
       </button>
     </div>
     <!-- 1줄: 장르·국가 (관리자 > 메뉴·배너 에서 편집) -->
     <!-- 0줄: 나라 (한국·미국·일본·중국 – 관리자 카테고리에 같은 이름으로 채널에 지정) -->
-    <nav class="menu menu--countries" id="countries" aria-label="국가"></nav>
-    <nav class="menu" id="cats" aria-label="장르"></nav>
+    <nav class="menu menu--countries" id="countries" aria-label="국가" data-i18n-attr="aria-label"></nav>
+    <nav class="menu" id="cats" aria-label="장르" data-i18n-attr="aria-label"></nav>
     <!-- 2줄: 유튜브 채널 -->
     <div class="chrow" id="chrow">
-      <nav class="menu menu--channels" id="chs" aria-label="유튜브 채널"></nav>
+      <nav class="menu menu--channels" id="chs" aria-label="유튜브 채널" data-i18n-attr="aria-label"></nav>
       <!-- 채널이 한 줄을 넘치면 나타남: 누르면 여러 줄로 펼치기 / 접기 -->
-      <button id="chMore" class="chmore" type="button" aria-expanded="false" aria-controls="chs" aria-label="채널 모두 펼치기" hidden>+</button>
+      <button id="chMore" class="chmore" type="button" aria-expanded="false" aria-controls="chs" aria-label="채널 모두 펼치기" data-i18n-attr="aria-label" hidden>+</button>
     </div>
   </header>
 
   <!-- 즐겨찾기 · 홈 화면에 추가 안내 (PC: 오른쪽 위 작은 창, 모바일: 아래에서 올라오는 창) -->
   <div id="installBg" class="install-bg" hidden></div>
-  <div id="install" class="install" role="dialog" aria-label="즐겨찾기 · 홈 화면에 추가" hidden></div>
+  <div id="install" class="install" role="dialog" aria-label="즐겨찾기 · 홈 화면에 추가" data-i18n-attr="aria-label" hidden></div>
 
   <!-- 검색 패널: PC는 검색창 아래 펼침, 모바일은 전체 화면 -->
-  <div id="sp" class="sp" role="dialog" aria-label="검색" hidden>
+  <div id="sp" class="sp" role="dialog" aria-label="검색" data-i18n-attr="aria-label" hidden>
     <form id="spForm" class="sp__bar" role="search">
-      <button id="spBack" class="sp__back" type="button" aria-label="검색 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 4.6 8 12l7.4 7.4-1.4 1.4L5.2 12l8.8-8.8z"/></svg></button>
-      <input id="spq" type="search" placeholder="제목·채널 검색" autocomplete="off" enterkeyhint="search" aria-label="영상 검색" />
-      <button id="spClear" class="sp__clear" type="button" aria-label="검색어 지우기" hidden>×</button>
+      <button id="spBack" class="sp__back" type="button" aria-label="검색 닫기" data-i18n-attr="aria-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 4.6 8 12l7.4 7.4-1.4 1.4L5.2 12l8.8-8.8z"/></svg></button>
+      <input id="spq" type="search" placeholder="제목·채널 검색" autocomplete="off" enterkeyhint="search" aria-label="영상 검색" data-i18n-attr="placeholder,aria-label" />
+      <button id="spClear" class="sp__clear" type="button" aria-label="검색어 지우기" data-i18n-attr="aria-label" hidden>×</button>
     </form>
     <div id="spBody" class="sp__body"></div>
   </div>
@@ -104,24 +112,24 @@
   <div class="ad ad--top" id="adTop" hidden></div>
 
   <div class="layout">
-    <aside class="rail rail--left" aria-label="광고"><div id="railL" hidden></div></aside>
+    <aside class="rail rail--left" aria-label="광고" data-i18n-attr="aria-label"><div id="railL" hidden></div></aside>
 
     <main class="wrap">
       <section id="hero" class="hero" hidden></section>
 
       <!-- 자체 광고 배너 3칸 (관리자 > 메뉴·배너 에서 이미지·링크 편집) -->
-      <section id="promo" class="promo" aria-label="광고" hidden></section>
+      <section id="promo" class="promo" aria-label="광고" data-i18n-attr="aria-label" hidden></section>
 
       <!-- 두 번째 방문부터: 홈 화면에 추가 안내 (닫으면 2주간 숨김) -->
       <div id="installCard" class="icard" role="button" tabindex="0" hidden>
         <img src="assets/logo.svg?v=2" alt="" width="40" height="40" />
-        <div><b>홈 화면에 All AI-Cinema 추가</b><span>앱처럼 한 번에 열고, 새 AI 드라마를 바로 확인하세요.</span></div>
-        <span class="icard__go">추가</span>
-        <button type="button" class="icard__x" aria-label="안내 닫기">×</button>
+        <div><b data-i18n>홈 화면에 All AI-Cinema 추가</b><span data-i18n>앱처럼 한 번에 열고, 새 AI 드라마를 바로 확인하세요.</span></div>
+        <span class="icard__go" data-i18n>추가</span>
+        <button type="button" class="icard__x" aria-label="안내 닫기" data-i18n-attr="aria-label">×</button>
       </div>
 
       <!-- 작품 화면 머리 (작품을 고르면 표시) -->
-      <section id="workHead" class="whead" aria-label="작품 정보" hidden></section>
+      <section id="workHead" class="whead" aria-label="작품 정보" data-i18n-attr="aria-label" hidden></section>
 
       <!-- 채널별로 묶어 보기 (전체·장르 탭) -->
       <div id="shelves" class="shelves" hidden></div>
@@ -129,15 +137,15 @@
       <div class="toolbar">
         <div class="toolbar__left">
           <!-- "전체 보기"로 들어왔을 때만 보임: 누르면 원래 보던 화면·위치로 -->
-          <button id="backBtn" class="backbtn" type="button" hidden><span aria-hidden="true">‹</span> 돌아가기</button>
+          <button id="backBtn" class="backbtn" type="button" hidden><span aria-hidden="true">‹</span> <span data-i18n>돌아가기</span></button>
           <h2 id="listTitle">최신 영상</h2>
-          <button id="clearQ" class="clearq" type="button" hidden>검색 해제 ×</button>
+          <button id="clearQ" class="clearq" type="button" data-i18n hidden>검색 해제 ×</button>
         </div>
         <div class="toolbar__right">
           <span id="meta" class="muted"></span>
-          <select id="sort" aria-label="정렬">
-            <option value="new">최신순</option>
-            <option value="views">조회수순</option>
+          <select id="sort" aria-label="정렬" data-i18n-attr="aria-label">
+            <option value="new" data-i18n>최신순</option>
+            <option value="views" data-i18n>조회수순</option>
           </select>
         </div>
       </div>
@@ -174,14 +182,14 @@
     </main>
 
     <!-- 오른쪽 세로 배너: 데스크톱에서만, 왼쪽과 똑같이 페이지와 함께 스크롤 -->
-    <aside class="rail rail--right" aria-label="광고"><div id="railR" hidden></div></aside>
+    <aside class="rail rail--right" aria-label="광고" data-i18n-attr="aria-label"><div id="railR" hidden></div></aside>
   </div>
 
   <footer class="footer">
     <!-- 하단 배너 광고 -->
     <div class="ad ad--bottom" id="adBottom" hidden></div>
-    <p>모든 영상의 저작권은 각 유튜브 채널과 제작자에게 있으며, 본 사이트는 YouTube 공식 플레이어로 재생합니다.<br />영상 게시 중단 요청은 소개 페이지의 연락처로 보내주세요.</p>
-    <p><a href="about.html">소개</a> · <a href="privacy.html">개인정보처리방침</a></p>
+    <p data-i18n-html="footer.rights">모든 영상의 저작권은 각 유튜브 채널과 제작자에게 있으며, 본 사이트는 YouTube 공식 플레이어로 재생합니다.<br />영상 게시 중단 요청은 소개 페이지의 연락처로 보내주세요.</p>
+    <p><a href="about.html" data-i18n>소개</a> · <a href="privacy.html" data-i18n>개인정보처리방침</a></p>
   </footer>
 
   <!-- 새 영상 알림 -->
@@ -191,7 +199,7 @@
   <div id="player" class="player" role="dialog" aria-modal="true" aria-labelledby="pTitle" hidden>
     <div class="player__backdrop" data-close></div>
     <div class="player__panel">
-      <button class="player__close" data-close aria-label="닫기">✕</button>
+      <button class="player__close" data-close aria-label="닫기" data-i18n-attr="aria-label">✕</button>
       <div class="player__main">
         <div class="player__video"><div id="yt"></div></div>
         <div class="player__info">
@@ -202,27 +210,28 @@
           </div>
           <button id="pWork" class="pwork" type="button" hidden></button>
           <div class="player__actions">
-            <button id="pPrev" class="btn">◀ 이전</button>
-            <button id="pNext" class="btn btn--primary">다음 ▶</button>
-            <label class="switch"><input id="pAuto" type="checkbox" checked /> 자동 다음</label>
-            <button id="pShare" class="btn">공유</button>
+            <button id="pPrev" class="btn" data-i18n>◀ 이전</button>
+            <button id="pNext" class="btn btn--primary" data-i18n>다음 ▶</button>
+            <label class="switch"><input id="pAuto" type="checkbox" checked /> <span data-i18n>자동 다음</span></label>
+            <button id="pShare" class="btn" data-i18n>공유</button>
             <button id="pFav" class="btn" type="button" aria-pressed="false">♡ 찜</button>
           </div>
           <p class="player__links">
-            <a id="pYoutube" href="https://www.youtube.com" target="_blank" rel="noopener">YouTube에서 보기 ↗</a>
-            <a id="pChannelLink" href="https://www.youtube.com" target="_blank" rel="noopener" hidden>채널 방문 ↗</a>
+            <a id="pYoutube" href="https://www.youtube.com" target="_blank" rel="noopener" data-i18n>YouTube에서 보기 ↗</a>
+            <a id="pChannelLink" href="https://www.youtube.com" target="_blank" rel="noopener" data-i18n hidden>채널 방문 ↗</a>
           </p>
           <p id="pDesc" class="player__desc"></p>
         </div>
         <div class="ad ad--player" id="playerAd" hidden></div>
       </div>
       <aside class="player__side">
-        <h3>다음 영상</h3>
+        <h3 data-i18n>다음 영상</h3>
         <ol id="upnext" class="upnext"></ol>
       </aside>
     </div>
   </div>
 
-  <script src="assets/app.js?v=20261121o" defer></script>
+  <script src="assets/i18n.js?v=2" defer></script>
+  <script src="assets/app.js?v=20261121r" defer></script>
 </body>
 </html>
