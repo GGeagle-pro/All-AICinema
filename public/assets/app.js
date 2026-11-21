@@ -130,7 +130,7 @@
     box.hidden = !items.length;
     box.style.setProperty("--cols", String(items.length || 1));
     box.innerHTML = items.map((b) => {
-      const img = `<img src="${esc(b.img)}" alt="${esc(b.alt || T("광고 배너"))}" loading="lazy" decoding="async" /><span class="promo__label">${T("광고")}</span>`;
+      const img = `<img src="/${esc(b.img)}" alt="${esc(b.alt || T("광고 배너"))}" loading="lazy" decoding="async" /><span class="promo__label">${T("광고")}</span>`;
       return b.link
         ? `<a class="promo__item" href="${esc(b.link)}" target="_blank" rel="sponsored noopener noreferrer">${img}</a>`
         : `<div class="promo__item">${img}</div>`;
@@ -190,7 +190,7 @@
 
   async function loadSite() {
     try {
-      const r = await fetch("data/site.json", { cache: "no-cache" });
+      const r = await fetch("/data/site.json", { cache: "no-cache" });
       if (!r.ok) return;
       const s = await r.json();
       if (!s || typeof s !== "object") return;
@@ -219,7 +219,7 @@
 
   // 설명은 플레이어를 처음 열 때 한 번만 받음 (목록 로딩을 가볍게)
   let descPromise;
-  const getDesc = () => (descPromise ||= fetch("data/desc.json", { cache: "no-cache" })
+  const getDesc = () => (descPromise ||= fetch("/data/desc.json", { cache: "no-cache" })
     .then((r) => (r.ok ? r.json() : {}))
     .then((d) => (d && typeof d === "object" && !Array.isArray(d) ? d : {}))
     .catch(() => ({})));
@@ -228,7 +228,7 @@
   async function checkUpdate() {
     if (document.hidden) return;
     try {
-      const r = await fetch("data/meta.json", { cache: "no-cache" });
+      const r = await fetch("/data/meta.json", { cache: "no-cache" });
       if (!r.ok) return;
       const m = await r.json();
       if (m.generatedAt && m.generatedAt !== state.latest) { descPromise = null; await load(false); }
@@ -247,7 +247,7 @@
 
   async function load(initial) {
     // cache:"no-cache" → 서버(또는 CDN)에 "바뀌었나?"만 물어보고, 안 바뀌었으면 304로 본문 없이 재사용
-    const res = await fetch("data/videos.json", { cache: "no-cache" });
+    const res = await fetch("/data/videos.json", { cache: "no-cache" });
     if (!res.ok) throw new Error(T("데이터를 불러오지 못했습니다"));
     const data = await res.json();
     const vids = parseIndex(data);
@@ -500,7 +500,7 @@
     const b = list[stripTurn++ % list.length];
     const own = isOwnLink(b.link);
     return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
-      <img src="${esc(b.image)}" alt="${esc(b.alt)}" width="1200" height="200" loading="lazy" decoding="async" />
+      <img src="/${esc(b.image)}" alt="${esc(b.alt)}" width="1200" height="200" loading="lazy" decoding="async" />
       <span class="strip__ad">${T("광고")}</span></a></${tag}>`;
   }
   const STRIP_SHELF_FIRST = 2, STRIP_SHELF_EVERY = 5;
@@ -732,7 +732,7 @@
     if (!env.mobile) how.push(`<li>${T("install.pc", { keys: `<kbd>${env.mac ? "⌘ Cmd" : "Ctrl"}</kbd> + <kbd>D</kbd>` })}</li>`);
     const btn = how.find((h) => h.startsWith("<button")) || "";
     const steps = how.filter((h) => h && !h.startsWith("<button")).join("");
-    return `<div class="install__head"><img src="assets/logo.svg?v=2" alt="" width="44" height="44" />
+    return `<div class="install__head"><img src="/assets/logo.svg?v=2" alt="" width="44" height="44" />
         <div><b>${T("All AI-Cinema 바로가기")}</b><span>${T("새 AI 영화·드라마가 매일 올라와요. 바로가기를 만들어 두고 편하게 다시 보세요.")}</span></div>
         <button type="button" class="install__x" data-act="close" aria-label="${T("닫기")}">×</button></div>
       ${btn}${steps ? `<ol class="install__steps">${steps}</ol>` : ""}
@@ -783,7 +783,7 @@
     });
     showInstallCard();
     // 홈 화면 앱으로 쓸 수 있게 서비스워커 등록 (페이지를 저장해 두지 않음 → 항상 최신 화면)
-    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
 
   // ===== 언어 선택 (한국어 · English · 日本語 · 中文) =====
@@ -820,7 +820,10 @@
       if (!I18N.setLang(code)) return;
       paint();
       // 주소의 ?lang= 은 지움 (고른 언어는 이 브라우저에 기억)
-      const u = new URL(location.href); if (u.searchParams.has("lang")) { u.searchParams.delete("lang"); history.replaceState(history.state, "", u.pathname + (u.search || "")); }
+      // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
+      const u = new URL(location.href); u.searchParams.delete("lang");
+      if (/^\/((en|ja|zh|es)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
+      if (u.href !== location.href) history.replaceState(history.state, "", u.pathname + u.search);
       document.title = $("#player").hidden ? `${siteName()} | ${T("AI 영화·드라마 모아보기")}` : document.title;
       renderPromo(); renderMenus(); apply();
       if (search.open) renderSearch();

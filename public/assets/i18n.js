@@ -191,7 +191,11 @@
   // ── 언어 정하기 ──
   function detect() {
     try { const q = new URLSearchParams(location.search).get("lang"); if (CODES.includes(q)) return q; } catch {}
+    // 언어별 주소 (/en/ /ja/ /zh/ /es/) → 그 언어로 고정 (검색엔진이 언어별 페이지를 따로 색인)
+    const m = location.pathname.match(/^\/(en|ja|zh|es)(\/|$)/); if (m) return m[1];
     try { const s = localStorage.getItem("aic:lang"); if (CODES.includes(s)) return s; } catch {}
+    // 기본 주소(/)는 검색 로봇에게 항상 한국어로 (언어별 페이지는 hreflang 으로 따로 알려 줌)
+    if (/bot|crawl|spider|slurp|lighthouse|yeti|daum/i.test(navigator.userAgent || "")) return "ko";
     const nav = (navigator.languages && navigator.languages[0]) || navigator.language || "ko";
     const p = nav.toLowerCase().slice(0, 2);
     return CODES.includes(p) ? p : (p === "ko" ? "ko" : "en");   // 지원하지 않는 언어는 영어
