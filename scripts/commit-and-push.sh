@@ -14,7 +14,9 @@ git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
 changed=false
 for attempt in 1 2 3; do
-  git add -- "${files[@]}"
+  # 없는 파일(예: API 키가 없어 아직 안 만들어진 cache/playlists.json)은 건너뜀
+  present=(); for f in "${files[@]}"; do [ -e "$f" ] && present+=("$f"); done
+  git add -- "${present[@]}"
   if git diff --cached --quiet; then
     echo "변경 없음"
     break
