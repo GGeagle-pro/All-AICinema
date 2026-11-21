@@ -460,3 +460,9 @@ button.sp-chip:hover,.sp-chip.is-sel{border-color:var(--text)}
   .lang-menu li{padding:14px 16px;font-size:16px}
 }
 @media (max-width:380px){ .lang-btn span{display:none} .lang-btn{width:40px;justify-content:center;padding:0} }
+
+/* 긴 언어(스페인어 등)에서도 줄 제목이 잘리지 않게: 제목 우선, 설명은 남는 자리만 */
+.shelf__head h3{flex-shrink:0;max-width:72%}
+.shelf__n{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.player__actions .switch{min-width:0;overflow:hidden}
+.player__actions .switch span{overflow:hidden;text-overflow:ellipsis}
