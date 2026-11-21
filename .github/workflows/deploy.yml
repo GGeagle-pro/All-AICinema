@@ -36,9 +36,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # Cloudways 토큰은 1시간이면 만료되므로, 배포할 때마다 이메일 + API 키로 새로 발급
+      - name: Cloudways 로그인 토큰 발급
+        id: auth
+        env:
+          CW_EMAIL: ${{ secrets.CLOUDWAYS_EMAIL }}
+          CW_KEY: ${{ secrets.CLOUDWAYS_API_KEY }}
+          CW_OLD: ${{ secrets.CLOUDWAYS_API_TOKEN }}
+        run: |
+          if [ -n "$CW_EMAIL" ] && [ -n "$CW_KEY" ]; then
+            tok=$(curl -sS --max-time 30 --proto '=https' -X POST "https://api.cloudways.com/api/v1/oauth/access_token" \
+              --data-urlencode "email=$CW_EMAIL" --data-urlencode "api_key=$CW_KEY" | jq -r '.access_token // empty')
+            if [ -z "$tok" ]; then echo "::error::Cloudways 로그인 실패 – CLOUDWAYS_EMAIL / CLOUDWAYS_API_KEY 를 확인하세요"; exit 1; fi
+          else
+            tok="$CW_OLD"
+          fi
+          [ -n "$tok" ] && echo "::add-mask::$tok"
+          echo "token=$tok" >> "$GITHUB_OUTPUT"
+
       - name: Cloudways에 Git Pull 요청
         env:
-          CW_TOKEN: ${{ secrets.CLOUDWAYS_API_TOKEN }}
+          CW_TOKEN: ${{ steps.auth.outputs.token }}
           CW_SERVER: ${{ secrets.CLOUDWAYS_SERVER_ID }}
           CW_APP: ${{ secrets.CLOUDWAYS_APP_ID }}
           GIT_URL: git@github.com:${{ github.repository }}.git
@@ -67,7 +85,7 @@ jobs:
       - name: Cloudways Varnish 캐시 비우기
         continue-on-error: true
         env:
-          CW_TOKEN: ${{ secrets.CLOUDWAYS_API_TOKEN }}
+          CW_TOKEN: ${{ steps.auth.outputs.token }}
           CW_SERVER: ${{ secrets.CLOUDWAYS_SERVER_ID }}
         run: |
           if [ -z "$CW_TOKEN" ] || [ -z "$CW_SERVER" ]; then echo "Secrets 없음 – 건너뜀"; exit 0; fi
