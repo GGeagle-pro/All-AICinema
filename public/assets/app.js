@@ -205,10 +205,10 @@
           feedEvery: +s.adsense?.feedEvery || 0,
         },
         banners: Array.isArray(s.banners) ? s.banners.slice(0, 3) : [],
-        // 목록 사이 띠 배너 (관리자 > 카테고리·배너): 아이콘 + 제목 + 설명 + 버튼
-        strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 5)
-          .map((b) => ({ on: b?.on !== false, icon: SAFE_IMG.test(b?.icon || "") ? b.icon : "", title: str(b?.title, 40), desc: str(b?.desc, 80), cta: str(b?.cta, 12), link: safeLink(b?.link || "") }))
-          .filter((b) => b.on && b.title && b.link),
+        // 목록 사이 띠 배너 (관리자 > 카테고리·배너): 6:1 이미지 + 랜딩 URL + 문구
+        strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 3)
+          .map((b) => ({ image: SAFE_IMG.test(b?.image || "") ? b.image : "", alt: str(b?.alt, 80), link: safeLink(b?.link || "") }))
+          .filter((b) => b.image && b.link),
         // 영상 여는 방식: "page" = 목록에서 누르면 실제로 영상 페이지로 이동(애드센스 전면 광고 기회),
         //                 "inline" = 페이지 이동 없이 바로 플레이어 열기 (관리자 > 광고 설정에서 변경)
         openMode: s.openMode === "page" ? "page" : "inline",
@@ -499,11 +499,9 @@
     if (!list.length) return "";
     const b = list[stripTurn++ % list.length];
     const own = isOwnLink(b.link);
-    const icon = b.icon ? `<img src="${esc(b.icon)}" alt="" width="44" height="44" loading="lazy" decoding="async" />` : `<img src="assets/logo.svg?v=2" alt="" width="44" height="44" />`;
-    return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored noopener noreferrer"'}>
-      <span class="strip__ad">${T("광고")}</span>${icon}
-      <span class="strip__txt"><b>${esc(b.title)}</b>${b.desc ? `<span>${esc(b.desc)}</span>` : ""}</span>
-      ${b.cta ? `<span class="strip__go">${esc(b.cta)}</span>` : ""}</a></${tag}>`;
+    return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
+      <img src="${esc(b.image)}" alt="${esc(b.alt)}" width="1200" height="200" loading="lazy" decoding="async" />
+      <span class="strip__ad">${T("광고")}</span></a></${tag}>`;
   }
   const STRIP_SHELF_FIRST = 2, STRIP_SHELF_EVERY = 5;
 

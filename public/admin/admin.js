@@ -206,7 +206,10 @@
     s.banners = s.banners.slice(0, 3);
     if (s.openMode !== "page" && s.openMode !== "inline") s.openMode = "inline";
     if (s.works !== false) s.works = true;
-    if (!Array.isArray(s.strips)) s.strips = [];
+    // 띠 배너: 이미지형 3칸 (예전 아이콘형 값은 버림)
+    s.strips = (Array.isArray(s.strips) ? s.strips : []).map((b) => (b && "image" in b ? { image: b.image || "", link: b.link || "", alt: b.alt || "" } : null)).filter(Boolean);
+    while (s.strips.length < 3) s.strips.push({ image: "", link: "", alt: "" });
+    s.strips = s.strips.slice(0, 3);
     return s;
   };
   const saveConfig = (msg, mutate) => saveJson(CONFIG, msg, mutate, { normalize: normConfig }).then((r) => { state.config = r.doc; return r.changed; });
@@ -576,126 +579,44 @@
   }
 
   // 배너 3칸 편집
-  function renderBanners() {
-    const box = $("#bannerList");
+  // 배너 종류: 상단 배너(16:7) / 목록 사이 띠 배너(6:1) — 같은 편집기 사용
+  const BKIND = {
+    banners: { box: "#bannerList", label: "배너", prefix: "banner", files: state.bannerFiles, max: 1600 },
+    strips: { box: "#stripList", label: "띠 배너", prefix: "strip", files: (state.stripFiles = {}), max: 1200 },
+  };
+  function renderBanners(kind = "banners") {
+    const K = BKIND[kind];
+    const box = $(K.box);
+    if (!box) return;
     box.textContent = "";
-    (state.site?.banners || []).slice(0, 3).forEach((b, i) => {
-      const file = state.bannerFiles[i];
+    (state.site?.[kind] || []).slice(0, 3).forEach((b, i) => {
+      const file = K.files[i];
       const cur = SAFE_IMG.test(b.image || "") ? "../" + b.image : "";
       const previewSrc = file ? file.url : cur;
-      const fileIn = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", id: `bf${i}`, class: "adm-file" });
-      const linkIn = el("input", { type: "url", inputmode: "url", value: b.link || "", placeholder: "https://클릭하면-이동할-주소", "aria-label": `배너 ${i + 1} 링크` });
-      const altIn = el("input", { type: "text", value: b.alt || "", maxlength: "80", placeholder: "배너 설명 (예: ○○ 브랜드 할인)", "aria-label": `배너 ${i + 1} 설명` });
+      const fid = `${K.prefix}f${i}`;
+      const fileIn = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", id: fid, class: "adm-file" });
+      const linkIn = el("input", { type: "url", inputmode: "url", value: b.link || "", placeholder: "https://클릭하면-이동할-주소", "aria-label": `${K.label} ${i + 1} 랜딩 URL` });
+      const altIn = el("input", { type: "text", value: b.alt || "", maxlength: "80", placeholder: "배너 문구 (예: ○○ 브랜드 할인)", "aria-label": `${K.label} ${i + 1} 문구` });
       fileIn.addEventListener("change", () => {
         const f = fileIn.files?.[0];
-        if (state.bannerFiles[i]) URL.revokeObjectURL(state.bannerFiles[i].url);
-        state.bannerFiles[i] = f ? { file: f, url: URL.createObjectURL(f) } : null;
-        renderBanners();
+        if (K.files[i]) URL.revokeObjectURL(K.files[i].url);
+        K.files[i] = f ? { file: f, url: URL.createObjectURL(f) } : null;
+        renderBanners(kind);
       });
       box.append(el("div", { class: "adm-banner" },
-        el("div", { class: "adm-banner__head" }, el("b", { text: `배너 ${i + 1}` }), file ? el("span", { class: "pill on", text: "새 이미지 선택됨" }) : null),
-        el("div", { class: "adm-banner__preview" }, previewSrc ? el("img", { src: previewSrc, alt: "" }) : el("span", { class: "muted small", text: "비어 있음" })),
-        el("label", { class: "btn adm-filebtn", for: `bf${i}` }, "이미지 고르기"), fileIn,
+        el("div", { class: "adm-banner__head" }, el("b", { text: `${K.label} ${i + 1}` }), file ? el("span", { class: "pill on", text: "새 이미지 선택됨" }) : null),
+        el("div", { class: `adm-banner__preview${kind === "strips" ? " adm-banner__preview--strip" : ""}` }, previewSrc ? el("img", { src: previewSrc, alt: "" }) : el("span", { class: "muted small", text: "비어 있음" })),
+        el("label", { class: "btn adm-filebtn", for: fid }, "이미지 고르기"), fileIn,
         linkIn, altIn,
         el("div", { class: "adm-actions" },
-          el("button", { class: "btn btn--primary", type: "button", text: "저장", onclick: () => saveBanner(i, linkIn.value, altIn.value) }),
-          el("button", { class: "btn", type: "button", text: "비우기", disabled: !b.image && !file, onclick: () => clearBanner(i) }),
+          el("button", { class: "btn btn--primary", type: "button", text: "저장", onclick: () => saveBanner(i, linkIn.value, altIn.value, kind) }),
+          el("button", { class: "btn", type: "button", text: "비우기", disabled: !b.image && !file, onclick: () => clearBanner(i, kind) }),
         ),
       ));
     });
   }
+  const renderStrips = () => renderBanners("strips");
 
-  // ───────── 목록 사이 띠 배너 ─────────
-  state.stripFiles = {};
-  function renderStrips() {
-    const box = $("#stripList");
-    if (!box) return;
-    box.textContent = "";
-    const list = Array.isArray(state.site?.strips) ? state.site.strips : [];
-    $("#stripAdd").disabled = list.length >= 5;
-    if (!list.length) box.append(el("p", { class: "muted small", text: "아직 띠 배너가 없어요. '+ 띠 배너 추가'를 눌러 만들어 보세요." }));
-    list.forEach((b, i) => {
-      const pick = state.stripFiles[i];
-      const iconSrc = pick ? pick.url : SAFE_IMG.test(b.icon || "") ? "../" + b.icon : "../assets/logo.svg?v=2";
-      const on = el("input", { type: "checkbox", id: `st-on-${i}` }); on.checked = b.on !== false;
-      const title = el("input", { type: "text", maxlength: "40", value: b.title || "", placeholder: "제목 (예: 홈 화면에 All AI-Cinema 추가)", "aria-label": `띠 배너 ${i + 1} 제목` });
-      const desc = el("input", { type: "text", maxlength: "80", value: b.desc || "", placeholder: "설명 한 줄 (선택)", "aria-label": `띠 배너 ${i + 1} 설명` });
-      const cta = el("input", { type: "text", maxlength: "12", value: b.cta || "", placeholder: "버튼 글자 (예: 보러 가기)", "aria-label": `띠 배너 ${i + 1} 버튼` });
-      const link = el("input", { type: "url", inputmode: "url", value: b.link || "", placeholder: "https://클릭하면-이동할-주소", "aria-label": `띠 배너 ${i + 1} 링크` });
-      const fileIn = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", id: `st-f-${i}`, class: "adm-file" });
-      // 미리보기 (사이트와 같은 모양)
-      const pv = { img: el("img", { src: iconSrc, alt: "" }), t: el("b", { text: b.title || "제목" }), d: el("span", { text: b.desc || "" }), go: el("span", { class: "strip__go", text: b.cta || "" }) };
-      const sync = () => { pv.t.textContent = title.value || "제목"; pv.d.textContent = desc.value; pv.go.textContent = cta.value; pv.go.hidden = !cta.value; };
-      for (const x of [title, desc, cta]) x.addEventListener("input", sync);
-      fileIn.addEventListener("change", () => {
-        const f = fileIn.files?.[0];
-        if (state.stripFiles[i]) URL.revokeObjectURL(state.stripFiles[i].url);
-        state.stripFiles[i] = f ? { file: f, url: URL.createObjectURL(f) } : null;
-        pv.img.src = f ? state.stripFiles[i].url : iconSrc;
-      });
-      sync();
-      box.append(el("div", { class: "adm-strip" },
-        el("div", { class: "adm-strip__head" }, el("b", { text: `띠 배너 ${i + 1}` }),
-          el("label", { class: "adm-check", for: `st-on-${i}` }, on, " 사이트에 보이기")),
-        el("div", { class: "adm-strip__pv strip" }, el("div", { class: "strip__in" }, el("span", { class: "strip__ad", text: "광고" }), pv.img, el("span", { class: "strip__txt" }, pv.t, pv.d), pv.go)),
-        el("div", { class: "adm-strip__grid" },
-          el("label", { class: "btn adm-filebtn", for: `st-f-${i}` }, "아이콘 고르기"), fileIn, title, desc, cta, link),
-        el("div", { class: "adm-actions" },
-          el("button", { class: "btn btn--primary", type: "button", text: "저장", onclick: () => saveStrip(i, { on: on.checked, title: title.value, desc: desc.value, cta: cta.value, link: link.value }) }),
-          el("button", { class: "btn", type: "button", text: "삭제", onclick: () => deleteStrip(i) })),
-      ));
-    });
-  }
-  function addStrip() {
-    const list = Array.isArray(state.site?.strips) ? state.site.strips : [];
-    if (list.length >= 5) return toast("띠 배너는 5개까지 만들 수 있어요.", true);
-    state.site.strips = [...list, { on: true, icon: "", title: "", desc: "", cta: "", link: "" }];   // 저장 전 빈 칸 (저장해야 사이트에 반영)
-    renderStrips();
-    $("#stripList").lastElementChild?.querySelector('input[type="text"]')?.focus();
-  }
-  function saveStrip(i, raw) {
-    const title = clean(raw.title, 40), desc = clean(raw.desc, 80), cta = clean(raw.cta, 12);
-    const link = safeLink(String(raw.link || "").trim());
-    if (!title) return toast("제목을 넣어 주세요.", true);
-    if (!link) return toast("링크는 https:// 로 시작하는 주소로 넣어 주세요.", true);
-    const pick = state.stripFiles[i];
-    run(async () => {
-      const old = state.site?.strips?.[i]?.icon || "";
-      let icon = old;
-      if (pick) {
-        const { b64, ext } = await toWebp(pick.file, { max: 192, square: true });
-        const name = `strip-${i + 1}-${Date.now()}.${ext}`;
-        await putFile(`${UPLOADS}/${name}`, b64, `띠 배너 ${i + 1} 아이콘 업로드`);
-        icon = `uploads/${name}`;
-      }
-      await saveSite(`띠 배너 ${i + 1} 저장`, (s) => {
-        s.strips = Array.isArray(s.strips) ? s.strips : [];
-        s.strips[i] = { on: !!raw.on, icon, title, desc, cta, link };
-        s.strips = s.strips.filter(Boolean).slice(0, 5);
-        return true;
-      });
-      if (pick) {
-        URL.revokeObjectURL(pick.url); state.stripFiles[i] = null;
-        if (old && old !== icon && SAFE_IMG.test(old)) await deleteFile(`public/${old}`, `이전 띠 배너 ${i + 1} 아이콘 삭제`);
-      }
-      renderStrips();
-      toast(`띠 배너 ${i + 1}을 저장했어요.`);
-      afterSiteSave(`띠 배너 ${i + 1} 반영 중`);
-    });
-  }
-  function deleteStrip(i) {
-    const saved = (state.site?.strips || [])[i];
-    if (state.stripFiles[i]) { URL.revokeObjectURL(state.stripFiles[i].url); }
-    state.stripFiles = {};
-    if (!saved?.title) { state.site.strips.splice(i, 1); return renderStrips(); }   // 저장 안 한 빈 칸
-    run(async () => {
-      await saveSite(`띠 배너 ${i + 1} 삭제`, (s) => { if (!Array.isArray(s.strips) || !s.strips[i]) return false; s.strips.splice(i, 1); return true; });
-      if (SAFE_IMG.test(saved.icon || "")) await deleteFile(`public/${saved.icon}`, `띠 배너 ${i + 1} 아이콘 삭제`);
-      renderStrips();
-      toast(`띠 배너 ${i + 1}을 지웠어요.`);
-      afterSiteSave(`띠 배너 삭제 반영 중`);
-    });
-  }
 
   function renderAds() {
     const a = state.site?.adsense || { client: "", slots: {} };
@@ -1006,43 +927,45 @@
     } finally { URL.revokeObjectURL(url); }
   }
 
-  function saveBanner(i, linkRaw, altRaw) {
+  function saveBanner(i, linkRaw, altRaw, kind = "banners") {
+    const K = BKIND[kind];
     const link = safeLink(linkRaw.trim());
     if (link === null) return toast("링크는 https:// 로 시작하는 주소로 넣어 주세요.", true);
     const alt = clean(altRaw, 80);
-    const pick = state.bannerFiles[i];
+    const pick = K.files[i];
     run(async () => {
-      const old = state.site?.banners?.[i]?.image || "";
+      const old = state.site?.[kind]?.[i]?.image || "";
       let image = old;
       if (pick) {
-        const { b64, ext } = await toWebp(pick.file);
-        const name = `banner-${i + 1}-${Date.now()}.${ext}`;
-        await putFile(`${UPLOADS}/${name}`, b64, `배너 ${i + 1} 이미지 업로드`);
+        const { b64, ext } = await toWebp(pick.file, { max: K.max });
+        const name = `${K.prefix}-${i + 1}-${Date.now()}.${ext}`;
+        await putFile(`${UPLOADS}/${name}`, b64, `${K.label} ${i + 1} 이미지 업로드`);
         image = `uploads/${name}`;
       }
       if (!image) return toast("이미지를 먼저 골라 주세요.", true);
-      await saveSite(`배너 ${i + 1} 저장`, (s) => { s.banners[i] = { image, link, alt }; return true; });
+      await saveSite(`${K.label} ${i + 1} 저장`, (s) => { s[kind][i] = { image, link, alt }; return true; });
       if (pick) {
         URL.revokeObjectURL(pick.url);
-        state.bannerFiles[i] = null;
-        if (old && old !== image && SAFE_IMG.test(old)) await deleteFile(`public/${old}`, `이전 배너 ${i + 1} 이미지 삭제`);
+        K.files[i] = null;
+        if (old && old !== image && SAFE_IMG.test(old)) await deleteFile(`public/${old}`, `이전 ${K.label} ${i + 1} 이미지 삭제`);
       }
-      renderBanners();
-      toast(`배너 ${i + 1}을 저장했어요.`);
-      afterSiteSave(`배너 ${i + 1} 반영 중`);
+      renderBanners(kind);
+      toast(`${K.label} ${i + 1}을 저장했어요.`);
+      afterSiteSave(`${K.label} ${i + 1} 반영 중`);
     });
   }
-  function clearBanner(i) {
-    const pick = state.bannerFiles[i];
-    if (pick) { URL.revokeObjectURL(pick.url); state.bannerFiles[i] = null; }
-    const old = state.site?.banners?.[i]?.image || "";
-    if (!old) return renderBanners();
+  function clearBanner(i, kind = "banners") {
+    const K = BKIND[kind];
+    const pick = K.files[i];
+    if (pick) { URL.revokeObjectURL(pick.url); K.files[i] = null; }
+    const old = state.site?.[kind]?.[i]?.image || "";
+    if (!old) return renderBanners(kind);
     run(async () => {
-      await saveSite(`배너 ${i + 1} 비우기`, (s) => { s.banners[i] = { image: "", link: "", alt: "" }; return true; });
-      if (SAFE_IMG.test(old)) await deleteFile(`public/${old}`, `배너 ${i + 1} 이미지 삭제`);
-      renderBanners();
-      toast(`배너 ${i + 1}을 비웠어요.`);
-      afterSiteSave(`배너 ${i + 1} 비우기 반영 중`);
+      await saveSite(`${K.label} ${i + 1} 비우기`, (s) => { s[kind][i] = { image: "", link: "", alt: "" }; return true; });
+      if (SAFE_IMG.test(old)) await deleteFile(`public/${old}`, `${K.label} ${i + 1} 이미지 삭제`);
+      renderBanners(kind);
+      toast(`${K.label} ${i + 1}을 비웠어요.`);
+      afterSiteSave(`${K.label} ${i + 1} 비우기 반영 중`);
     });
   }
 
@@ -1171,7 +1094,6 @@
   $("#adsForm").addEventListener("submit", saveAds);
   $("#openModeForm").addEventListener("submit", saveOpenMode);
   $("#worksQ").addEventListener("input", () => renderWorks());
-  $("#stripAdd").addEventListener("click", addStrip);
   $("#worksSwitch").addEventListener("submit", saveWorksSwitch);
 
   // 시작
