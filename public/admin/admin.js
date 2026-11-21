@@ -260,6 +260,8 @@
       published: Number(x[4]) * 1000,
       views: Number(x[5]) || 0,
       manual: x[8] === 1,
+      cid: /^UC[\w-]{22}$/.test(d.cids?.[x[7]] || "") ? d.cids[x[7]] : "",
+      series: Number.isInteger(x[9]) && x[9] >= 0 ? clean(d.series?.[x[9]], 40) : "",
     }));
     // 채널 이름 → 유튜브 프로필 사진 (yt3 주소만)
     state.avatarByName = new Map();
@@ -647,6 +649,107 @@
     renderMenu();
     renderBanners();
     renderAds(); renderOpenMode();
+    renderWorks();
+  }
+
+  // ───────── 작품(시리즈) 관리 ─────────
+  // 자동 분류(재생목록·제목) 결과를 채널별로 보여주고, 이름 바꾸기·합치기·묶지 않기·키워드 규칙을 channels.json 의 채널 항목 series 에 저장
+  const cfgIndexOf = (cfg, name, cid) => cfg.channels.findIndex((c) => (cid && c.id === cid) || clean(c.name, 80) === name);
+  function seriesConfOf(name, cid) {
+    const c = state.config?.channels[cfgIndexOf(state.config, name, cid)];
+    const s = c?.series && typeof c.series === "object" ? c.series : {};
+    return { rules: Array.isArray(s.rules) ? s.rules.filter((x) => x && typeof x.match === "string") : [], rename: s.rename && typeof s.rename === "object" ? { ...s.rename } : {} };
+  }
+  function saveSeriesConf(name, cid, label, mutate) {
+    return run(async () => {
+      const changed = await saveConfig(`작품 설정: ${name} – ${label}`, (cfg) => {
+        const i = cfgIndexOf(cfg, name, cid);
+        if (i < 0) throw new Error("이 채널을 설정 파일에서 찾지 못했어요. 채널 관리에서 이름을 확인해 주세요.");
+        const cur = cfg.channels[i].series && typeof cfg.channels[i].series === "object" ? cfg.channels[i].series : {};
+        const next = { rules: Array.isArray(cur.rules) ? [...cur.rules] : [], rename: { ...(cur.rename || {}) } };
+        if (mutate(next) === false) return false;
+        next.rules = next.rules.filter((x) => x.match).slice(0, 50);
+        cfg.channels[i].series = next;
+        if (!next.rules.length && !Object.keys(next.rename).length) delete cfg.channels[i].series;
+        return true;
+      });
+      renderWorks();
+      if (changed) { toast("저장했어요. 1~3분 뒤 사이트에 반영돼요."); afterConfigSave(`'${name}' 작품 정리 반영 중`); }
+    });
+  }
+  function renderWorks() {
+    const box = $("#worksList");
+    if (!box || !state.videos) return;
+    const q = ($("#worksQ")?.value || "").trim().toLowerCase();
+    const byCh = new Map();
+    for (const v of state.videos) {
+      if (!byCh.has(v.channel)) byCh.set(v.channel, { name: v.channel, cid: v.cid, vids: [], works: new Map() });
+      const g = byCh.get(v.channel); g.vids.push(v);
+      if (v.series) g.works.set(v.series, (g.works.get(v.series) || 0) + 1);
+    }
+    const chans = [...byCh.values()].filter((g) => !q || g.name.toLowerCase().includes(q) || [...g.works.keys()].some((w) => w.toLowerCase().includes(q)))
+      .sort((a, b) => b.works.size - a.works.size || a.name.localeCompare(b.name, "ko"));
+    const opened = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.ch));   // 다시 그려도 열린 채널 유지
+    box.textContent = "";
+    for (const g of chans) {
+      const conf = seriesConfOf(g.name, g.cid);
+      const grouped = [...g.works.values()].reduce((a, b) => a + b, 0);
+      const det = el("details", { class: "adm-work", "data-ch": g.name });
+      if (opened.has(g.name)) det.open = true;
+      det.append(el("summary", {},
+        el("span", { class: "adm-work__name", text: g.name }),
+        el("span", { class: "muted small", text: `작품 ${g.works.size}개 · 묶인 영상 ${grouped}/${g.vids.length}` })));
+      // 작품 목록
+      const list = el("ul", { class: "adm-work__list" });
+      const names = [...g.works].sort((a, b) => b[1] - a[1]).map(([n]) => n);
+      for (const [n, c] of [...g.works].sort((a, b) => b[1] - a[1])) {
+        const nameIn = el("input", { type: "text", value: n, maxlength: "40", "aria-label": `${n} 새 이름` });
+        const rename = el("button", { type: "button", class: "btn", text: "이름 바꾸기" });
+        rename.addEventListener("click", () => {
+          const to = clean(nameIn.value, 40);
+          if (!to || to === n) return toast("바꿀 이름을 입력해 주세요.", true);
+          saveSeriesConf(g.name, g.cid, `'${n}' → '${to}'`, (s) => { s.rename[n] = to; });
+        });
+        const merge = el("select", { "aria-label": `${n} 합치기` }, el("option", { value: "", text: "다른 작품과 합치기…" }),
+          ...names.filter((x) => x !== n).map((x) => el("option", { value: x, text: `→ ${x}` })));
+        merge.addEventListener("change", () => { const to = merge.value; if (to) saveSeriesConf(g.name, g.cid, `'${n}'을 '${to}'에 합치기`, (s) => { s.rename[n] = to; }); });
+        const ungroup = el("button", { type: "button", class: "btn btn--danger", text: "묶지 않기" });
+        ungroup.addEventListener("click", () => saveSeriesConf(g.name, g.cid, `'${n}' 묶지 않기`, (s) => { s.rename[n] = ""; }));
+        list.append(el("li", {}, el("span", { class: "adm-work__count", text: `${c}편` }), nameIn, rename, merge, ungroup));
+      }
+      if (!names.length) list.append(el("li", { class: "muted small", text: "아직 묶인 작품이 없어요. 아래 '규칙 추가'로 직접 묶을 수 있어요." }));
+      det.append(list);
+      // 바꾼 내역 (되돌리기)
+      const ren = Object.entries(conf.rename);
+      if (ren.length) {
+        const ul = el("ul", { class: "adm-work__rules" });
+        for (const [from, to] of ren) {
+          const undo = el("button", { type: "button", class: "btn", text: "되돌리기" });
+          undo.addEventListener("click", () => saveSeriesConf(g.name, g.cid, `'${from}' 되돌리기`, (s) => { delete s.rename[from]; }));
+          ul.append(el("li", {}, el("span", { text: to ? `자동 이름 '${from}' → '${to}'` : `'${from}' 묶지 않음` }), undo));
+        }
+        det.append(el("p", { class: "adm-label", text: "바꾼 내역" }), ul);
+      }
+      // 키워드 규칙
+      const rules = el("ul", { class: "adm-work__rules" });
+      conf.rules.forEach((ru, i) => {
+        const del = el("button", { type: "button", class: "btn", text: "삭제" });
+        del.addEventListener("click", () => saveSeriesConf(g.name, g.cid, "규칙 삭제", (s) => { s.rules.splice(i, 1); }));
+        rules.append(el("li", {}, el("span", { text: ru.to ? `제목에 '${ru.match}' → '${ru.to}'` : `제목에 '${ru.match}' → 묶지 않음` }), del));
+      });
+      const kw = el("input", { type: "text", maxlength: "40", placeholder: "제목에 들어간 단어 (예: 배달원, 아웃사이더)", "aria-label": "제목 단어" });
+      const to = el("input", { type: "text", maxlength: "40", placeholder: "작품 이름 (예: 배달원)", "aria-label": "작품 이름" });
+      const add = el("button", { type: "button", class: "btn btn--primary", text: "규칙 추가" });
+      add.addEventListener("click", () => {
+        const m = clean(kw.value, 40), t = clean(to.value, 40);
+        if (m.length < 2) return toast("제목 단어를 2글자 이상 넣어 주세요.", true);
+        saveSeriesConf(g.name, g.cid, `규칙 '${m}' → '${t || "묶지 않음"}'`, (s) => { s.rules = s.rules.filter((x) => x.match !== m); s.rules.push({ match: m, to: t }); });
+      });
+      det.append(el("p", { class: "adm-label", text: "직접 묶기 규칙 (자동 분류보다 먼저 적용)" }), rules,
+        el("div", { class: "adm-work__add" }, kw, to, add),
+        el("p", { class: "muted small", text: "여러 단어는 쉼표로 (예: 배달원, 아웃사이더). 작품 이름을 비우면 그 단어가 든 영상은 묶지 않아요." }));
+      box.append(det);
+    }
   }
 
   // ───────── 작업 ─────────
@@ -904,7 +1007,7 @@
     const t = e.target.closest(".tab");
     if (!t) return;
     document.querySelectorAll(".adm-tabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b === t)));
-    for (const p of ["channels", "videos", "hidden", "menu", "ads"]) $(`#tab-${p}`).hidden = p !== t.dataset.tab;
+    for (const p of ["channels", "works", "videos", "hidden", "menu", "ads"]) $(`#tab-${p}`).hidden = p !== t.dataset.tab;
     t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   });
   $("#addUrl").addEventListener("input", updateAddForm);
@@ -941,6 +1044,7 @@
   $("#menuSave").addEventListener("click", saveMenu);
   $("#adsForm").addEventListener("submit", saveAds);
   $("#openModeForm").addEventListener("submit", saveOpenMode);
+  $("#worksQ").addEventListener("input", () => renderWorks());
 
   // 시작
   const saved = store.load();
