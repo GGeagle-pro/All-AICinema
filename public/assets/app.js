@@ -22,7 +22,25 @@
   const BINGE_KEY = "__binge__";      // 1줄 메뉴의 "몰아보기" 탭 (제목으로 자동 분류: 몰아보기·모아보기·통합본·완결판…)
   const BINGE_RE = /몰아\s?보기|모아\s?보기|통합본|완결판|전편|합본|complete\s+series|full\s+series/i;
   const isBinge = (v) => BINGE_RE.test(v.title);
-  const NEW_KEY = "__new__";          // 1줄 메뉴의 NEW 탭 (관리자 카테고리 이름과 겹치지 않는 내부 값)
+  const NEW_KEY = "__new__";
+  const FAV_KEY = "__fav__", HIST_KEY = "__hist__", SINCE_KEY = "__since__";   // 찜한 영상 · 최근 본 영상 · 지난 방문 이후
+
+  // ===== 내 목록: 찜·시청 기록·지난 방문 시각 – 이 브라우저에만 저장 (서버로 보내지 않음) =====
+  const my = {
+    get(k) { try { const a = JSON.parse(localStorage.getItem(k) || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string" && /^[\w-]{11}$/.test(x)) : []; } catch { return []; } },
+    set(k, a) { try { localStorage.setItem(k, JSON.stringify(a.slice(0, 100))); } catch {} },
+  };
+  const fav = new Set(my.get("aic:fav").reverse());   // 저장은 최신순, Set 은 오래된 것부터
+  let hist = my.get("aic:hist");
+  let since = 0;   // 지난 방문 시각 (ms)
+  function toggleFav(id) {
+    if (fav.has(id)) fav.delete(id); else fav.add(id);
+    my.set("aic:fav", [...fav].reverse());
+    return fav.has(id);
+  }
+  function addHist(id) { hist = [id, ...hist.filter((x) => x !== id)].slice(0, 50); my.set("aic:hist", hist); }
+  const byIds = (ids) => { const m = new Map(state.all.map((v) => [v.id, v])); return ids.map((id) => m.get(id)).filter(Boolean); };
+  const SPECIAL = { [FAV_KEY]: "찜한 영상", [HIST_KEY]: "최근 본 영상", [SINCE_KEY]: "지난 방문 이후 새 영상" };          // 1줄 메뉴의 NEW 탭 (관리자 카테고리 이름과 겹치지 않는 내부 값)
   const RAIL_MIN_WIDTH = 1480;        // 이 너비 이상(데스크톱)에서만 양옆 세로 배너 표시
   const SITE_NAME_DEFAULT = "All AI-Cinema";
 
@@ -232,6 +250,7 @@
       state.all = vids;
       renderMenus();
       apply();
+      welcomeBack();
       return;
     }
     const known = new Set(state.all.map((v) => v.id));
@@ -244,8 +263,30 @@
     }
   }
 
+  // 다시 온 방문자에게: "지난 방문 이후 새 영상 N개"
+  function welcomeBack() {
+    let last = 0;
+    try { last = +localStorage.getItem("aic:last") || 0; localStorage.setItem("aic:last", String(Date.now())); } catch {}
+    if (!last || Date.now() - last < 30 * 60e3) return;   // 30분 안에 다시 연 건 같은 방문으로
+    since = last;
+    const n = state.all.filter((v) => Date.parse(v.published) > last).length;
+    if (!n || new URLSearchParams(location.search).get("v")) return;
+    const t = $("#toast");
+    t.textContent = `지난 방문 이후 새 영상 ${n}개 ›`;
+    t.hidden = false;
+    t.onclick = () => { t.hidden = true; state.backTo = null; state.ch = ""; state.cat = SINCE_KEY; renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" }); };
+    setTimeout(() => { if (t.textContent.startsWith("지난 방문")) t.hidden = true; }, 12000);
+  }
+  function setFavBtn(on) {
+    const b = $("#pFav");
+    b.setAttribute("aria-pressed", String(on));
+    b.textContent = on ? "♥ 찜함" : "♡ 찜";
+  }
+
   // ===== 메뉴 (1줄: 장르·국가, 2줄: 유튜브 채널) =====
-  const inCat = (v, cat = state.cat) => cat === "전체" || (cat === NEW_KEY ? isNew(v.published) : cat === BINGE_KEY ? isBinge(v) : v.categories.includes(cat));
+  const inCat = (v, cat = state.cat) => cat === "전체" || (cat === NEW_KEY ? isNew(v.published) : cat === BINGE_KEY ? isBinge(v)
+    : cat === FAV_KEY ? fav.has(v.id) : cat === HIST_KEY ? hist.includes(v.id) : cat === SINCE_KEY ? Date.parse(v.published) > since
+    : v.categories.includes(cat));
   const newCount = () => countryPool().reduce((n, v) => n + (isNew(v.published) ? 1 : 0), 0);
   // 1줄 메뉴 항목 + 영상 개수 (NEW 탭과 같은 모양)
   const countLabel = (n) => (n > 999 ? "999+" : String(n));
@@ -317,7 +358,7 @@
     state.list = list;
     state.shown = 0;
     $("#grid").innerHTML = "";
-    const where = [state.country, state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat === BINGE_KEY ? "몰아보기 · 정주행" : state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
+    const where = [state.country, state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat === BINGE_KEY ? "몰아보기 · 정주행" : SPECIAL[state.cat] || (state.cat !== "전체" ? state.cat : ""), state.ch].filter(Boolean).join(" · ");
     const shelvesOn = renderShelves();
     $("#backBtn").hidden = !state.backTo;
     $("#clearQ").hidden = !state.q;
@@ -328,6 +369,8 @@
     syncListUrl();
     empty.textContent = !state.all.length ? "아직 수집된 영상이 없습니다."
       : state.country && !countryPool().length ? `아직 ${state.country} 채널이 없어요. 곧 추가될 예정이에요.`
+      : state.cat === FAV_KEY ? "아직 찜한 영상이 없어요. 영상 화면에서 ♡ 찜을 누르면 여기에 모여요."
+      : state.cat === HIST_KEY ? "아직 본 영상이 없어요."
       : state.cat === NEW_KEY ? "최근 3일 동안 새로 올라온 영상이 없어요." : "이 메뉴에는 아직 영상이 없어요.";
     more();
   }
@@ -339,12 +382,16 @@
   }
   function renderShelves() {
     const box = $("#shelves");
-    const on = !state.q && !state.ch && state.cat !== NEW_KEY && state.cat !== BINGE_KEY && state.sort === "new";
+    const on = !state.q && !state.ch && state.cat !== NEW_KEY && state.cat !== BINGE_KEY && !SPECIAL[state.cat] && state.sort === "new";
     state.shelves = new Map();
     if (!on) { box.hidden = true; box.innerHTML = ""; return false; }
     const pool = state.all.filter((v) => inCountry(v) && inCat(v)).sort((a, b) => new Date(b.published) - new Date(a.published));
     const groups = [];
     if (state.cat === "전체") {
+      const watched = byIds(hist).filter(inCountry);
+      if (watched.length) groups.push({ key: "hist", title: "이어서 보기", sub: "최근 본 영상", list: watched, go: { cat: HIST_KEY } });
+      const liked = byIds([...fav].reverse()).filter(inCountry);
+      if (liked.length) groups.push({ key: "fav", title: "♥ 찜한 영상", sub: "내가 찜한", list: liked, go: { cat: FAV_KEY } });
       const fresh = pool.filter((v) => isNew(v.published));
       if (fresh.length) groups.push({ key: "new", title: "새로 올라온 영상", sub: "최근 3일", list: fresh, go: { cat: NEW_KEY } });
       const binge = pool.filter(isBinge);
@@ -466,6 +513,8 @@
     document.body.classList.add("locked");
 
     $("#pTitle").textContent = v.title;
+    if (/^[\w-]{11}$/.test(v.id)) addHist(v.id);
+    setFavBtn(fav.has(v.id));
     $("#pChannel").innerHTML = avatarHtml(v.channel, "avatar avatar--sm", v.cid) + `<span>${esc(v.channel)}</span>`;
     $("#pMeta").textContent = [v.views && "조회수 " + fmtViews(v.views), ago(v.published)].filter(Boolean).join(" · ");
     // 원본 영상·채널 링크 (저작자 표시)
@@ -521,6 +570,83 @@
     if (!fromPop) history.state?.v ? history.back() : history.replaceState(null, "", location.pathname);
     const c = document.querySelector(`.card[data-i="${state.current}"]`);
     c?.focus({ preventScroll: true });
+  }
+
+  // ===== 즐겨찾기 · 홈 화면에 추가 (앱처럼 설치) =====
+  // 브라우저 정책상 사이트가 즐겨찾기를 직접 추가할 수는 없어서, 기기마다 가장 쉬운 방법을 안내하고
+  // 크롬·엣지·삼성 인터넷에서는 "앱 설치" 창을 바로 띄움.
+  let installEvt = null;
+  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; showInstallCard(); });
+  addEventListener("appinstalled", () => { installEvt = null; closeInstall(); hideInstallCard(true); });
+  const ua = navigator.userAgent;
+  const env = {
+    standalone: matchMedia("(display-mode: standalone)").matches || navigator.standalone === true,
+    ios: /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1),
+    inApp: /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\//i.test(ua),
+    mac: /Mac/i.test(navigator.platform || ua),
+    mobile: matchMedia("(max-width:760px)").matches || /Android|iPhone|iPad/i.test(ua),
+  };
+  function installHtml() {
+    const how = [];
+    if (installEvt) how.push(`<button type="button" class="btn btn--primary install__go" data-act="install">${env.mobile ? "홈 화면에 추가하기" : "앱으로 설치하기"}</button>`);
+    if (env.inApp) how.push(`<li>지금은 앱 안의 브라우저라 추가할 수 없어요. 오른쪽 위(또는 아래) <b>⋮ / 공유</b> 메뉴에서 <b>다른 브라우저로 열기</b>를 누른 뒤 다시 시도해 주세요.</li>`);
+    else if (env.ios) how.push(`<li>화면 아래(아이패드는 위) <b>공유 버튼</b> <span class="install__ico" aria-hidden="true">⎋</span> 을 눌러요.</li><li>목록에서 <b>홈 화면에 추가</b>를 누르고 <b>추가</b>를 눌러요.</li>`);
+    else if (env.mobile) how.push(installEvt ? "" : `<li>브라우저 메뉴 <b>⋮</b> 에서 <b>홈 화면에 추가</b> 또는 <b>앱 설치</b>를 눌러요.</li>`);
+    if (!env.mobile) how.push(`<li>키보드에서 <kbd>${env.mac ? "⌘ Cmd" : "Ctrl"}</kbd> + <kbd>D</kbd> 를 누르면 <b>즐겨찾기(북마크)</b>에 추가돼요.</li>`);
+    const btn = how.find((h) => h.startsWith("<button")) || "";
+    const steps = how.filter((h) => h && !h.startsWith("<button")).join("");
+    return `<div class="install__head"><img src="assets/logo.svg?v=2" alt="" width="44" height="44" />
+        <div><b>All AI-Cinema 바로가기</b><span>새 AI 영화·드라마가 매일 올라와요. 바로가기를 만들어 두고 편하게 다시 보세요.</span></div>
+        <button type="button" class="install__x" data-act="close" aria-label="닫기">×</button></div>
+      ${btn}${steps ? `<ol class="install__steps">${steps}</ol>` : ""}
+      <p class="install__note">찜한 영상과 최근 본 영상은 이 기기에만 저장돼요.</p>`;
+  }
+  function openInstall() {
+    const box = $("#install");
+    box.innerHTML = installHtml();
+    box.hidden = false; $("#installBg").hidden = false;
+    $("#saveBtn").setAttribute("aria-expanded", "true");
+    box.querySelector(".install__go, .install__x")?.focus();
+  }
+  function closeInstall() {
+    $("#install").hidden = true; $("#installBg").hidden = true;
+    $("#saveBtn").setAttribute("aria-expanded", "false");
+  }
+  async function runInstall() {
+    if (!installEvt) return;
+    installEvt.prompt();
+    try { await installEvt.userChoice; } catch {}
+    installEvt = null; closeInstall(); hideInstallCard(true);
+  }
+  // 메인 위쪽 안내 카드: 두 번째 방문부터, 닫으면 2주 동안 안 보임
+  function showInstallCard() {
+    if (env.standalone) return;
+    let visits = 0, hideUntil = 0;
+    try { visits = +localStorage.getItem("aic:visits") || 0; hideUntil = +localStorage.getItem("aic:installHide") || 0; } catch {}
+    if (visits < 2 || Date.now() < hideUntil || !(installEvt || env.ios)) return;
+    $("#installCard").hidden = false;
+  }
+  function hideInstallCard(forever) {
+    $("#installCard").hidden = true;
+    try { localStorage.setItem("aic:installHide", String(Date.now() + (forever ? 365 : 14) * 864e5)); } catch {}
+  }
+  function bindInstall() {
+    try { localStorage.setItem("aic:visits", String((+localStorage.getItem("aic:visits") || 0) + 1)); } catch {}
+    if (env.standalone) $("#saveBtn").hidden = true;   // 이미 앱으로 연 경우
+    $("#saveBtn").addEventListener("click", () => ($("#install").hidden ? openInstall() : closeInstall()));
+    $("#installBg").addEventListener("click", closeInstall);
+    $("#install").addEventListener("click", (e) => {
+      const a = e.target.closest("[data-act]")?.dataset.act;
+      if (a === "close") closeInstall(); else if (a === "install") runInstall();
+    });
+    addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#install").hidden) closeInstall(); });
+    $("#installCard").addEventListener("click", (e) => {
+      if (e.target.closest(".icard__x")) return hideInstallCard(false);
+      if (installEvt) runInstall(); else openInstall();
+    });
+    showInstallCard();
+    // 홈 화면 앱으로 쓸 수 있게 서비스워커 등록 (페이지를 저장해 두지 않음 → 항상 최신 화면)
+    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
   }
 
   // ===== 검색 패널 =====
@@ -817,6 +943,7 @@
       apply();
     });
     bindSearch();
+    bindInstall();
     $("#chMore").addEventListener("click", () => setChOpen(!$("#chrow").classList.contains("open")));
     let rt;
     addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(updateChMore, 150); }, { passive: true });
@@ -829,6 +956,11 @@
     });
     $("#pPrev").onclick = () => step(-1);
     $("#pNext").onclick = () => step(1);
+    $("#pFav").onclick = () => {
+      const v = state.queue[state.current]; if (!v) return;
+      setFavBtn(toggleFav(v.id));
+      if (state.cat === "전체" || state.cat === FAV_KEY) apply();   // 메인의 찜 목록도 바로 갱신
+    };
     $("#pShare").onclick = async () => {
       const v = state.queue[state.current];
       const url = location.origin + location.pathname + "?v=" + v.id;
@@ -937,7 +1069,7 @@
     // 보던 카테고리·채널·정렬 이어서 보기 (영상 페이지 ↔ 목록 오갈 때)
     const c = params.get("c"), ch = params.get("ch"), so = params.get("s"), na = params.get("n");
     if (na && state.site.countries.includes(na)) state.country = na;
-    if (c && (c === NEW_KEY || c === BINGE_KEY || catList().includes(c))) state.cat = c;
+    if (c && (c === NEW_KEY || c === BINGE_KEY || (SPECIAL[c] && c !== SINCE_KEY) || catList().includes(c))) state.cat = c;
     if (ch && state.all.some((v) => v.channel === ch)) state.ch = ch;
     if (so === "views") { state.sort = "views"; $("#sort").value = "views"; }
     urlReady = true;

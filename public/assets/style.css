@@ -344,3 +344,47 @@ button.sp-chip:hover,.sp-chip.is-sel{border-color:var(--text)}
 
 /* 화면에는 숨기고 검색엔진·스크린리더만 읽는 글자 */
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ───────── 즐겨찾기 · 홈 화면에 추가 ───────── */
+.save-btn{flex:none;display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 14px;margin-left:10px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);color:var(--text);font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.save-btn svg{width:17px;height:17px;fill:#ffc83d}
+.save-btn:hover,.save-btn[aria-expanded="true"]{border-color:var(--text)}
+.install-bg{position:fixed;inset:0;z-index:44;background:transparent}
+.install{position:fixed;z-index:46;top:calc(var(--hdr, 64px) - 4px);right:max(16px, calc((100vw - 1600px) / 2 + var(--gutter)));width:360px;max-width:calc(100vw - 32px);background:var(--bg2);border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.55);padding:16px}
+.install__head{display:flex;gap:12px;align-items:flex-start}
+.install__head img{flex:none;border-radius:11px}
+.install__head div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.install__head b{font-size:16px}
+.install__head span{font-size:13px;color:var(--muted);line-height:1.5}
+.install__x{flex:none;margin-left:auto;width:32px;height:32px;border:0;border-radius:50%;background:none;color:var(--muted);font-size:20px;cursor:pointer}
+.install__x:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.install__go{display:block;width:100%;margin:14px 0 4px;min-height:46px;font-size:15px}
+.install__steps{margin:12px 0 0;padding:0 0 0 20px;display:grid;gap:8px;font-size:14px;line-height:1.55}
+.install__steps kbd{display:inline-block;min-width:22px;padding:1px 7px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;background:var(--bg);font:inherit;font-size:12px;font-weight:700}
+.install__ico{display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid var(--line);border-radius:5px;font-size:12px}
+.install__note{margin:12px 0 0;font-size:12px;color:var(--muted)}
+/* 메인 안내 카드 */
+.icard{display:flex;align-items:center;gap:12px;margin:0 0 22px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(90deg,rgba(139,92,246,.18),rgba(255,61,127,.12));cursor:pointer}
+.icard img{flex:none;border-radius:10px}
+.icard > div{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.icard b{font-size:15px}
+.icard span{font-size:13px;color:var(--muted)}
+.icard__go{flex:none;padding:8px 16px;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;font-size:14px}
+.icard__x{flex:none;width:30px;height:30px;border:0;border-radius:50%;background:none;color:var(--muted);font-size:18px;cursor:pointer}
+/* 플레이어 찜 버튼 */
+#pFav[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+@media (max-width:760px){
+  .save-btn{width:40px;height:40px;padding:0;justify-content:center;margin-left:8px}
+  .save-btn span{display:none}
+  .search-btn{margin-left:8px}
+  .topbar__inner .save-btn{margin-left:auto}
+  .install{top:auto;bottom:0;left:0;right:0;width:auto;max-width:none;border-radius:20px 20px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom))}
+  .install-bg{background:rgba(0,0,0,.5)}
+  .icard span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* 영상 화면 버튼: 이전·다음 한 줄, 자동 다음·공유·찜 한 줄 */
+  .player__actions{grid-template-columns:repeat(6,1fr)}
+  .player__actions #pPrev,.player__actions #pNext{grid-column:span 3}
+  .player__actions .switch,.player__actions #pShare,.player__actions #pFav{grid-column:span 2;font-size:14px;padding-left:6px;padding-right:6px}
+}
+.toast{white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis}
+@media (max-width:560px){.toast{font-size:14px;padding:9px 16px}}
