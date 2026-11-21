@@ -32,13 +32,23 @@ function candidates(title) {
     .replace(/\p{Extended_Pictographic}|️/gu, " ") // 이모지
     .replace(/["“”'‘’]/g, " ");
   const out = [];
-  for (let seg of t.split(SEP)) {
+  const segs = [];
+  for (const seg of t.split(SEP)) {
     if (!seg) continue;
+    segs.push(seg);
+    // "미지의 여행 EP.2: 사막의 도시" → 회차 표시 앞부분 "미지의 여행"도 후보로
+    EP.lastIndex = 0; const m = EP.exec(seg); EP.lastIndex = 0;
+    if (m && m.index > 1) segs.push(seg.slice(0, m.index) + " EP");
+    // "미지의 여행 : 지하도시" → 쌍점 앞부분도 후보로 (RE:GENESIS 처럼 붙어 있는 건 제외)
+    const c = seg.match(/^(.{2,30}?)\s+[:：]\s|^(.{2,30}?)[:：]\s/);
+    if (c) segs.push(c[1] || c[2]);
+  }
+  for (let seg of segs) {
     const had = EP.test(seg); EP.lastIndex = 0;
     let base = seg.replace(EP, " ").replace(GENRE_TAIL, "").replace(/\s{2,}/g, " ")
       .replace(/^[\s\p{P}\p{S}\d]+|[\s\p{P}\p{S}]+$/gu, "").trim();
     // "글로리아 판타지아(Gloria Fantasia)" → 괄호 속 영문 병기는 이름에서 뺌
-    base = base.replace(/\s*\([^)]*[A-Za-z][^)]*\)\s*$/, "").trim();
+    base = base.replace(/\s*\([^)]*[A-Za-z][^)]*\)\s*$/, "").replace(/\s*\([^)]*$/, "").trim();
     if (base.length < 2 || base.length > 32 || GENERIC.test(base)) continue;
     const k = keyOf(base);
     if (k.length < 2) continue;
@@ -129,7 +139,8 @@ export function assignSeries(videos, playlists = [], conf = {}) {
     const ids = (p.ids || []).filter((id) => site.has(id));
     if (!name || ids.length < 1) continue;
     if (ids.length >= Math.max(6, site.size * 0.9) && videos.length > 8) continue;   // 채널 전체 모음은 작품 아님
-    works.push({ name, key: keyOf(name), ids });
+    const aliases = [...String(p.title).matchAll(/\(([^)]{4,40})\)|\[([^\]]{2,20})\]/g)].map((m) => keyOf(m[1] || m[2])).filter((k) => k.length >= 4 && !/드라마|몰아|모아|전체|1화/.test(k));
+    works.push({ name, key: keyOf(name), ids, aliases: [keyOf(name), ...aliases] });
   }
   works.sort((a, b) => a.ids.length - b.ids.length);
   for (const w of works) for (const id of w.ids) if (!out.has(id)) out.set(id, w);
@@ -142,7 +153,8 @@ export function assignSeries(videos, playlists = [], conf = {}) {
   }
   const result = new Map();
   for (const v of videos) {
-    const w = out.get(v.id);
+    let w = out.get(v.id);
+    if (!w) { const tk = keyOf(v.title); w = works.find((x) => x.aliases.some((a) => a.length >= 3 && tk.includes(a))); }
     if (w) { result.set(v.id, w.name); continue; }
     const n = byTitle.get(v.id); if (!n) continue;
     const m = titleToWork.get(n);
