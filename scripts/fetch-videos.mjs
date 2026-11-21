@@ -229,6 +229,8 @@ async function main() {
   await save(DESC_FILE, desc);
   await save(OUT_FILE, { v: 2, generatedAt, avatarsCheckedAt, backfilled, ...index });
   await save(META_FILE, meta);
+  // 검색엔진용 sitemap·RSS·미리 그린 목록 갱신 (실패해도 영상 수집은 성공 처리)
+  try { await (await import("./seo.mjs")).buildSeo(); } catch (err) { console.warn("SEO 파일 생성 실패:", err.message); }
   console.log(`완료: 총 ${videos.length}개 (신규 ${added}개, 삭제 ${[...prevIds].filter((id) => !map.has(id)).length}개)`);
 }
 

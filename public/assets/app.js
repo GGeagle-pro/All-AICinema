@@ -945,6 +945,9 @@
     const hb = history.state?.list && history.state.back;
     if (hb && typeof hb === "object") state.backTo = { cat: String(hb.cat || "전체"), ch: String(hb.ch || ""), country: state.site.countries.includes(hb.country) ? hb.country : "", y: +hb.y || 0 };
     if (c || ch || so || na || state.backTo) { renderMenus(); apply(); }
+    // 검색 주소 (?q=검색어) – 구글 검색결과의 사이트 내 검색창에서 들어올 때
+    const sq = (params.get("q") || "").trim().slice(0, 40);
+    if (sq && !id) { state.q = sq; $("#q").value = sq; $("#spq").value = sq; apply(); }
     if (!id) restoreListPosition();
     if (id && VALID_ID.test(id)) {
       let fromList = false;
