@@ -478,15 +478,21 @@
       v.description = typeof d[v.id] === "string" ? clean({ ...v, description: d[v.id] }).description : "";
       if (state.queue[state.current] === v) { $("#pDesc").textContent = v.description; $("#pDesc").hidden = !v.description; }
     });
-    $("#pPrev").disabled = i === 0;
-    $("#pNext").disabled = i >= state.queue.length - 1;
+    // 다음·이전: 같은 시리즈(채널)의 다음 화·이전 화 우선, 없으면 다른 영상
+    const plan = state.plan = buildUpNext(v, i);
+    $("#pPrev").disabled = !plan.prev;
+    $("#pNext").disabled = !plan.next;
     document.title = `${v.title} – ${siteName()}`;
 
     // 다음 영상 목록
-    const next = state.queue.slice(i + 1, i + 21);
-    $("#upnext").innerHTML = next.map((n, k) =>
-      `<li data-i="${i + 1 + k}"><img loading="lazy" src="${thumb(n.id, "mqdefault")}" alt="" />
-       <div><b>${esc(n.title)}</b><span>${esc(n.channel)} · ${ago(n.published)}</span></div></li>`).join("");
+    const item = (n, tag) =>
+      `<li data-id="${n.id}"><img loading="lazy" src="${thumb(n.id, "mqdefault")}" alt="" />
+       <div>${tag ? `<em class="upnext__tag">${tag}</em>` : ""}<b>${esc(n.title)}</b><span>${esc(n.channel)} · ${ago(n.published)}</span></div></li>`;
+    const sec = (title, html) => html ? `<li class="upnext__h" aria-hidden="true">${title}</li>${html}` : "";
+    $("#upnext").innerHTML =
+      sec("다음 화", plan.nextEps.map((n, k) => item(n, k === 0 ? "다음 화" : "")).join("")) +
+      sec("이전 화", plan.prevEps.map((n, k) => item(n, k === 0 ? "이전 화" : "")).join("")) +
+      sec(plan.nextEps.length || plan.prevEps.length ? "다른 영상" : "", plan.others.map((n) => item(n)).join(""));
 
     // 플레이어 아래 광고 (영상 위를 가리지 않도록 정보 영역 아래에 배치)
     placeAd("#playerAd", "player");
@@ -516,10 +522,49 @@
     c?.focus({ preventScroll: true });
   }
 
-  const step = (d) => {
-    const i = state.current + d;
-    if (i >= 0 && i < state.queue.length) openPlayer(i, { push: false });
-  };
+  // ===== 다음 영상 순서 정하기 =====
+  // 같은 채널 영상을 올린 순서(화수 표기가 있으면 화수)대로 줄 세워서 지금 영상의 바로 다음 화·이전 화를 찾음.
+  // 몰아보기·통합본은 회차 순서에서 빼고(지금 보는 게 몰아보기면 포함), 남는 자리는 지금 보던 목록의 다른 영상으로 채움.
+  const EP_RE = /(?:\bep\.?|episode|에피소드)\s*0*(\d{1,3})|(?:^|[^\d])0*(\d{1,3})\s*(?:화|회차|편)(?![가-힣]*\s*몰아)/i;
+  const epNum = (t) => { const m = String(t).match(EP_RE); return m ? +(m[1] || m[2]) : null; };
+  function buildUpNext(v, i) {
+    const binge = isBinge(v);
+    const seq = state.all.filter((x) => x.channel === v.channel && (x.id === v.id || isBinge(x) === binge))
+      .sort((a, b) => {
+        const ea = epNum(a.title), eb = epNum(b.title);
+        if (ea != null && eb != null && ea !== eb) return ea - eb;
+        return new Date(a.published) - new Date(b.published);
+      });
+    const k = seq.findIndex((x) => x.id === v.id);
+    let nextEps = k < 0 ? [] : seq.slice(k + 1, k + 11);
+    // 몰아보기 "(7-10화)" 다음에는 일반 회차 11화부터 이어서
+    const range = binge && String(v.title).match(/0*(\d{1,3})\s*[-~～]\s*0*(\d{1,3})\s*(?:화|회|편)?/);
+    if (range) {
+      const end = +range[2];
+      const after = state.all.filter((x) => x.channel === v.channel && !isBinge(x) && epNum(x.title) > end)
+        .sort((a, b) => epNum(a.title) - epNum(b.title));
+      nextEps = [...after, ...nextEps].slice(0, 10);
+    }
+    const prevEps = k < 0 ? [] : seq.slice(Math.max(0, k - 5), k).reverse();
+    const used = new Set([v.id, ...nextEps.map((x) => x.id), ...prevEps.map((x) => x.id)]);
+    // 남는 자리: 같은 채널의 다른 영상(최신순) → 보던 목록의 다음 영상 → 사이트 전체 최신 영상
+    const byNew = (a, b) => new Date(b.published) - new Date(a.published);
+    const others = [];
+    for (const x of [...state.all.filter((x) => x.channel === v.channel).sort(byNew),
+                     ...state.queue.slice(i + 1), ...state.queue.slice(0, i),
+                     ...state.all.slice().sort(byNew)]) {
+      if (others.length >= 15) break;
+      if (x && !used.has(x.id)) { used.add(x.id); others.push(x); }
+    }
+    return { nextEps, prevEps, others, next: nextEps[0] || others[0] || null, prev: prevEps[0] || state.queue[i - 1] || null };
+  }
+  function openVideo(v) {
+    if (!v) return;
+    let i = state.queue.findIndex((x) => x.id === v.id);
+    if (i < 0) { state.queue.push(v); i = state.queue.length - 1; }
+    openPlayer(i, { push: false });
+  }
+  const step = (d) => openVideo(d > 0 ? state.plan?.next : state.plan?.prev);
 
   // ===== 모바일: 아래로 스크롤하면 헤더 숨김, 위로 올리면 다시 표시 =====
   function bindHeaderAutoHide() {
@@ -628,7 +673,10 @@
     $("#sort").addEventListener("change", (e) => { state.sort = e.target.value; apply(); });
 
     $("#player").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closePlayer(); });
-    $("#upnext").addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) openPlayer(+li.dataset.i, { push: false }); });
+    $("#upnext").addEventListener("click", (e) => {
+      const li = e.target.closest("li[data-id]"); if (!li) return;
+      openVideo(state.all.find((x) => x.id === li.dataset.id) || state.queue.find((x) => x.id === li.dataset.id));
+    });
     $("#pPrev").onclick = () => step(-1);
     $("#pNext").onclick = () => step(1);
     $("#pShare").onclick = async () => {
