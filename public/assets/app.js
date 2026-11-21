@@ -793,7 +793,18 @@
       $("#langCur").textContent = I18N.meta.short;
       menu.innerHTML = I18N.LANGS.map((l) => `<li role="option" tabindex="-1" data-lang="${l.code}" aria-selected="${l.code === I18N.lang}" lang="${l.html}">${esc(l.label)}</li>`).join("");
     };
-    const open = (on) => { menu.hidden = !on; btn.setAttribute("aria-expanded", String(on)); if (on) menu.querySelector('[aria-selected="true"]')?.focus(); };
+    const home = menu.parentElement, dim = document.createElement("div");
+    dim.className = "lang-dim"; dim.hidden = true; document.body.appendChild(dim);
+    const open = (on) => {
+      const sheet = on && matchMedia("(max-width:760px)").matches;   // 모바일: 가운데 창으로
+      if (sheet) { menu.dataset.title = T("언어"); document.body.appendChild(menu); }
+      else if (menu.parentElement !== home) home.appendChild(menu);
+      menu.classList.toggle("lang-menu--sheet", sheet);
+      dim.hidden = !sheet;
+      menu.hidden = !on; btn.setAttribute("aria-expanded", String(on));
+      if (on) menu.querySelector('[aria-selected="true"]')?.focus({ preventScroll: true });
+    };
+    dim.addEventListener("click", () => open(false));
     btn.addEventListener("click", (e) => { e.stopPropagation(); open(menu.hidden); });
     menu.addEventListener("click", (e) => { const li = e.target.closest("[data-lang]"); if (li) { choose(li.dataset.lang); open(false); btn.focus(); } });
     menu.addEventListener("keydown", (e) => {
@@ -802,7 +813,9 @@
       else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); document.activeElement?.click(); }
       else if (e.key === "Escape") { open(false); btn.focus(); }
     });
-    document.addEventListener("click", (e) => { if (!menu.hidden && !e.target.closest(".lang")) open(false); });
+    document.addEventListener("click", (e) => { if (!menu.hidden && !e.target.closest(".lang, #langMenu")) open(false); });
+    let lastW = innerWidth;   // 화면 폭이 바뀔 때만 닫음 (모바일 주소창 높이 변화는 무시)
+    addEventListener("resize", () => { if (innerWidth !== lastW) { lastW = innerWidth; if (!menu.hidden) open(false); } });
     function choose(code) {
       if (!I18N.setLang(code)) return;
       paint();
