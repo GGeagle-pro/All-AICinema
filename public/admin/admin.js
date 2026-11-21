@@ -205,6 +205,7 @@
     while (s.banners.length < 3) s.banners.push({ image: "", link: "", alt: "" });
     s.banners = s.banners.slice(0, 3);
     if (s.openMode !== "page" && s.openMode !== "inline") s.openMode = "inline";
+    if (s.works !== false) s.works = true;
     return s;
   };
   const saveConfig = (msg, mutate) => saveJson(CONFIG, msg, mutate, { normalize: normConfig }).then((r) => { state.config = r.doc; return r.changed; });
@@ -410,8 +411,13 @@
     list.textContent = "";
     const chs = state.config?.channels || [];
     $("#chCount").textContent = chs.length ? `(${chs.length})` : "";
-    const counts = new Map();
-    for (const v of state.videos) counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
+    const counts = new Map(), cidCount = new Map(), cidName = new Map();
+    for (const v of state.videos) {
+      counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
+      if (v.cid) { cidCount.set(v.cid, (cidCount.get(v.cid) || 0) + 1); if (!cidName.has(v.cid)) cidName.set(v.cid, v.channel); }
+    }
+    const srcs = state.data?.srcs && typeof state.data.srcs === "object" ? state.data.srcs : {};
+    const cidOfCfg = (c) => (c.id && /^UC[\w-]{22}$/.test(c.id) ? c.id : srcs[clean(c.id || c.url || c.handle, 200)] || "");
     if (!chs.length) { list.append(el("li", { class: "adm-empty", text: "등록된 채널이 없어요. 위에서 추가해 주세요." })); return; }
     const menu = menuItems();
     chs.forEach((c) => {
@@ -464,7 +470,7 @@
           el("div", { class: "adm-chinfo" },
             el("b", { text: label }),
             el("div", { class: "meta" },
-              `영상 ${counts.get(name0) || counts.get(label) || 0}개 · `,
+              `${!name0 && cidName.get(cidOfCfg(c)) ? cidName.get(cidOfCfg(c)) + " · " : ""}영상 ${cidCount.get(cidOfCfg(c)) || counts.get(name0) || counts.get(label) || 0}개 · `,
               url ? el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: "유튜브에서 보기 ↗" }) : "",
             ),
           ),
@@ -654,7 +660,10 @@
 
   // ───────── 작품(시리즈) 관리 ─────────
   // 자동 분류(재생목록·제목) 결과를 채널별로 보여주고, 이름 바꾸기·합치기·묶지 않기·키워드 규칙을 channels.json 의 채널 항목 series 에 저장
-  const cfgIndexOf = (cfg, name, cid) => cfg.channels.findIndex((c) => (cid && c.id === cid) || clean(c.name, 80) === name);
+  const cfgIndexOf = (cfg, name, cid) => {
+    const srcs = state.data?.srcs || {};
+    return cfg.channels.findIndex((c) => (cid && (c.id === cid || srcs[clean(c.id || c.url || c.handle, 200)] === cid)) || clean(c.name, 80) === name);
+  };
   function seriesConfOf(name, cid) {
     const c = state.config?.channels[cfgIndexOf(state.config, name, cid)];
     const s = c?.series && typeof c.series === "object" ? c.series : {};
@@ -677,7 +686,24 @@
       if (changed) { toast("저장했어요. 1~3분 뒤 사이트에 반영돼요."); afterConfigSave(`'${name}' 작품 정리 반영 중`); }
     });
   }
+  function renderWorksSwitch() {
+    const on = state.site?.works !== false;
+    for (const r of document.querySelectorAll('input[name="worksOn"]')) r.checked = r.value === (on ? "on" : "off");
+    $("#worksNow").textContent = on ? "지금: 켜짐" : "지금: 꺼짐 (원래 화면)";
+  }
+  function saveWorksSwitch(e) {
+    e.preventDefault();
+    const on = document.querySelector('input[name="worksOn"]:checked')?.value !== "off";
+    run(async () => {
+      const changed = await saveSite(`작품별 보기 ${on ? "켜기" : "끄기"}`, (s) => { if ((s.works !== false) === on) return false; s.works = on; return true; });
+      renderWorksSwitch();
+      if (!changed) return toast("이미 그 상태예요.");
+      toast(on ? "작품별 보기를 켰어요." : "작품별 보기를 껐어요. 원래 화면으로 돌아가요.");
+      afterSiteSave("작품별 보기 설정 반영 중");
+    });
+  }
   function renderWorks() {
+    renderWorksSwitch();
     const box = $("#worksList");
     if (!box || !state.videos) return;
     const q = ($("#worksQ")?.value || "").trim().toLowerCase();
@@ -1045,6 +1071,7 @@
   $("#adsForm").addEventListener("submit", saveAds);
   $("#openModeForm").addEventListener("submit", saveOpenMode);
   $("#worksQ").addEventListener("input", () => renderWorks());
+  $("#worksSwitch").addEventListener("submit", saveWorksSwitch);
 
   // 시작
   const saved = store.load();

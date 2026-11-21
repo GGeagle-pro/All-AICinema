@@ -88,6 +88,7 @@ async function main() {
   const map = new Map(existing.videos.map((v) => [v.id, v]));
   const prevIds = new Set(map.keys());
   const tracked = new Map();   // 채널ID → { name, categories }
+  const srcs = {};             // 설정의 채널 주소/ID → 채널ID (관리자 화면에서 채널별 영상 수를 맞추기 위해)
   let failed = 0;              // 실패한 채널 수 (실패가 있으면 삭제 작업 보류)
 
   // 1) 채널 자동 수집
@@ -112,6 +113,7 @@ async function main() {
         src = "채널";
       }
       for (const v of vids) map.set(v.id, { ...map.get(v.id), ...v }); // 조회수 등 갱신
+      srcs[clean(ch.id || ch.url || ch.handle, 200)] = cid;
       tracked.set(cid, { name: clean(ch.name, 80) || vids[0]?.channel || "", categories: catsOf(ch),
         series: ch.series && typeof ch.series === "object" ? ch.series : {} });   // 관리자 작품 설정
       console.log(`✓ 채널 ${label}: ${vids.length}개 (${src})`);
@@ -249,9 +251,10 @@ async function main() {
   }
   for (const cid of Object.keys(plCache)) if (!byCid.has(cid)) { delete plCache[cid]; plChanged = true; }
   if (plChanged) { await mkdir(dirname(PLAYLISTS_FILE), { recursive: true }); await writeFile(PLAYLISTS_FILE, JSON.stringify(plCache)); }
-  const index = { ...buildIndex(videos), avatars };
+  for (const [k, cid] of Object.entries(existing.srcs || {})) if (!(k in srcs) && channels.some((c) => clean(c.id || c.url || c.handle, 200) === k)) srcs[k] = cid;
+  const index = { ...buildIndex(videos), avatars, srcs };
   const age = existing.generatedAt ? (Date.now() - new Date(existing.generatedAt)) / 3600e3 : Infinity;
-  if (signature(index) === signature({ ...buildIndex(existing.videos), avatars: existing.avatars || {} }) && age < VIEWS_REFRESH_HOURS && !refreshAll && !didBackfill) {
+  if (signature(index) === signature({ ...buildIndex(existing.videos), avatars: existing.avatars || {}, srcs: existing.srcs || {} }) && age < VIEWS_REFRESH_HOURS && !refreshAll && !didBackfill) {
     console.log(`변경 없음 – 저장 생략 (마지막 저장 ${age.toFixed(1)}시간 전)`);
     return;
   }
@@ -288,7 +291,7 @@ function buildIndex(videos) {
   };
 }
 // 조회수를 뺀 내용이 같으면 "변경 없음"
-const signature = (ix) => JSON.stringify([ix.channels, ix.cats, ix.cids, ix.series || [], ix.avatars || {}, ix.items.map((r) => r.filter((_, i) => i !== 5))]);
+const signature = (ix) => JSON.stringify([ix.channels, ix.cats, ix.cids, ix.series || [], ix.avatars || {}, ix.srcs || {}, ix.items.map((r) => r.filter((_, i) => i !== 5))]);
 
 // 이전 저장 파일 읽기 (예전 형식 {videos:[…]} 과 압축 형식 모두 지원)
 async function readExisting() {
@@ -312,7 +315,8 @@ async function readExisting() {
     .filter(([k, u]) => CHANNEL_ID.test(k) && isAvatarUrl(u)));
   const backfilled = Object.fromEntries(Object.entries(raw.backfilled && typeof raw.backfilled === "object" ? raw.backfilled : {})
     .filter(([k, t]) => CHANNEL_ID.test(k) && Number.isFinite(Date.parse(t))));
-  return { generatedAt: raw.generatedAt, avatarsCheckedAt: raw.avatarsCheckedAt, backfilled, avatars, videos, manualIds: new Set(videos.filter((v) => v.manual).map((v) => v.id)) };
+  const srcs = Object.fromEntries(Object.entries(raw.srcs && typeof raw.srcs === "object" ? raw.srcs : {}).filter(([k, v]) => typeof k === "string" && k.length <= 200 && CHANNEL_ID.test(v)));
+  return { generatedAt: raw.generatedAt, avatarsCheckedAt: raw.avatarsCheckedAt, backfilled, srcs, avatars, videos, manualIds: new Set(videos.filter((v) => v.manual).map((v) => v.id)) };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

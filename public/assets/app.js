@@ -212,6 +212,7 @@
         // 영상 여는 방식: "page" = 목록에서 누르면 실제로 영상 페이지로 이동(애드센스 전면 광고 기회),
         //                 "inline" = 페이지 이동 없이 바로 플레이어 열기 (관리자 > 광고 설정에서 변경)
         openMode: s.openMode === "page" ? "page" : "inline",
+        works: s.works !== false,
       };
     } catch {}
   }
@@ -306,9 +307,18 @@
     return `<button type="button" class="tab tab--new" data-key="${NEW_KEY}" aria-pressed="${state.cat === NEW_KEY}" aria-label="NEW: 최근 3일 새 영상 ${n}개">` +
       `<span class="tab__new" aria-hidden="true">NEW</span><span class="tab__count" aria-hidden="true">${countLabel(n)}</span></button>`;
   }
+  // 국가 이름으로 보는 말 (관리자에서 만든 카테고리가 이 중 하나면 맨 위 국가 줄에 자동 표시)
+  const COUNTRY_WORDS = new Set(["한국", "미국", "일본", "중국", "대만", "홍콩", "태국", "베트남", "인도네시아", "필리핀", "인도", "영국", "프랑스", "독일", "스페인", "이탈리아", "러시아", "캐나다", "호주", "브라질", "멕시코", "튀르키예", "터키", "아랍", "해외", "글로벌"]);
+  function countryList() {
+    const inData = new Set(state.all.flatMap((v) => v.categories));
+    const extra = [...inData].filter((c) => COUNTRY_WORDS.has(c) && !state.site.countries.includes(c));
+    return [...state.site.countries, ...extra];
+  }
   function catList() {
-    const countries = new Set(state.site.countries);
-    const all = state.site.menu.length ? state.site.menu : [...new Set(state.all.flatMap((v) => v.categories))];   // 메뉴를 정하지 않았으면 영상의 카테고리로 자동 구성
+    const countries = new Set(countryList());
+    // 관리자 메뉴 순서 + 메뉴에 없지만 채널에 지정된 카테고리도 뒤에 자동 추가 (빠짐 없이)
+    const inData = [...new Set(state.all.flatMap((v) => v.categories))].filter((c) => c && c !== "기타");
+    const all = [...new Set([...state.site.menu, ...inData])];
     return all.filter((c) => !countries.has(c));
   }
   // 나라 필터 (빈 값 = 모든 국가)
@@ -321,7 +331,7 @@
     // 전체 → NEW(최근 3일) → 관리자에서 정한 카테고리
     // 맨 위: 나라 줄 (개수는 전체 영상 기준)
     $("#countries").innerHTML = catTab("", state.all.length, "모든 국가", !state.country) +
-      state.site.countries.map((c) => catTab(c, state.all.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0), c, c === state.country)).join("");
+      countryList().map((c) => catTab(c, state.all.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0), c, c === state.country)).join("");
     const pool = countryPool();   // 아래 줄들의 개수는 고른 나라 안에서
     const binge = pool.reduce((n, v) => n + (isBinge(v) ? 1 : 0), 0);
     $("#cats").innerHTML = catTab("전체", pool.length) + newTab() +
@@ -479,7 +489,8 @@
   }
 
   // ===== 작품(시리즈) =====
-  const workKey = (v) => (v && v.series ? v.channel + "\u0001" + v.series : "");
+  const worksOn = () => state.site.works !== false;   // 관리자 > 작품 탭의 스위치 (끄면 원래 화면)
+  const workKey = (v) => (worksOn() && v && v.series ? v.channel + "\u0001" + v.series : "");
   const epSort = (a, b) => {
     const ea = epNum(a.title), eb = epNum(b.title);
     if (ea != null && eb != null && ea !== eb && isBinge(a) === isBinge(b)) return ea - eb;
@@ -927,7 +938,7 @@
   function buildUpNext(v, i) {
     const binge = isBinge(v);
     // 같은 작품(없으면 같은 채널)의 회차 순서
-    const same = (x) => x.channel === v.channel && (!v.series || x.series === v.series);
+    const same = (x) => x.channel === v.channel && (!worksOn() || !v.series || x.series === v.series);
     const seq = state.all.filter((x) => same(x) && (x.id === v.id || isBinge(x) === binge))
       .sort((a, b) => {
         const ea = epNum(a.title), eb = epNum(b.title);
@@ -1197,14 +1208,14 @@
     const id = params.get("v");
     // 보던 카테고리·채널·정렬 이어서 보기 (영상 페이지 ↔ 목록 오갈 때)
     const c = params.get("c"), ch = params.get("ch"), so = params.get("s"), na = params.get("n");
-    if (na && state.site.countries.includes(na)) state.country = na;
+    if (na && countryList().includes(na)) state.country = na;
     if (c && (c === NEW_KEY || c === BINGE_KEY || (SPECIAL[c] && c !== SINCE_KEY) || catList().includes(c))) state.cat = c;
     if (ch && state.all.some((v) => v.channel === ch)) state.ch = ch;
     if (so === "views") { state.sort = "views"; $("#sort").value = "views"; }
     urlReady = true;
     // 영상 페이지에 다녀와서 목록을 새로 불러온 경우에도 "돌아가기" 유지
     const hb = history.state?.list && history.state.back;
-    if (hb && typeof hb === "object") state.backTo = { cat: String(hb.cat || "전체"), ch: String(hb.ch || ""), country: state.site.countries.includes(hb.country) ? hb.country : "", y: +hb.y || 0 };
+    if (hb && typeof hb === "object") state.backTo = { cat: String(hb.cat || "전체"), ch: String(hb.ch || ""), country: countryList().includes(hb.country) ? hb.country : "", y: +hb.y || 0 };
     const wn = (params.get("w") || "").slice(0, 40);
     if (wn && state.ch) { const k = state.ch + "\u0001" + wn; if (state.all.some((v) => workKey(v) === k)) state.work = k; }
     if (c || ch || so || na || wn || state.backTo) { renderMenus(); apply(); }
