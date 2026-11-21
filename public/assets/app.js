@@ -84,8 +84,11 @@
   const adClient = () => (/^ca-pub-\d{16}$/.test(state.site.adsense.client) ? state.site.adsense.client : "");
   // 광고 단위 번호: 숫자 8~12자리, 1111111111 같은 예시 번호는 무시
   const adSlot = (key) => {
-    const s = String(state.site.adsense.slots?.[key] || "");
-    return /^\d{8,12}$/.test(s) && !/^(\d)\1+$/.test(s) ? s : "";
+    const ok = (k) => { const s = String(state.site.adsense.slots?.[k] || ""); return /^\d{8,12}$/.test(s) && !/^(\d)\1+$/.test(s) ? s : ""; };
+    // 양옆 세로 광고: 한쪽 번호만 넣어도 양쪽에 같은 광고 단위 사용
+    if (key === "left") return ok("left") || ok("right");
+    if (key === "right") return ok("right") || ok("left");
+    return ok(key);
   };
   function adIns(key, { fixed } = {}) {
     const client = adClient(), slot = adSlot(key);
@@ -115,7 +118,7 @@
   function renderAds() {
     placeAd("#adTop", "top");
     placeAd("#adBottom", "bottom");
-    // 양옆 세로 배너: 데스크톱에서만. 정책상 고정(sticky)은 오른쪽 하나만, 왼쪽은 페이지와 함께 스크롤
+    // 양옆 세로 배너: 데스크톱에서만, 양쪽 모두 페이지와 함께 스크롤 (애드센스 정책: 양쪽 대칭 고정 광고 금지)
     const wide = matchMedia(`(min-width:${RAIL_MIN_WIDTH}px)`).matches;
     document.body.classList.toggle("has-rails", wide && !!(adSlot("left") || adSlot("right")));
     if (wide) { placeAd("#railL", "left", { fixed: [160, 600] }); placeAd("#railR", "right", { fixed: [160, 600] }); }
