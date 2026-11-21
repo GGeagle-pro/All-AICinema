@@ -30,7 +30,7 @@
   const $ = (s) => document.querySelector(s);
   const state = {
     all: [], list: [], shown: 0,
-    cat: "전체", ch: "", q: "", sort: "new",
+    cat: "전체", ch: "", q: "", sort: "new", country: "",
     current: -1, latest: null, cids: [], avatars: {}, queue: [],
     site: { siteName: SITE_NAME_DEFAULT, menu: [], adsense: { client: "", slots: {} }, banners: [] },
   };
@@ -177,6 +177,8 @@
       state.site = {
         siteName: str(s.siteName, 40) || SITE_NAME_DEFAULT,
         menu: (Array.isArray(s.menu) ? s.menu : []).map((m) => str(m, 30)).filter(Boolean).slice(0, 30),
+        // 나라 줄 (맨 위). 관리자의 카테고리 중 이 이름들은 장르 줄이 아니라 나라 줄에 나옴
+        countries: (Array.isArray(s.countries) ? s.countries : ["한국", "미국", "일본", "중국"]).map((m) => str(m, 20)).filter(Boolean).slice(0, 12),
         adsense: {
           client: str(s.adsense?.client, 30),
           slots: Object.fromEntries(Object.entries(s.adsense?.slots || {}).map(([k, v]) => [str(k, 20), str(String(v ?? ""), 12)])),
@@ -213,7 +215,7 @@
     const cur = $(`#cats .tab--new`);
     if (cur) cur.outerHTML = newTab();
     if (state.cat !== NEW_KEY || state.q || !$("#player").hidden) return;
-    const ids = state.all.filter((v) => inCat(v) && (!state.ch || v.channel === state.ch)).map((v) => v.id).sort().join();
+    const ids = state.all.filter((v) => inCountry(v) && inCat(v) && (!state.ch || v.channel === state.ch)).map((v) => v.id).sort().join();
     if (ids !== state.list.map((v) => v.id).sort().join() && scrollY < 400) { renderMenus(); apply(); }
   }
 
@@ -244,11 +246,11 @@
 
   // ===== 메뉴 (1줄: 장르·국가, 2줄: 유튜브 채널) =====
   const inCat = (v, cat = state.cat) => cat === "전체" || (cat === NEW_KEY ? isNew(v.published) : cat === BINGE_KEY ? isBinge(v) : v.categories.includes(cat));
-  const newCount = () => state.all.reduce((n, v) => n + (isNew(v.published) ? 1 : 0), 0);
+  const newCount = () => countryPool().reduce((n, v) => n + (isNew(v.published) ? 1 : 0), 0);
   // 1줄 메뉴 항목 + 영상 개수 (NEW 탭과 같은 모양)
   const countLabel = (n) => (n > 999 ? "999+" : String(n));
-  function catTab(c, n, label = c) {
-    return `<button type="button" class="tab tab--count" data-key="${esc(c)}" aria-pressed="${c === state.cat}" aria-label="${esc(label)} 영상 ${n}개">` +
+  function catTab(c, n, label = c, pressed = c === state.cat) {
+    return `<button type="button" class="tab tab--count" data-key="${esc(c)}" aria-pressed="${pressed}" aria-label="${esc(label)} 영상 ${n}개">` +
       `${esc(label)}<span class="tab__count" aria-hidden="true">${countLabel(n)}</span></button>`;
   }
   function newTab() {
@@ -257,23 +259,31 @@
       `<span class="tab__new" aria-hidden="true">NEW</span><span class="tab__count" aria-hidden="true">${countLabel(n)}</span></button>`;
   }
   function catList() {
-    if (state.site.menu.length) return state.site.menu;
-    return [...new Set(state.all.flatMap((v) => v.categories))];   // 메뉴를 정하지 않았으면 영상의 카테고리로 자동 구성
+    const countries = new Set(state.site.countries);
+    const all = state.site.menu.length ? state.site.menu : [...new Set(state.all.flatMap((v) => v.categories))];   // 메뉴를 정하지 않았으면 영상의 카테고리로 자동 구성
+    return all.filter((c) => !countries.has(c));
   }
+  // 나라 필터 (빈 값 = 모든 나라)
+  const inCountry = (v) => !state.country || v.categories.includes(state.country);
+  const countryPool = () => state.all.filter(inCountry);
   function chip(cls, key, label, pressed, extra = "") {
     return `<button type="button" class="${cls}" data-key="${esc(key)}" aria-pressed="${pressed}">${extra}${esc(label)}</button>`;
   }
   function renderMenus() {
     // 전체 → NEW(최근 3일) → 관리자에서 정한 카테고리
-    const binge = state.all.reduce((n, v) => n + (isBinge(v) ? 1 : 0), 0);
-    $("#cats").innerHTML = catTab("전체", state.all.length) + newTab() +
+    // 맨 위: 나라 줄 (개수는 전체 영상 기준)
+    $("#countries").innerHTML = catTab("", state.all.length, "모든 나라", !state.country) +
+      state.site.countries.map((c) => catTab(c, state.all.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0), c, c === state.country)).join("");
+    const pool = countryPool();   // 아래 줄들의 개수는 고른 나라 안에서
+    const binge = pool.reduce((n, v) => n + (isBinge(v) ? 1 : 0), 0);
+    $("#cats").innerHTML = catTab("전체", pool.length) + newTab() +
       (binge ? catTab(BINGE_KEY, binge, "몰아보기") : "") +
-      catList().map((c) => [c, state.all.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0)])
+      catList().map((c) => [c, pool.reduce((n, v) => n + (v.categories.includes(c) ? 1 : 0), 0)])
         .filter(([c, n]) => n > 0 || c === state.cat)   // 아직 영상이 없는 카테고리는 숨김 (영상이 생기면 자동 표시)
         .map(([c, n]) => catTab(c, n)).join("");
     // 2줄: 현재 고른 장르·국가에 영상이 있는 채널만, 영상 많은 순
     const counts = new Map();
-    for (const v of state.all) if (inCat(v) && v.channel) counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
+    for (const v of state.all) if (inCountry(v) && inCat(v) && v.channel) counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
     const chs = [...counts].sort((a, b) => b[1] - a[1]).map(([c]) => c);
     if (state.ch && !counts.has(state.ch)) state.ch = "";
     $("#chs").innerHTML = chip("chtab", "", "모든 채널", !state.ch) +
@@ -300,14 +310,14 @@
 
   function apply() {
     const q = state.q.trim().toLowerCase();
-    let list = state.all.filter((v) => inCat(v) && (!state.ch || v.channel === state.ch) &&
+    let list = state.all.filter((v) => inCountry(v) && inCat(v) && (!state.ch || v.channel === state.ch) &&
       (!q || (v.title + " " + v.channel).toLowerCase().includes(q)));
     list = state.sort === "views" ? list.sort((a, b) => b.views - a.views)
                                   : list.sort((a, b) => new Date(b.published) - new Date(a.published));
     state.list = list;
     state.shown = 0;
     $("#grid").innerHTML = "";
-    const where = [state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat === BINGE_KEY ? "몰아보기 · 정주행" : state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
+    const where = [state.country, state.cat === NEW_KEY ? "NEW · 최근 3일 새 영상" : state.cat === BINGE_KEY ? "몰아보기 · 정주행" : state.cat !== "전체" ? state.cat : "", state.ch].filter(Boolean).join(" · ");
     const shelvesOn = renderShelves();
     $("#backBtn").hidden = !state.backTo;
     $("#listTitle").textContent = q ? `"${state.q}" 검색 결과 ${list.length}개` : (shelvesOn ? `${where || "전체"} 최신 영상` : where || "최신 영상");
@@ -316,6 +326,7 @@
     empty.hidden = list.length > 0;
     syncListUrl();
     empty.textContent = !state.all.length ? "아직 수집된 영상이 없습니다."
+      : state.country && !countryPool().length ? `아직 ${state.country} 채널이 없어요. 곧 추가될 예정이에요.`
       : state.cat === NEW_KEY ? "최근 3일 동안 새로 올라온 영상이 없어요." : "이 메뉴에는 아직 영상이 없어요.";
     more();
   }
@@ -330,7 +341,7 @@
     const on = !state.q && !state.ch && state.cat !== NEW_KEY && state.cat !== BINGE_KEY && state.sort === "new";
     state.shelves = new Map();
     if (!on) { box.hidden = true; box.innerHTML = ""; return false; }
-    const pool = state.all.filter((v) => inCat(v)).sort((a, b) => new Date(b.published) - new Date(a.published));
+    const pool = state.all.filter((v) => inCountry(v) && inCat(v)).sort((a, b) => new Date(b.published) - new Date(a.published));
     const groups = [];
     if (state.cat === "전체") {
       const fresh = pool.filter((v) => isNew(v.published));
@@ -362,7 +373,7 @@
   function restoreBack() {
     const b = state.backTo; if (!b) return;
     state.backTo = null;
-    state.cat = b.cat; state.ch = b.ch;
+    state.cat = b.cat; state.ch = b.ch; state.country = b.country || "";
     renderMenus(); apply();
     requestAnimationFrame(() => scrollTo(0, b.y));
   }
@@ -546,7 +557,7 @@
       if (go) {
         const g = state.shelves.get(go.dataset.go); if (!g) return;
         // 돌아올 화면(지금 메뉴·스크롤 위치) 기억 + 브라우저/휴대폰 뒤로가기로도 돌아오게 기록
-        state.backTo = { cat: state.cat, ch: state.ch, y: scrollY, label: g.title };
+        state.backTo = { cat: state.cat, ch: state.ch, country: state.country, y: scrollY, label: g.title };
         if (g.go.cat) state.cat = g.go.cat;
         if (g.go.ch) state.ch = g.go.ch;
         history.pushState({ list: 1, back: state.backTo }, "", location.href);
@@ -576,6 +587,13 @@
       row.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === t)));
       t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
     };
+    $("#countries").addEventListener("click", (e) => {
+      const t = e.target.closest(".tab");
+      if (!t) return;
+      state.backTo = null; state.country = t.dataset.key || "";
+      renderMenus();
+      apply();
+    });
     $("#cats").addEventListener("click", (e) => {
       const t = e.target.closest(".tab");
       if (!t) return;
@@ -655,6 +673,7 @@
   const pageMode = () => state.site.openMode === "page";
   function listQuery() {
     const q = new URLSearchParams();
+    if (state.country) q.set("n", state.country);
     if (state.cat !== "전체") q.set("c", state.cat);
     if (state.ch) q.set("ch", state.ch);
     if (state.sort !== "new") q.set("s", state.sort);
@@ -717,15 +736,16 @@
     const params = new URLSearchParams(location.search);
     const id = params.get("v");
     // 보던 카테고리·채널·정렬 이어서 보기 (영상 페이지 ↔ 목록 오갈 때)
-    const c = params.get("c"), ch = params.get("ch"), so = params.get("s");
+    const c = params.get("c"), ch = params.get("ch"), so = params.get("s"), na = params.get("n");
+    if (na && state.site.countries.includes(na)) state.country = na;
     if (c && (c === NEW_KEY || c === BINGE_KEY || catList().includes(c))) state.cat = c;
     if (ch && state.all.some((v) => v.channel === ch)) state.ch = ch;
     if (so === "views") { state.sort = "views"; $("#sort").value = "views"; }
     urlReady = true;
     // 영상 페이지에 다녀와서 목록을 새로 불러온 경우에도 "돌아가기" 유지
     const hb = history.state?.list && history.state.back;
-    if (hb && typeof hb === "object") state.backTo = { cat: String(hb.cat || "전체"), ch: String(hb.ch || ""), y: +hb.y || 0 };
-    if (c || ch || so || state.backTo) { renderMenus(); apply(); }
+    if (hb && typeof hb === "object") state.backTo = { cat: String(hb.cat || "전체"), ch: String(hb.ch || ""), country: state.site.countries.includes(hb.country) ? hb.country : "", y: +hb.y || 0 };
+    if (c || ch || so || na || state.backTo) { renderMenus(); apply(); }
     if (!id) restoreListPosition();
     if (id && VALID_ID.test(id)) {
       let fromList = false;
