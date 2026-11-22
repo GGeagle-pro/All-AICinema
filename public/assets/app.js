@@ -124,6 +124,17 @@
   }
 
   // ===== 자체 광고 배너 (관리자에서 편집, 3칸) =====
+  // 예약 광고: 지금(방문자 기기 시각, UTC 기준 비교) 진행 중인 것 중 가장 늦게 시작한 것 → 없으면 기본 광고
+  function nowCreative(slot) {
+    if (!slot || typeof slot !== "object") return slot;
+    const now = Date.now();
+    const live = (Array.isArray(slot.sched) ? slot.sched : [])
+      .map((c) => ({ ...c, s: Date.parse(c?.start), e: Date.parse(c?.end) }))
+      .filter((c) => c && SAFE_IMG.test(c.image || "") && c.s <= now && now < c.e)
+      .sort((a, b) => b.s - a.s)[0];
+    if (!live) return slot;
+    return { ...slot, image: live.image, link: live.link || "", alt: live.alt || "", ...(live.target ? { target: live.target } : {}), ...("note" in live ? { note: live.note } : {}) };
+  }
   function renderPromo() {
     const box = $("#promo");
     const items = (state.site.banners || []).slice(0, 3)
@@ -207,10 +218,11 @@
           slots: Object.fromEntries(Object.entries(s.adsense?.slots || {}).map(([k, v]) => [str(k, 20), str(String(v ?? ""), 12)])),
           feedEvery: +s.adsense?.feedEvery || 0,
         },
-        banners: Array.isArray(s.banners) ? s.banners.slice(0, 3) : [],
+        // 배너 칸마다 '기본(상시) 광고' + 예약 광고(sched: 시작~끝 시각). 지금 진행 중인 예약이 있으면 그걸, 없으면 기본을 보여 줌
+        banners: (Array.isArray(s.banners) ? s.banners.slice(0, 3) : []).map(nowCreative),
         // 목록 사이 띠 배너 (관리자 > 카테고리·배너): 6:1 이미지 + 랜딩 URL + 문구
         // target: all(모두) / kr(국내 방문자만) / intl(해외 방문자만), note: 제휴 고지 문구 (예: 쿠팡파트너스)
-        strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 6)
+        strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 6).map(nowCreative)
           .map((b) => ({ image: SAFE_IMG.test(b?.image || "") ? b.image : "", alt: str(b?.alt, 80), link: safeLink(b?.link || ""),
             target: ["kr", "intl"].includes(b?.target) ? b.target : "all", note: str(b?.note, 140) }))
           .filter((b) => b.image && b.link),
@@ -805,7 +817,9 @@
   }
   async function doShare(k) {
     const v = shareV; if (!v) return;
-    const url = shareUrlOf(v), text = `${v.title} | All AI-Cinema`;
+    // 통계에서 어느 앱으로 공유된 링크로 들어왔는지 알 수 있게 UTM 꼬리표 (예: ?utm_source=kakao&utm_medium=share)
+    const url = (() => { const u = new URL(shareUrlOf(v)); u.searchParams.set("utm_source", k === "more" ? "device_share" : k); u.searchParams.set("utm_medium", "share"); u.searchParams.set("utm_campaign", "video_share"); return u.href; })();
+    const text = `${v.title} | All AI-Cinema`;
     const enc = encodeURIComponent;
     const open = (u) => window.open(u, "_blank", "noopener,noreferrer,width=620,height=640");
     track("share", { method: k, content_type: "video", item_id: v.id });

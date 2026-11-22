@@ -107,6 +107,21 @@ export async function collect(prop, token) {
     { dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("dateHour"), metrics: D("activeUsers", "screenPageViews"), limit: 100 },
     { dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("dateHour", "eventName"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", EVENTS), limit: 1000 },
   ]);
+  // 유입 경로 자세히: 첫 방문 페이지, 이전 페이지(외부 사이트 주소), 캠페인(UTM)
+  const [landing, referrer, campaign] = await batch(prop, token, [
+    { dateRanges: RANGE, dimensions: D("date", "landingPage"), metrics: D("sessions"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "pageReferrer"), metrics: D("sessions"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "sessionSourceMedium", "sessionCampaignName"), metrics: D("sessions"), limit: BIG },
+  ]);
+  // 성별·나이대 (GA4 'Google 신호'를 켜야 하고, 사람이 적으면 구글이 숨김 → 실패해도 건너뜀)
+  let gender = null, age = null, demoError = "";
+  try {
+    [gender, age] = await batch(prop, token, [
+      { dateRanges: RANGE, dimensions: D("date", "userGender"), metrics: D("activeUsers"), limit: BIG },
+      { dateRanges: RANGE, dimensions: D("date", "userAgeBracket"), metrics: D("activeUsers"), limit: BIG },
+    ]);
+  } catch (e) { demoError = String(e.message || e).slice(0, 200); }
+
   // 애드센스 (GA4 에 애드센스를 연결해야 숫자가 나옴 – 안 되어 있으면 건너뜀)
   let ads = null, adsError = "";
   try {
@@ -144,6 +159,12 @@ export async function collect(prop, token) {
     works: table(works, ["date", "pagePath", "pageTitle", "screenPageViews", "activeUsers"]),
     search: table(search, ["date", "searchTerm", "eventCount"]),
     hourly: table(hourly, ["dateHour", "activeUsers", "screenPageViews"]),
+    landing: table(landing, ["date", "landingPage", "sessions"]),
+    referrer: table(referrer, ["date", "pageReferrer", "sessions"]),
+    campaign: table(campaign, ["date", "sessionSourceMedium", "sessionCampaignName", "sessions"]),
+    gender: gender ? table(gender, ["date", "userGender", "activeUsers"]) : null,
+    age: age ? table(age, ["date", "userAgeBracket", "activeUsers"]) : null,
+    demoError,
     hourlyEv: table(hourlyEv, ["dateHour", "eventName", "eventCount"]),
     ads, adsError,
   };

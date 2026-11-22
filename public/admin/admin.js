@@ -208,7 +208,7 @@
     if (s.works !== false) s.works = true;
     if (s.pages !== false) s.pages = true;
     // 띠 배너: 이미지형 3칸 (예전 아이콘형 값은 버림)
-    s.strips = (Array.isArray(s.strips) ? s.strips : []).map((b) => (b && "image" in b ? { image: b.image || "", link: b.link || "", alt: b.alt || "", target: ["kr", "intl"].includes(b.target) ? b.target : "all", note: b.note || "" } : null)).filter(Boolean);
+    s.strips = (Array.isArray(s.strips) ? s.strips : []).map((b) => (b && "image" in b ? { image: b.image || "", link: b.link || "", alt: b.alt || "", target: ["kr", "intl"].includes(b.target) ? b.target : "all", note: b.note || "", ...(Array.isArray(b.sched) && b.sched.length ? { sched: b.sched } : {}) } : null)).filter(Boolean);
     while (s.strips.length < 6) s.strips.push({ image: "", link: "", alt: "", target: "all", note: "" });
     s.strips = s.strips.slice(0, 6);
     return s;
@@ -643,7 +643,107 @@
           el("button", { class: "btn btn--primary", type: "button", text: "저장", onclick: () => saveBanner(i, linkIn.value, altIn.value, kind, kind === "strips" ? { target: targetSel.value, note: noteIn.value } : null) }),
           el("button", { class: "btn", type: "button", text: "비우기", disabled: !b.image && !file, onclick: () => clearBanner(i, kind) }),
         ),
+        schedBox(kind, i, b),
       ));
+    });
+  }
+
+  // ───────── 예약 광고 (배너 칸마다: 시작~끝 시각에만 보이고, 끝나면 위의 '기본 광고'로 자동 복귀) ─────────
+  const dtLocal = (d) => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); };
+  const fmtDt = (iso) => { try { return new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }); } catch { return iso; } };
+  const schedState = (c, now = Date.now()) => { const s = Date.parse(c.start), e = Date.parse(c.end); return now < s ? "wait" : now < e ? "live" : "done"; };
+  const SCHED_TXT = { wait: "예약됨", live: "진행 중", done: "종료" };
+  state.schedOpen = state.schedOpen || {};
+  function schedBox(kind, i, slot) {
+    const K = BKIND[kind], key = `${kind}-${i}`;
+    const list = (Array.isArray(slot.sched) ? slot.sched : []).slice().sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+    const live = list.find((c) => schedState(c) === "live");
+    const nextUp = list.find((c) => schedState(c) === "wait");
+    const sum = live ? `지금: 예약 광고 진행 중 (~${fmtDt(live.end)})` : nextUp ? `다음 예약: ${fmtDt(nextUp.start)}부터` : "지금: 기본 광고";
+    const det = el("details", { class: "adm-sched" });
+    det.open = !!state.schedOpen[key];
+    det.addEventListener("toggle", () => (state.schedOpen[key] = det.open));
+    det.append(el("summary", {}, el("b", { text: `예약 광고 (${list.filter((c) => schedState(c) !== "done").length})` }), el("span", { class: `adm-sched__now${live ? " is-live" : ""}`, text: sum })));
+    // 목록
+    const ul = el("ul", { class: "adm-sched__list" });
+    if (!list.length) ul.append(el("li", { class: "muted small", text: "예약된 광고가 없어요. 아래에서 기간을 정해 추가하세요." }));
+    for (const c of list) {
+      const st = schedState(c);
+      ul.append(el("li", { class: `adm-sched__item is-${st}` },
+        SAFE_IMG.test(c.image || "") ? el("img", { src: "../" + c.image, alt: "" }) : el("span"),
+        el("div", { class: "adm-sched__info" },
+          el("span", { class: `pill adm-sched__st is-${st}`, text: SCHED_TXT[st] }),
+          el("b", { text: `${fmtDt(c.start)} ~ ${fmtDt(c.end)}` }),
+          el("span", { class: "muted small", text: [c.alt, c.link, kind === "strips" && c.target && c.target !== "all" ? (c.target === "kr" ? "국내만" : "해외만") : ""].filter(Boolean).join(" · ") })),
+        el("button", { class: "btn adm-sched__del", type: "button", text: "삭제", onclick: () => deleteSched(kind, i, c) })));
+    }
+    det.append(ul);
+    // 추가 폼
+    const start = new Date(); start.setMinutes(0, 0, 0); start.setHours(start.getHours() + 1);
+    const end = new Date(start.getTime() + 7 * 86400000);
+    const fid = `sched-${key}`;
+    const f = {
+      file: el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", id: fid, class: "adm-file" }),
+      link: el("input", { type: "url", inputmode: "url", placeholder: "광고주 랜딩 URL (https://…)", "aria-label": "예약 광고 링크" }),
+      alt: el("input", { type: "text", maxlength: "80", placeholder: "광고 문구 / 광고주 이름 (선택)", "aria-label": "예약 광고 문구" }),
+      start: el("input", { type: "datetime-local", value: dtLocal(start), "aria-label": "시작" }),
+      end: el("input", { type: "datetime-local", value: dtLocal(end), "aria-label": "끝" }),
+      target: kind === "strips" ? el("select", { "aria-label": "보여 줄 방문자" }, ...[["all", "모든 방문자"], ["kr", "국내 방문자만"], ["intl", "해외 방문자만"]].map(([v, t]) => el("option", { value: v, text: t }))) : null,
+      note: kind === "strips" ? el("input", { type: "text", maxlength: "140", placeholder: "제휴·광고 고지 문구 (선택)", "aria-label": "예약 광고 고지 문구" }) : null,
+    };
+    const pickName = el("span", { class: "muted small", text: "이미지를 골라 주세요" });
+    f.file.addEventListener("change", () => (pickName.textContent = f.file.files?.[0]?.name || "이미지를 골라 주세요"));
+    det.append(el("div", { class: "adm-sched__form" },
+      el("b", { class: "small", text: "+ 새 예약 광고" }),
+      el("div", { class: "adm-sched__row" }, el("label", { class: "btn adm-filebtn", for: fid }, "이미지 고르기"), f.file, pickName),
+      f.link, f.alt,
+      el("div", { class: "adm-sched__dates" }, el("label", { class: "small" }, "시작 ", f.start), el("label", { class: "small" }, "끝 ", f.end)),
+      ...(f.target ? [f.target, f.note] : []),
+      el("button", { class: "btn btn--primary", type: "button", text: "예약 추가", onclick: () => addSched(kind, i, f) })));
+    return det;
+  }
+  function addSched(kind, i, f) {
+    const K = BKIND[kind];
+    const file = f.file.files?.[0];
+    if (!file) return toast("예약 광고 이미지를 골라 주세요.", true);
+    const link = safeLink(f.link.value.trim());
+    if (!link) return toast("링크는 https:// 로 시작하는 주소로 넣어 주세요.", true);
+    const s0 = new Date(f.start.value), e0 = new Date(f.end.value);
+    if (isNaN(s0) || isNaN(e0)) return toast("시작·끝 날짜와 시간을 넣어 주세요.", true);
+    if (e0 <= s0) return toast("끝 시각이 시작 시각보다 뒤여야 해요.", true);
+    if (e0 <= new Date()) return toast("이미 지난 기간이에요. 끝 시각을 미래로 넣어 주세요.", true);
+    const item = { start: s0.toISOString(), end: e0.toISOString(), link, alt: clean(f.alt.value, 80) };
+    if (f.target) { item.target = ["kr", "intl"].includes(f.target.value) ? f.target.value : "all"; item.note = clean(f.note.value, 140); }
+    run(async () => {
+      const { b64, ext } = await toWebp(file, { max: K.max });
+      const name = `${K.prefix}-${i + 1}-ad-${Date.now()}.${ext}`;
+      await putFile(`${UPLOADS}/${name}`, b64, `${K.label} ${i + 1} 예약 광고 이미지 업로드`);
+      item.image = `uploads/${name}`;
+      await saveSite(`${K.label} ${i + 1} 예약 광고 추가 (${fmtDt(item.start)} ~ ${fmtDt(item.end)})`, (s) => {
+        const slot = s[kind][i] || (s[kind][i] = { image: "", link: "", alt: "" });
+        slot.sched = [...(Array.isArray(slot.sched) ? slot.sched : []), item].sort((a, b) => Date.parse(a.start) - Date.parse(b.start)).slice(-20);
+        return true;
+      });
+      state.schedOpen[`${kind}-${i}`] = true;
+      renderBanners(kind);
+      toast(`예약했어요. ${fmtDt(item.start)}부터 ${fmtDt(item.end)}까지 보이고, 끝나면 기본 광고로 돌아가요.`);
+      afterSiteSave("예약 광고 반영 중");
+    });
+  }
+  function deleteSched(kind, i, c) {
+    const K = BKIND[kind];
+    run(async () => {
+      await saveSite(`${K.label} ${i + 1} 예약 광고 삭제`, (s) => {
+        const slot = s[kind][i]; if (!slot || !Array.isArray(slot.sched)) return false;
+        const before = slot.sched.length;
+        slot.sched = slot.sched.filter((x) => !(x.image === c.image && x.start === c.start));
+        if (!slot.sched.length) delete slot.sched;
+        return before !== (slot.sched?.length || 0);
+      });
+      if (SAFE_IMG.test(c.image || "")) await deleteFile(`public/${c.image}`, `예약 광고 이미지 삭제`);
+      renderBanners(kind);
+      toast("예약 광고를 지웠어요.");
+      afterSiteSave("예약 광고 삭제 반영 중");
     });
   }
   const renderStrips = () => renderBanners("strips");
@@ -1055,7 +1155,7 @@
       }
       if (!image) return toast("이미지를 먼저 골라 주세요.", true);
       const more = extra ? { target: ["kr", "intl"].includes(extra.target) ? extra.target : "all", note: clean(extra.note, 140) } : {};
-      await saveSite(`${K.label} ${i + 1} 저장`, (s) => { s[kind][i] = { image, link, alt, ...more }; return true; });
+      await saveSite(`${K.label} ${i + 1} 저장`, (s) => { const sched = s[kind][i]?.sched; s[kind][i] = { image, link, alt, ...more, ...(Array.isArray(sched) && sched.length ? { sched } : {}) }; return true; });
       if (pick) {
         URL.revokeObjectURL(pick.url);
         K.files[i] = null;
@@ -1073,7 +1173,7 @@
     const old = state.site?.[kind]?.[i]?.image || "";
     if (!old) return renderBanners(kind);
     run(async () => {
-      await saveSite(`${K.label} ${i + 1} 비우기`, (s) => { s[kind][i] = kind === "strips" ? { image: "", link: "", alt: "", target: "all", note: "" } : { image: "", link: "", alt: "" }; return true; });
+      await saveSite(`${K.label} ${i + 1} 비우기`, (s) => { const sched = s[kind][i]?.sched; s[kind][i] = { ...(kind === "strips" ? { image: "", link: "", alt: "", target: "all", note: "" } : { image: "", link: "", alt: "" }), ...(Array.isArray(sched) && sched.length ? { sched } : {}) }; return true; });
       if (SAFE_IMG.test(old)) await deleteFile(`public/${old}`, `${K.label} ${i + 1} 이미지 삭제`);
       renderBanners(kind);
       toast(`${K.label} ${i + 1}을 비웠어요.`);
@@ -1257,8 +1357,13 @@
   }
   const sumOf = (list, k) => list.reduce((t, x) => t + (x[k] || 0), 0);
 
-  const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map((c) => 0x1f1a5 + c.charCodeAt(0))) : "🌐";
-  const COUNTRY_KO = (code, name) => { try { return (/^[A-Z]{2}$/.test(code || "") && new Intl.DisplayNames(["ko"], { type: "region" }).of(code)) || name; } catch { return name; } };
+  let refHosts = () => [], landLabel = (p) => p, demo = () => "";
+  // 국가 코드 표시 (윈도우는 국기 이모지를 글자로 보여 줘서 코드 배지로 통일). 코드가 없으면 '알 수 없음'
+  const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? `<span class="st-cc">${cc}</span>` : `<span class="st-cc st-cc--x">?</span>`;
+  const COUNTRY_KO = (code, name) => {
+    if (!/^[A-Z]{2}$/.test(code || "") || /not set/i.test(name || "")) return "알 수 없음 (VPN·위치 비공개 등)";
+    try { return new Intl.DisplayNames(["ko"], { type: "region" }).of(code) || name; } catch { return name; }
+  };
   const DEVICE_KO = { mobile: "모바일", desktop: "PC", tablet: "태블릿", "smart tv": "TV" };
   const GROUP_KO = { "Organic Search": "검색", Direct: "직접 방문", Referral: "다른 사이트", "Organic Social": "SNS", "Organic Video": "동영상(유튜브 등)", "Paid Search": "검색 광고", "Paid Social": "SNS 광고", Display: "디스플레이 광고", Email: "이메일", Unassigned: "기타", "Cross-network": "광고(여러 곳)" };
   function bars(list, label, value, { max = 10, fmt = num } = {}) {
@@ -1290,6 +1395,34 @@
   };
 
   function renderStats() {
+    const dd = ST.data;
+    if (dd) {
+      // 외부 사이트(이전 페이지) → 도메인별 합계, 우리 사이트 안에서 이동한 건 제외
+      refHosts = () => {
+        const [f, t] = rangeOf(dd), m = new Map();
+        for (const x of agg(dd.referrer, f, t, ["pageReferrer"], ["sessions"])) {
+          let h = ""; try { h = new URL(x.pageReferrer).hostname.replace(/^www\./, ""); } catch { continue; }
+          if (!h || /syncbrain100\.com$/.test(h)) continue;
+          m.set(h, (m.get(h) || 0) + x.sessions);
+        }
+        return [...m].map(([host, sessions]) => ({ host, sessions }));
+      };
+      landLabel = (p) => {
+        const path = String(p || "");
+        if (path === "/" || /^\/(en|ja|zh|es)\/$/.test(path)) return `메인 <small class="muted">${escH(path)}</small>`;
+        if (/^\/watch\//.test(path)) return `영상 페이지 <small class="muted">${escH(path)}</small>`;
+        if (/^\/work\//.test(path)) { let n = path; try { n = decodeURIComponent(path); } catch {} return `작품 <small class="muted">${escH(n)}</small>`; }
+        if (/tools\//.test(path)) return `AI 제작 도구 <small class="muted">${escH(path)}</small>`;
+        return escH(path);
+      };
+      demo = (key, dim, names, sortByName = false) => {
+        if (!dd[key]) return `<p class="st-note">아직 볼 수 없어요. 구글 애널리틱스 <b>관리 → 데이터 수집 및 수정 → 데이터 수집 → Google 신호 데이터 수집</b>을 켜면 1~2일 뒤부터 보여요. 방문자가 적으면 구글이 개인 보호를 위해 숨겨요.</p>`;
+        const [f, t] = rangeOf(dd);
+        let list = agg(dd[key], f, t, [dim], ["activeUsers"]).filter((x) => x[dim]);
+        if (sortByName) list = list.sort((a, b) => (a[dim] < b[dim] ? -1 : 1));
+        return list.length ? bars(list, (x) => escH(names[x[dim]] || x[dim]), (x) => x.activeUsers) : `<p class="muted small">이 기간에는 기록이 없거나, 방문자가 적어 구글이 숨겼어요.</p>`;
+      };
+    }
     const d = ST.data; if (!d) return;
     const box = $("#stBody");
     box.hidden = false;
@@ -1436,6 +1569,11 @@
       <div class="st-grid">
         <section class="adm-card st-card"><h3>국가별 방문자</h3>${bars(pick("country", ["country", "countryId"], ["activeUsers"]), (x) => `${flag(x.countryId)} ${escH(COUNTRY_KO(x.countryId, x.country))}`, (x) => x.activeUsers)}</section>
         <section class="adm-card st-card"><h3>유입 경로</h3>${bars(pick("channel", ["sessionDefaultChannelGroup", "sessionSource"], ["sessions"]), (x) => `${escH(GROUP_KO[x.sessionDefaultChannelGroup] || x.sessionDefaultChannelGroup)} <small class="muted">${escH(x.sessionSource)}</small>`, (x) => x.sessions)}</section>
+        <section class="adm-card st-card"><h3>외부 사이트에서 온 방문 <span class="muted small">(이전 페이지 주소)</span></h3>${bars(refHosts(), (x) => escH(x.host), (x) => x.sessions)}</section>
+        <section class="adm-card st-card"><h3>처음 들어온 페이지</h3>${bars(pick("landing", ["landingPage"], ["sessions"]).filter((x) => x.landingPage && x.landingPage !== "(not set)"), (x) => landLabel(x.landingPage), (x) => x.sessions)}</section>
+        <section class="adm-card st-card st-wide"><h3>소스 / 매체 · 캠페인 <span class="muted small">(공유 버튼 링크는 utm_source=kakao 등으로 자동 구분)</span></h3>${bars(pick("campaign", ["sessionSourceMedium", "sessionCampaignName"], ["sessions"]), (x) => `${escH(x.sessionSourceMedium)}${x.sessionCampaignName && !/^\(/.test(x.sessionCampaignName) ? ` <small class="muted">${escH(x.sessionCampaignName)}</small>` : ""}`, (x) => x.sessions, { max: 15 })}</section>
+        <section class="adm-card st-card"><h3>성별</h3>${demo("gender", "userGender", { male: "남성", female: "여성", unknown: "알 수 없음" })}</section>
+        <section class="adm-card st-card"><h3>나이대</h3>${demo("age", "userAgeBracket", { unknown: "알 수 없음" }, true)}</section>
         <section class="adm-card st-card"><h3>기기</h3>${bars(pick("device", ["deviceCategory"], ["activeUsers"]), (x) => escH(DEVICE_KO[x.deviceCategory] || x.deviceCategory), (x) => x.activeUsers)}</section>
         <section class="adm-card st-card"><h3>브라우저 언어</h3>${bars(pick("language", ["language"], ["activeUsers"]), (x) => escH(x.language), (x) => x.activeUsers)}</section>
         <section class="adm-card st-card st-wide"><h3>많이 본 영상</h3>${bars(vids, vidLabel, (x) => x.screenPageViews, { max: 15 })}</section>

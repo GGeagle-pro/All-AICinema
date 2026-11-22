@@ -308,3 +308,31 @@
 .st-kpis--sum .st-kpi b{overflow-wrap:anywhere}
 .st-kpis--ads.st-kpis--8{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media (max-width:760px){ .st-kpis--ads.st-kpis--8{grid-template-columns:repeat(2,minmax(0,1fr))} }
+
+/* 예약 광고 */
+.adm-sched{border-top:1px dashed var(--line);padding-top:10px;margin-top:4px}
+.adm-sched summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;cursor:pointer;font-size:14px;list-style:none}
+.adm-sched summary::before{content:"▸";color:var(--muted)}
+.adm-sched[open] summary::before{content:"▾"}
+.adm-sched__now{font-size:12px;color:var(--muted)}
+.adm-sched__now.is-live{color:#8ef0b0;font-weight:700}
+.adm-sched__list{list-style:none;margin:10px 0;padding:0;display:grid;gap:8px}
+.adm-sched__item{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.adm-sched__item img{width:72px;height:40px;object-fit:cover;border-radius:6px;background:#000}
+.adm-sched__item.is-done{opacity:.55}
+.adm-sched__info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.adm-sched__info b{font-size:13px}
+.adm-sched__info .muted{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adm-sched__st{align-self:flex-start;font-size:11px}
+.adm-sched__st.is-live{background:rgba(74,222,128,.18);color:#8ef0b0}
+.adm-sched__st.is-wait{background:rgba(139,92,246,.2);color:#d6c8ff}
+.adm-sched__del{min-height:34px;padding:0 12px;font-size:13px}
+.adm-sched__form{display:grid;gap:8px;padding:10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.adm-sched__row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.adm-sched__dates{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.adm-sched__dates label{display:grid;gap:4px;color:var(--muted)}
+.adm-sched__dates input{width:100%;min-width:0;color-scheme:dark}
+.adm-sched__form input[type=url],.adm-sched__form input[type=text],.adm-sched__form select{width:100%;min-width:0}
+@media (max-width:520px){ .adm-sched__dates{grid-template-columns:1fr} }
+.st-cc{display:inline-grid;place-items:center;min-width:26px;height:18px;padding:0 4px;border-radius:4px;background:var(--bg);border:1px solid var(--line);font-size:10.5px;font-weight:800;letter-spacing:.02em;color:#d6d6e4}
+.st-cc--x{color:var(--muted)}
