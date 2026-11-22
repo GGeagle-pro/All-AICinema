@@ -436,9 +436,23 @@
     }
     const srcs = state.data?.srcs && typeof state.data.srcs === "object" ? state.data.srcs : {};
     const cidOfCfg = (c) => (c.id && /^UC[\w-]{22}$/.test(c.id) ? c.id : srcs[clean(c.id || c.url || c.handle, 200)] || "");
-    if (!chs.length) { list.append(el("li", { class: "adm-empty", text: "등록된 채널이 없어요. 위에서 추가해 주세요." })); return; }
+    if (!chs.length) { list.append(el("li", { class: "adm-empty", text: "등록된 채널이 없어요. 위에서 추가해 주세요." })); $("#chQInfo").textContent = ""; return; }
     const menu = menuItems();
-    chs.forEach((c) => {
+    // 검색: 표시 이름·유튜브 채널 이름·주소·@핸들·채널 ID(UC…) 어느 것으로든
+    const qRaw = ($("#chQ")?.value || "").trim();
+    const norm = (x) => String(x || "").toLowerCase().normalize("NFKC").replace(/\s+/g, "");
+    let q = norm(qRaw);
+    try {   // 주소를 붙여 넣으면 @핸들이나 UC… 아이디만 뽑아서 비교
+      const u = new URL(qRaw.startsWith("http") ? qRaw : "https://x/" + qRaw);
+      const m = decodeURIComponent(u.pathname).match(/\/(@[^/?#]+)|\/channel\/(UC[\w-]{22})/);
+      if (/youtube\.com|youtu\.be/.test(u.hostname) && m) q = norm(m[1] || m[2]);
+    } catch {}
+    const hay = (c) => norm([c.name, c.url, c.handle, c.id, cidOfCfg(c), cidName.get(cidOfCfg(c)),
+      (() => { try { return decodeURIComponent(c.url || ""); } catch { return ""; } })()].filter(Boolean).join(" "));
+    const shown = q ? chs.filter((c) => hay(c).includes(q)) : chs;
+    $("#chQInfo").textContent = q ? `${chs.length}개 중 ${shown.length}개` : "";
+    if (!shown.length) { list.append(el("li", { class: "adm-empty", text: `'${qRaw}'에 맞는 채널이 없어요. 이름 일부나 @핸들로 다시 찾아보세요.` })); return; }
+    shown.forEach((c) => {
       const key = JSON.stringify(c);
       const name0 = clean(c.name, 80);
       const label = name0 || clean(c.url || c.handle || c.id, 100);
@@ -1644,6 +1658,8 @@
   $("#adsForm").addEventListener("submit", saveAds);
   $("#openModeForm").addEventListener("submit", saveOpenMode);
   $("#worksQ").addEventListener("input", () => renderWorks());
+  { let t; $("#chQ").addEventListener("input", () => { clearTimeout(t); t = setTimeout(renderChannels, 120); });
+    $("#chQ").addEventListener("keydown", (e) => { if (e.key === "Escape" && e.target.value) { e.target.value = ""; renderChannels(); } }); }
   $("#worksSwitch").addEventListener("submit", saveWorksSwitch);
   $("#pagesSwitch").addEventListener("submit", savePagesSwitch);
 
