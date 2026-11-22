@@ -6,7 +6,7 @@
 //  - public/{en,ja,zh,es}/index.html : 해외 검색용 언어별 페이지 (제목·설명·hreflang·화면 글자 번역)
 // fetch-videos.mjs 가 영상 목록을 저장할 때마다 자동 실행. 단독 실행: node scripts/seo.mjs
 
-import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
+import { readFile, writeFile, rename, mkdir, rm } from "node:fs/promises";
 import vm from "node:vm";
 import { buildPages } from "./pages.mjs";
 import { resolve, dirname } from "node:path";
@@ -189,9 +189,9 @@ ${items}
 }
 
 // 검색 로봇용 미리 그린 목록 (사이트가 열리면 자바스크립트가 같은 자리를 새 화면으로 바꿈)
-function ssrBlock(videos) {
+function ssrBlock(videos, pagesOn = true) {
   const list = videos.slice(0, SSR_COUNT);
-  const cards = list.map((v) => `<a class="card" href="/watch/${v.id}/"><div class="thumb"><img loading="lazy" decoding="async" src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg" width="320" height="180" alt="${html(cut(v.title, 120))}" /></div><div class="card__body"><div><h3>${html(v.title)}</h3><p>${html(v.channel)}</p></div></div></a>`).join("\n");
+  const cards = list.map((v) => `<a class="card" href="${pagesOn ? `/watch/${v.id}/` : `?v=${v.id}`}"><div class="thumb"><img loading="lazy" decoding="async" src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg" width="320" height="180" alt="${html(cut(v.title, 120))}" /></div><div class="card__body"><div><h3>${html(v.title)}</h3><p>${html(v.channel)}</p></div></div></a>`).join("\n");
   const ld = {
     "@context": "https://schema.org", "@type": "ItemList", name: "새로 올라온 AI 영화·드라마",
     itemListElement: list.map((v, i) => ({ "@type": "ListItem", position: i + 1, url: `${SITE}/?v=${v.id}`, name: cut(v.title, 150) })),
@@ -203,12 +203,17 @@ export async function buildSeo() {
   const { videos, generatedAt } = await loadVideos();
   // 작품·영상 페이지 (index.html 의 자산 버전을 그대로 씀)
   const ver = ((await readFile(resolve(PUB, "index.html"), "utf8")).match(/assets\/style\.css\?v=([\w.-]+)/) || [])[1] || "1";
-  const pages = await buildPages({ PUB, SITE, loadI18n, ver });
+  // 관리자 > 작품 탭 "검색용 작품·영상 페이지" 스위치 (site.json 의 pages:false 면 페이지를 모두 지움 = 원상 복구)
+  let pagesOn = true;
+  try { pagesOn = JSON.parse(await readFile(resolve(PUB, "data/site.json"), "utf8")).pages !== false; } catch {}
+  let pages = { urls: [], counts: { works: 0, videos: 0 }, changed: 0 };
+  if (pagesOn) pages = await buildPages({ PUB, SITE, loadI18n, ver });
+  else for (const d of ["watch", "work"]) await rm(resolve(PUB, d), { recursive: true, force: true });
   await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls));
   await atomicWrite(resolve(PUB, "rss.xml"), rss(videos, generatedAt));
   const file = resolve(PUB, "index.html");
   const page = await readFile(file, "utf8");
-  const next = page.replace(/<!--SSR-->[\s\S]*?<!--\/SSR-->/, () => ssrBlock(videos))
+  const next = page.replace(/<!--SSR-->[\s\S]*?<!--\/SSR-->/, () => ssrBlock(videos, pagesOn))
     .replace(/<!--HREFLANG-->[\s\S]*?<!--\/HREFLANG-->/, () => `<!--HREFLANG-->\n  ${hreflangLinks()}\n  <!--/HREFLANG-->`);
   if (next !== page) await atomicWrite(file, next);
   // 언어별 페이지
@@ -219,7 +224,7 @@ export async function buildSeo() {
     await mkdir(resolve(PUB, code), { recursive: true });
     await atomicWrite(resolve(PUB, code, "index.html"), localize(next, code, I));
   }
-  console.log(`SEO: sitemap.xml, rss.xml(${Math.min(videos.length, RSS_COUNT)}개), index.html 미리보기 ${Math.min(videos.length, SSR_COUNT)}개, 언어별 페이지 ${Object.keys(LANGS).length - 1}개, 작품 ${pages.counts.works}·영상 ${pages.counts.videos}개 페이지(바뀐 파일 ${pages.changed}개)`);
+  console.log(`SEO: sitemap.xml, rss.xml(${Math.min(videos.length, RSS_COUNT)}개), index.html 미리보기 ${Math.min(videos.length, SSR_COUNT)}개, 언어별 페이지 ${Object.keys(LANGS).length - 1}개, ${pagesOn ? `작품 ${pages.counts.works}·영상 ${pages.counts.videos}개 페이지(바뀐 파일 ${pages.changed}개)` : "작품·영상 페이지 꺼짐(지움)"}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

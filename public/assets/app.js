@@ -213,6 +213,7 @@
         //                 "inline" = 페이지 이동 없이 바로 플레이어 열기 (관리자 > 광고 설정에서 변경)
         openMode: s.openMode === "page" ? "page" : "inline",
         works: s.works !== false,
+        pages: s.pages !== false,   // 검색용 작품·영상 페이지 (관리자 > 작품 탭에서 끄면 예전 주소로)
       };
     } catch {}
   }
@@ -548,7 +549,7 @@
   const workByKey = (k) => worksOf(state.all.filter((v) => workKey(v) === k))[0] || null;
   function workCard(w) {
     const fresh = isNew(new Date(w.latest).toISOString());
-    return `<a class="wcard" href="/work/${encodeURIComponent(workSlug(w))}/" data-work="${esc(w.key)}">
+    return `<a class="wcard" href="${state.site.pages ? `/work/${encodeURIComponent(workSlug(w))}/` : `?w=${encodeURIComponent(w.name)}&ch=${encodeURIComponent(w.channel)}`}" data-work="${esc(w.key)}">
       <div class="wcard__img"><img loading="lazy" decoding="async" src="${thumb(w.cover.id, "mqdefault")}" width="320" height="180" alt="" />
         ${fresh ? `<span class="badge">${T("새 회차")}</span>` : ""}
         <span class="wcard__count">${w.lastEp ? T("EP.{n}까지", { n: w.lastEp }) + " · " : ""}${T("{n}편", { n: w.list.length })}</span></div>
@@ -586,7 +587,7 @@
   }
 
   function card(v, i) {
-    return `<a class="card" href="/watch/${v.id}/" data-i="${i}">
+    return `<a class="card" href="${state.site.pages ? `/watch/${v.id}/` : `?v=${v.id}`}" data-i="${i}">
       <div class="thumb">
         ${isNew(v.published) ? '<span class="badge">NEW</span>' : ""}
         ${v.short ? '<span class="badge badge--short">Shorts</span>' : ""}

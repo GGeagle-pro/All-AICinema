@@ -206,6 +206,7 @@
     s.banners = s.banners.slice(0, 3);
     if (s.openMode !== "page" && s.openMode !== "inline") s.openMode = "inline";
     if (s.works !== false) s.works = true;
+    if (s.pages !== false) s.pages = true;
     // 띠 배너: 이미지형 3칸 (예전 아이콘형 값은 버림)
     s.strips = (Array.isArray(s.strips) ? s.strips : []).map((b) => (b && "image" in b ? { image: b.image || "", link: b.link || "", alt: b.alt || "" } : null)).filter(Boolean);
     while (s.strips.length < 3) s.strips.push({ image: "", link: "", alt: "" });
@@ -717,8 +718,26 @@
       afterSiteSave("작품별 보기 설정 반영 중");
     });
   }
+  // 검색용 작품·영상 페이지 스위치 (끄면 다음 자동 실행 때 /watch/ /work/ 페이지를 모두 지움 = 원상 복구)
+  function renderPagesSwitch() {
+    const on = state.site?.pages !== false;
+    for (const r of document.querySelectorAll('input[name="pagesOn"]')) r.checked = r.value === (on ? "on" : "off");
+    $("#pagesNow").textContent = on ? "지금: 켜짐" : "지금: 꺼짐 (페이지 없음)";
+  }
+  function savePagesSwitch(e) {
+    e.preventDefault();
+    const on = document.querySelector('input[name="pagesOn"]:checked')?.value !== "off";
+    run(async () => {
+      const changed = await saveSite(`검색용 작품·영상 페이지 ${on ? "켜기" : "끄기"}`, (s) => { if ((s.pages !== false) === on) return false; s.pages = on; return true; });
+      renderPagesSwitch();
+      if (!changed) return toast("이미 그 상태예요.");
+      toast(on ? "켰어요. 3~5분 뒤 페이지가 만들어져요." : "껐어요. 3~5분 뒤 페이지가 모두 지워지고 예전 주소로 돌아가요.");
+      afterSiteSave("검색용 페이지 설정 반영 중");
+    });
+  }
   function renderWorks() {
     renderWorksSwitch();
+    renderPagesSwitch();
     const box = $("#worksList");
     if (!box || !state.videos) return;
     const q = ($("#worksQ")?.value || "").trim().toLowerCase();
@@ -1095,6 +1114,7 @@
   $("#openModeForm").addEventListener("submit", saveOpenMode);
   $("#worksQ").addEventListener("input", () => renderWorks());
   $("#worksSwitch").addEventListener("submit", saveWorksSwitch);
+  $("#pagesSwitch").addEventListener("submit", savePagesSwitch);
 
   // 시작
   const saved = store.load();

@@ -15,7 +15,8 @@ git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 changed=false
 for attempt in 1 2 3; do
   # 없는 파일(예: API 키가 없어 아직 안 만들어진 cache/playlists.json)은 건너뜀
-  present=(); for f in "${files[@]}"; do [ -e "$f" ] && present+=("$f"); done
+  # 지워진 폴더(예: 꺼서 없어진 public/watch)도 git 이 추적 중이면 포함해서 삭제를 커밋
+  present=(); for f in "${files[@]}"; do if [ -e "$f" ] || [ -n "$(git ls-files -- "$f" | head -1)" ]; then present+=("$f"); fi; done
   git add -- "${present[@]}"
   if git diff --cached --quiet; then
     echo "변경 없음"

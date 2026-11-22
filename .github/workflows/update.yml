@@ -6,7 +6,7 @@ on:
   workflow_dispatch:          # Actions 탭에서 수동 실행 가능
   push:
     branches: [main]
-    paths: ["channels.json"]  # 채널·영상 목록을 직접 고치면 즉시 실행
+    paths: ["channels.json", "public/data/site.json"]  # 채널 목록·사이트 설정(관리자 저장)을 바꾸면 즉시 실행
 
 # 기본은 읽기 전용, 커밋이 필요한 작업에만 쓰기 권한 부여 (최소 권한 원칙)
 permissions:
