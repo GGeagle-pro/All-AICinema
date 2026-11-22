@@ -209,8 +209,10 @@
         },
         banners: Array.isArray(s.banners) ? s.banners.slice(0, 3) : [],
         // 목록 사이 띠 배너 (관리자 > 카테고리·배너): 6:1 이미지 + 랜딩 URL + 문구
-        strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 3)
-          .map((b) => ({ image: SAFE_IMG.test(b?.image || "") ? b.image : "", alt: str(b?.alt, 80), link: safeLink(b?.link || "") }))
+        // target: all(모두) / kr(국내 방문자만) / intl(해외 방문자만), note: 제휴 고지 문구 (예: 쿠팡파트너스)
+        strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 6)
+          .map((b) => ({ image: SAFE_IMG.test(b?.image || "") ? b.image : "", alt: str(b?.alt, 80), link: safeLink(b?.link || ""),
+            target: ["kr", "intl"].includes(b?.target) ? b.target : "all", note: str(b?.note, 140) }))
           .filter((b) => b.image && b.link),
         // 영상 여는 방식: "page" = 목록에서 누르면 실제로 영상 페이지로 이동(애드센스 전면 광고 기회),
         //                 "inline" = 페이지 이동 없이 바로 플레이어 열기 (관리자 > 광고 설정에서 변경)
@@ -498,14 +500,17 @@
   //       → 광고끼리 붙지 않고, 한 화면에 광고가 둘 이상 겹치지 않게
   let stripTurn = Math.floor(Math.random() * 5);   // 여러 개면 돌아가며 (첫 배너는 방문마다 다르게)
   const isOwnLink = (u) => { try { return new URL(u).origin === location.origin; } catch { return false; } };
+  // 방문자가 국내인지 (IP 국가 → 없으면 한국 시간대·한국어로 짐작)
+  const isKrVisitor = () => { const cc = I18N.country ? I18N.country() : ""; return cc ? cc === "KR" : I18N.lang === "ko"; };
   function stripHtml(tag = "div") {
-    const list = state.site.strips || [];
+    const kr = isKrVisitor();
+    const list = (state.site.strips || []).filter((b) => b.target === "all" || (b.target === "kr") === kr);
     if (!list.length) return "";
     const b = list[stripTurn++ % list.length];
     const own = isOwnLink(b.link);
-    return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
+    return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored nofollow noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
       <img src="/${esc(b.image)}" alt="${esc(b.alt)}" width="1920" height="240" loading="lazy" decoding="async" />
-      <span class="strip__ad">${T("광고")}</span></a></${tag}>`;
+      <span class="strip__ad">${T("광고")}</span></a>${b.note ? `<p class="strip__note">${esc(b.note)}</p>` : ""}</${tag}>`;
   }
   const STRIP_SHELF_FIRST = 2, STRIP_SHELF_EVERY = 5;
 
@@ -847,6 +852,7 @@
       if (!I18N.setLang(code, persist)) return;
       paint();
       // 주소의 ?lang= 은 지움 (고른 언어는 이 브라우저에 기억)
+      const tl = $("#toolsLink"); if (tl) tl.href = code === "ko" ? "/tools/" : `/${code}/tools/`;   // 하단 'AI 제작 도구' 링크도 그 언어로
       // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
       const u = new URL(location.href); u.searchParams.delete("lang");
       if (/^\/((en|ja|zh|es)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
@@ -857,6 +863,7 @@
       if (!$("#player").hidden) { const v = state.queue[state.current]; if (v) { setFavBtn(fav.has(v.id)); $("#pMeta").textContent = [v.views && views(v.views), ago(v.published)].filter(Boolean).join(" · "); } }
     }
     paint();
+    { const tl = $("#toolsLink"); if (tl) tl.href = I18N.lang === "ko" ? "/tools/" : `/${I18N.lang}/tools/`; }
     if (I18N.onGeo) I18N.onGeo((code) => choose(code, false));   // 접속 국가(IP)로 정한 언어 적용
   }
 

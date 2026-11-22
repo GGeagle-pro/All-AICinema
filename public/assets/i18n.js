@@ -45,6 +45,7 @@
     "모든 국가": ["All countries", "すべての国", "全部国家", "Todos los países"],
     "전체": ["All", "すべて", "全部", "Todo"],
     "홈": ["Home", "ホーム", "首页", "Inicio"],
+    "AI 제작 도구": ["AI creation tools", "AI制作ツール", "AI创作工具", "Herramientas de IA"],
     "▶ 재생하기": ["▶ Play", "▶ 再生", "▶ 播放", "▶ Reproducir"],
     "다음 화 자동 재생으로 보기": ["Watch with autoplay", "連続再生で見る", "连续自动播放", "Ver con reproducción automática"],
     "전체 회차": ["All episodes", "全エピソード", "全部剧集", "Todos los episodios"],
@@ -223,6 +224,12 @@
     return "";
   }
   const GEO_KEY = "aic:geo", GEO_TTL = 7 * 86400000;
+  // 방문자 국가 코드 (띠 배너 국내/해외 구분용): IP 확인 결과 → 없으면 시간대로 짐작 (한국 시간대면 KR)
+  function visitorCountry() {
+    try { const g = JSON.parse(localStorage.getItem(GEO_KEY) || "null"); if (g && /^[A-Z]{2}$/.test(g.c)) return g.c; } catch {}
+    try { if (Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Seoul") return "KR"; } catch {}
+    return "";
+  }
   function cachedGeo() {
     try { const g = JSON.parse(localStorage.getItem(GEO_KEY) || "null"); if (g && Date.now() - g.t < GEO_TTL) return fromCountry(g.c); } catch {}
     return "";
@@ -344,7 +351,7 @@
   }
 
   window.AIC_I18N = {
-    LANGS, t, name, views, viewsShort, ago, applyStatic, setLang, onGeo,
+    LANGS, t, name, views, viewsShort, ago, applyStatic, setLang, onGeo, country: visitorCountry,
     get lang() { return lang; },
     get meta() { return LANGS.find((l) => l.code === lang); },
   };

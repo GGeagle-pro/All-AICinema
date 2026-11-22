@@ -12,7 +12,7 @@ import { resolve } from "node:path";
 const VIDEO_ID = /^[\w-]{11}$/;
 const CHANNEL_ID = /^UC[\w-]{22}$/;
 const AVATAR_URL = /^https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[\w\-./=~%]{10,500}$/;
-const esc = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+export const esc = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const jsonLd = (o) => JSON.stringify(o).replace(/</g, "\\u003c");
 const cut = (s, n) => { const a = Array.from(String(s || "").replace(/\s+/g, " ").trim()); return a.length > n ? a.slice(0, n - 1).join("").trim() + "…" : a.join(""); };   // 글자 단위 (이모지가 반으로 잘리지 않게)
 
@@ -33,8 +33,8 @@ export const slugify = (s) => String(s || "").normalize("NFKC").toLowerCase()
 
 // 제목 글자로 페이지 언어 정하기
 const langOf = (t) => /[가-힣]/.test(t) ? "ko" : /[぀-ヿ]/.test(t) ? "ja" : /[一-鿿]/.test(t) ? "zh" : "en";
-const HTML_LANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es" };
-const HOME = { ko: "/", en: "/en/", ja: "/ja/", zh: "/zh/", es: "/es/" };
+export const HTML_LANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es" };
+export const HOME = { ko: "/", en: "/en/", ja: "/ja/", zh: "/zh/", es: "/es/" };
 const LOCALE = { ko: "ko_KR", en: "en_US", ja: "ja_JP", zh: "zh_CN", es: "es_ES" };
 const WORK_INTRO = {
   ko: (w) => `${w.channel} 채널의 AI 드라마 「${w.name}」 전체 ${w.list.length}편을 1화부터 차례로 모았어요.`,
@@ -96,7 +96,7 @@ export async function loadAll(PUB) {
 }
 
 // ── 공통 틀 ──
-function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver }) {
+export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver, head = "" }) {
   const t = (s, v) => I.t(s, v);
   return `<!doctype html>
 <html lang="${HTML_LANG[lang]}">
@@ -109,7 +109,7 @@ function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver }) {
   <meta name="description" content="${esc(desc)}" />
   <meta name="theme-color" content="#0b0b10" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-video-preview:-1" />
-  <link rel="canonical" href="${url}" />
+  <link rel="canonical" href="${url}" />${head ? "\n  " + head : ""}
   <meta property="og:type" content="${ogType}" />
   <meta property="og:site_name" content="All AI-Cinema" />
   <meta property="og:locale" content="${LOCALE[lang]}" />
@@ -142,7 +142,7 @@ function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver }) {
 ${body}
   </main>
   <footer class="footer"><p class="muted small">${esc(t("AI로 만든 영상입니다. 저작권은 원 채널에 있으며, 유튜브 공식 플레이어로 재생됩니다."))}</p>
-    <p><a href="/about.html">${esc(t("소개"))}</a> · <a href="/privacy.html">${esc(t("개인정보처리방침"))}</a></p></footer>
+    <p><a href="${lang === "ko" ? "/tools/" : `/${lang}/tools/`}">${esc(t("AI 제작 도구"))}</a> · <a href="/about.html">${esc(t("소개"))}</a> · <a href="/privacy.html">${esc(t("개인정보처리방침"))}</a></p></footer>
 </body>
 </html>
 `;

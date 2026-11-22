@@ -286,3 +286,11 @@
 .adm-newcat__kind .adm-radio-sm{white-space:nowrap}
 .adm-newcat__kind .adm-radio-sm input{flex:none;width:18px;height:18px;min-height:0;padding:0;margin:0}
 @media (max-width:640px){ .adm-newcat__kind .muted{display:none} }
+
+.adm-banner select{width:100%}
+.adm-linkbtn{justify-self:start;background:none;border:0;padding:2px 0;color:#c4b5fd;font-size:13px;font-weight:700;text-decoration:underline;cursor:pointer}
+
+.adm-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.adm-tool{display:grid;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);min-width:0}
+.adm-tool input[type=url]{width:100%;min-width:0}
+@media (max-width:760px){ .adm-tools{grid-template-columns:1fr} }

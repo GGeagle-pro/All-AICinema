@@ -502,3 +502,6 @@ button.sp-chip:hover,.sp-chip.is-sel{border-color:var(--text)}
 .shelf__n{flex:0 100 auto}
 .shelf__more,.shelf__nav,.shelf__av{flex:none}
 html{overflow-x:clip}
+
+/* 띠 배너 제휴 고지 문구 (예: 쿠팡파트너스 수수료 안내) */
+.strip__note{margin:6px 2px 0;font-size:11.5px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}

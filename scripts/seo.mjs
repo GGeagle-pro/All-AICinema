@@ -9,6 +9,7 @@
 import { readFile, writeFile, rename, mkdir, rm } from "node:fs/promises";
 import vm from "node:vm";
 import { buildPages } from "./pages.mjs";
+import { buildTools } from "./tools.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -100,6 +101,7 @@ function localize(page, code, I) {
     .replace(/("urlTemplate": ")https:\/\/all-aicinema\.syncbrain100\.com\/\?q=/, `$1${SITE}${L.path}?q=`);
   p = p.replace(/"name": "새로 올라온 AI 영화·드라마"/, `"name": ${JSON.stringify(L.listName)}`);
   p = p.replace(/(?<=url":")https:\/\/all-aicinema\.syncbrain100\.com\/\?v=/g, `${SITE}${L.path}?v=`);
+  p = p.replace('href="/tools/" id="toolsLink"', `href="/${code}/tools/" id="toolsLink"`);
   // 하위 폴더에서도 파일을 찾게: 상대 경로 → 절대 경로
   p = p.replace(/\s(href|src)="(?!https?:|\/|#|\?|data:|mailto:)([^"]+)"/g, ' $1="/$2"');
   // 화면 글자 미리 번역 (자바스크립트를 안 돌리는 로봇용) – 원문은 data-* 에 남겨 언어 전환이 그대로 되게
@@ -146,13 +148,16 @@ async function loadVideos() {
   };
 }
 
-function sitemap(lastmod, pages = []) {
+function sitemap(lastmod, pages = [], tools = []) {
   const alts = Object.values(LANGS).map((l) => `<xhtml:link rel="alternate" hreflang="${l.hreflang}" href="${SITE}${l.path}"/>`).join("")
     + `<xhtml:link rel="alternate" hreflang="x-default" href="${SITE}/en/"/>`;
   const urls = [
     ...Object.values(LANGS).map((l) => ({ loc: `${SITE}${l.path}`, lastmod, changefreq: "hourly", priority: l.path === "/" ? "1.0" : "0.9", alts })),
     { loc: `${SITE}/about.html`, changefreq: "monthly", priority: "0.5" },
     { loc: `${SITE}/privacy.html`, changefreq: "yearly", priority: "0.2" },
+    // AI 제작 도구 추천 페이지 (5개 언어, scripts/tools.mjs)
+    ...tools.map((u) => ({ loc: u.loc, lastmod, changefreq: "weekly", priority: "0.7",
+      alts: ["ko:/tools/", "en:/en/tools/", "ja:/ja/tools/", "zh-Hans:/zh/tools/", "es:/es/tools/", "x-default:/en/tools/"].map((x) => { const [h, p] = [x.slice(0, x.indexOf(":")), x.slice(x.indexOf(":") + 1)]; return `<xhtml:link rel="alternate" hreflang="${h}" href="${SITE}${p}"/>`; }).join("") })),
     // 작품·영상 페이지 (scripts/pages.mjs)
     ...pages.map((u) => ({ loc: u.loc, lastmod: u.lastmod, changefreq: u.loc.includes("/work/") ? "daily" : "weekly", priority: u.loc.includes("/work/") ? "0.8" : "0.6" })),
   ];
@@ -209,7 +214,8 @@ export async function buildSeo() {
   let pages = { urls: [], counts: { works: 0, videos: 0 }, changed: 0 };
   if (pagesOn) pages = await buildPages({ PUB, SITE, loadI18n, ver });
   else for (const d of ["watch", "work"]) await rm(resolve(PUB, d), { recursive: true, force: true });
-  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls));
+  const tools = await buildTools({ PUB, SITE, loadI18n, ver });
+  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, tools.urls));
   await atomicWrite(resolve(PUB, "rss.xml"), rss(videos, generatedAt));
   const file = resolve(PUB, "index.html");
   const page = await readFile(file, "utf8");
