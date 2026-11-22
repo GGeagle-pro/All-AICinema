@@ -15,7 +15,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = resolve(ROOT, "stats/stats.enc.json");
 const ITER = 250000;
 const EVENTS = ["video_play", "banner_click", "strip_click", "search", "work_open"];
-const RANGES = [{ startDate: "6daysAgo", endDate: "today", name: "d7" }, { startDate: "29daysAgo", endDate: "today", name: "d30" }];
+const DAYS = 90;   // 날짜별로 쪼갠 기록을 몇 일치 보관할지 (관리자에서 달력으로 아무 기간이나 골라 합산)
+const FROM = `${DAYS - 1}daysAgo`;
+const RANGES = [
+  { startDate: "today", endDate: "today", name: "today" }, { startDate: "yesterday", endDate: "yesterday", name: "yesterday" },
+  { startDate: "6daysAgo", endDate: "today", name: "d7" }, { startDate: "29daysAgo", endDate: "today", name: "d30" },
+];
 
 const b64url = (b) => Buffer.from(b).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
 
@@ -71,39 +76,63 @@ function encrypt(obj, password) {
   return { v: 1, alg: "PBKDF2-SHA256/AES-256-GCM", iter: ITER, salt: salt.toString("base64"), iv: iv.toString("base64"), data: enc.toString("base64") };
 }
 
+// 표 압축: { c: [열 이름], r: [[값...]] } – 날짜는 YYYYMMDD 그대로
+const table = (rep, cols) => {
+  const dh = (rep?.dimensionHeaders || []).map((h) => h.name), mh = (rep?.metricHeaders || []).map((h) => h.name);
+  const idx = cols.map((c) => [dh.indexOf(c), mh.indexOf(c)]);
+  return { c: cols, r: (rep?.rows || []).map((row) => idx.map(([di, mi]) => (di >= 0 ? row.dimensionValues[di].value : Number(row.metricValues[mi]?.value || 0)))) };
+};
+const D = (...names) => names.map((name) => ({ name }));
+const RANGE = [{ startDate: FROM, endDate: "today" }];
+const BIG = 100000;
+
 export async function collect(prop, token) {
   const [totals, daily, events, country, channel] = await batch(prop, token, [
-    { dateRanges: RANGES, metrics: ["activeUsers", "newUsers", "sessions", "screenPageViews"].map((name) => ({ name })) },
-    { dateRanges: [{ startDate: "29daysAgo", endDate: "today" }], dimensions: [{ name: "date" }], metrics: ["activeUsers", "newUsers", "sessions", "screenPageViews"].map((name) => ({ name })), orderBys: [{ dimension: { dimensionName: "date" } }], limit: 40 },
-    { dateRanges: [{ startDate: "29daysAgo", endDate: "today" }], dimensions: [{ name: "date" }, { name: "eventName" }], metrics: [{ name: "eventCount" }], dimensionFilter: filterIn("eventName", EVENTS), limit: 400 },
-    { dateRanges: RANGES, dimensions: [{ name: "country" }, { name: "countryId" }], metrics: [{ name: "activeUsers" }, { name: "sessions" }], orderBys: desc("activeUsers"), limit: 120 },
-    { dateRanges: RANGES, dimensions: [{ name: "sessionDefaultChannelGroup" }, { name: "sessionSource" }], metrics: [{ name: "sessions" }, { name: "activeUsers" }], orderBys: desc("sessions"), limit: 80 },
+    { dateRanges: RANGES, metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews") },
+    { dateRanges: RANGE, dimensions: D("date"), metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "eventName"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", EVENTS), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "country", "countryId"), metrics: D("activeUsers", "sessions"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "sessionDefaultChannelGroup", "sessionSource"), metrics: D("sessions", "activeUsers"), limit: BIG },
   ]);
   const [device, language, videos, works, search] = await batch(prop, token, [
-    { dateRanges: RANGES, dimensions: [{ name: "deviceCategory" }], metrics: [{ name: "activeUsers" }, { name: "sessions" }], orderBys: desc("activeUsers") },
-    { dateRanges: RANGES, dimensions: [{ name: "language" }], metrics: [{ name: "activeUsers" }], orderBys: desc("activeUsers"), limit: 60 },
-    { dateRanges: RANGES, dimensions: [{ name: "pagePath" }, { name: "pageTitle" }], metrics: [{ name: "screenPageViews" }, { name: "activeUsers" }], dimensionFilter: begins("pagePath", "/watch/"), orderBys: desc("screenPageViews"), limit: 120 },
-    { dateRanges: RANGES, dimensions: [{ name: "pagePath" }, { name: "pageTitle" }], metrics: [{ name: "screenPageViews" }, { name: "activeUsers" }], dimensionFilter: begins("pagePath", "/work/"), orderBys: desc("screenPageViews"), limit: 60 },
-    { dateRanges: RANGES, dimensions: [{ name: "searchTerm" }], metrics: [{ name: "eventCount" }], dimensionFilter: { filter: { fieldName: "eventName", stringFilter: { value: "search" } } }, orderBys: desc("eventCount"), limit: 60 },
+    { dateRanges: RANGE, dimensions: D("date", "deviceCategory"), metrics: D("activeUsers", "sessions"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "language"), metrics: D("activeUsers"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "pagePath", "pageTitle"), metrics: D("screenPageViews", "activeUsers"), dimensionFilter: begins("pagePath", "/watch/"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "pagePath", "pageTitle"), metrics: D("screenPageViews", "activeUsers"), dimensionFilter: begins("pagePath", "/work/"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "searchTerm"), metrics: D("eventCount"), dimensionFilter: { filter: { fieldName: "eventName", stringFilter: { value: "search" } } }, limit: BIG },
   ]);
+  // 시간대별 (어제·오늘)
+  const [hourly, hourlyEv] = await batch(prop, token, [
+    { dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("dateHour"), metrics: D("activeUsers", "screenPageViews"), limit: 100 },
+    { dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("dateHour", "eventName"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", EVENTS), limit: 1000 },
+  ]);
+  // 애드센스 (GA4 에 애드센스를 연결해야 숫자가 나옴 – 안 되어 있으면 건너뜀)
+  let ads = null, adsError = "";
+  try {
+    const [a] = await batch(prop, token, [
+      { dateRanges: RANGE, dimensions: D("date"), metrics: D("totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"), limit: BIG },
+    ]);
+    ads = { currency: a?.metadata?.currencyCode || "", ...table(a, ["date", "totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"]) };
+  } catch (e) { adsError = String(e.message || e).slice(0, 200); }
 
   const tot = {};
   for (const r of rows(totals)) tot[r.dateRange || "d30"] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
-  const ev = {};
-  for (const r of rows(events)) (ev[r.date] ||= {})[r.eventName] = r.eventCount;
-  const day = (d) => `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
   return {
-    generatedAt: new Date().toISOString(),
+    v: 2, generatedAt: new Date().toISOString(), days: DAYS,
+    timeZone: daily?.metadata?.timeZone || "",
     totals: tot,
-    daily: rows(daily).map((r) => ({ date: day(r.date), users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews,
-      ...Object.fromEntries(EVENTS.map((e) => [e, ev[r.date]?.[e] || 0])) })),
-    country: byRange(rows(country), (r) => ({ name: r.country, code: r.countryId, users: r.activeUsers, sessions: r.sessions }), 50),
-    channel: byRange(rows(channel), (r) => ({ group: r.sessionDefaultChannelGroup, source: r.sessionSource, sessions: r.sessions, users: r.activeUsers }), 30),
-    device: byRange(rows(device), (r) => ({ name: r.deviceCategory, users: r.activeUsers, sessions: r.sessions }), 10),
-    language: byRange(rows(language), (r) => ({ name: r.language, users: r.activeUsers }), 20),
-    videos: byRange(rows(videos), (r) => ({ path: r.pagePath, title: r.pageTitle, views: r.screenPageViews, users: r.activeUsers }), 30),
-    works: byRange(rows(works), (r) => ({ path: r.pagePath, title: r.pageTitle, views: r.screenPageViews, users: r.activeUsers }), 20),
-    search: byRange(rows(search), (r) => ({ term: r.searchTerm, count: r.eventCount }), 20),
+    daily: table(daily, ["date", "activeUsers", "newUsers", "sessions", "screenPageViews"]),
+    events: table(events, ["date", "eventName", "eventCount"]),
+    country: table(country, ["date", "country", "countryId", "activeUsers", "sessions"]),
+    channel: table(channel, ["date", "sessionDefaultChannelGroup", "sessionSource", "sessions", "activeUsers"]),
+    device: table(device, ["date", "deviceCategory", "activeUsers", "sessions"]),
+    language: table(language, ["date", "language", "activeUsers"]),
+    videos: table(videos, ["date", "pagePath", "pageTitle", "screenPageViews", "activeUsers"]),
+    works: table(works, ["date", "pagePath", "pageTitle", "screenPageViews", "activeUsers"]),
+    search: table(search, ["date", "searchTerm", "eventCount"]),
+    hourly: table(hourly, ["dateHour", "activeUsers", "screenPageViews"]),
+    hourlyEv: table(hourlyEv, ["dateHour", "eventName", "eventCount"]),
+    ads, adsError,
   };
 }
 
@@ -119,7 +148,7 @@ async function main() {
   await mkdir(dirname(OUT), { recursive: true });
   await writeFile(OUT + ".tmp", JSON.stringify(encrypt(data, password)) + "\n");
   await rename(OUT + ".tmp", OUT);
-  console.log(`통계 저장: 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.length}일`);
+  console.log(`통계 저장: 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, 애드센스 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

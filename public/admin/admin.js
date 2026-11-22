@@ -1072,7 +1072,7 @@
   });
 
   // ───────── 통계 (구글 애널리틱스 → stats/stats.enc.json, 통계 암호로 풀어서 보여 줌) ─────────
-  const ST = { data: null, range: "d7", loading: false };
+  const ST = { data: null, mode: "d7", from: "", to: "", loading: false };
   const PW_KEY = "aic:admin:statspw";
   const escH = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const nf = new Intl.NumberFormat("ko-KR");
@@ -1127,70 +1127,192 @@
     const b = $("#stRefresh"); b.disabled = true;
     try {
       await gh(`${repoPath()}/actions/workflows/stats.yml/dispatches`, { method: "POST", body: JSON.stringify({ ref: BRANCH }) });
-      toast("통계를 새로 가져오는 중이에요. 1~2분 뒤 다시 열어 주세요.");
+      toast("통계를 새로 가져오는 중이에요. 1~2분 뒤 자동으로 다시 불러와요.");
       setTimeout(() => { ST.data = null; openStats(true); }, 120000);
     } catch (e) {
       toast(e.status === 403 || e.status === 404 ? "이 토큰은 Actions 실행 권한이 없어요. GitHub Actions 탭에서 '방문 통계 모으기'를 직접 실행해 주세요." : explain(e), true);
     } finally { setTimeout(() => (b.disabled = false), 5000); }
   }
+
+  // ── 날짜 계산 (GA4 속성 시간대 기준, YYYYMMDD) ──
+  const ymd = (d, tz) => new Intl.DateTimeFormat("en-CA", { timeZone: tz || "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(d).replace(/-/g, "");
+  const toIso = (s) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  const fromIso = (s) => String(s || "").replace(/-/g, "");
+  const addDays = (s, n) => { const d = new Date(Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8) + n)); return d.toISOString().slice(0, 10).replace(/-/g, ""); };
+  const daysBetween = (a, b) => Math.round((Date.UTC(+b.slice(0, 4), +b.slice(4, 6) - 1, +b.slice(6, 8)) - Date.UTC(+a.slice(0, 4), +a.slice(4, 6) - 1, +a.slice(6, 8))) / 864e5) + 1;
+  function rangeOf(d) {
+    const today = ymd(new Date(d.generatedAt || Date.now()), d.timeZone);
+    if (ST.mode === "today") return [today, today];
+    if (ST.mode === "yesterday") { const y = addDays(today, -1); return [y, y]; }
+    if (ST.mode === "d30") return [addDays(today, -29), today];
+    if (ST.mode === "custom" && ST.from && ST.to) return ST.from <= ST.to ? [ST.from, ST.to] : [ST.to, ST.from];
+    return [addDays(today, -6), today];
+  }
+  // 표 합치기: 기간 안의 행을 keys 로 묶어 metrics 합산
+  function agg(t, from, to, keys, metrics) {
+    if (!t || !t.c) return [];
+    const ci = (c) => t.c.indexOf(c), di = ci("date"), ki = keys.map(ci), mi = metrics.map(ci);
+    const m = new Map();
+    for (const r of t.r) {
+      if (di >= 0 && (r[di] < from || r[di] > to)) continue;
+      const k = ki.map((i) => r[i]).join("\u0001");
+      let o = m.get(k);
+      if (!o) { o = {}; keys.forEach((c, j) => (o[c] = r[ki[j]])); metrics.forEach((c) => (o[c] = 0)); m.set(k, o); }
+      metrics.forEach((c, j) => (o[c] += Number(r[mi[j]]) || 0));
+    }
+    return [...m.values()];
+  }
+  const sumOf = (list, k) => list.reduce((t, x) => t + (x[k] || 0), 0);
+
   const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map((c) => 0x1f1a5 + c.charCodeAt(0))) : "🌐";
-  const COUNTRY_KO = (code, name) => { try { return new Intl.DisplayNames(["ko"], { type: "region" }).of(code) || name; } catch { return name; } };
+  const COUNTRY_KO = (code, name) => { try { return (/^[A-Z]{2}$/.test(code || "") && new Intl.DisplayNames(["ko"], { type: "region" }).of(code)) || name; } catch { return name; } };
   const DEVICE_KO = { mobile: "모바일", desktop: "PC", tablet: "태블릿", "smart tv": "TV" };
   const GROUP_KO = { "Organic Search": "검색", Direct: "직접 방문", Referral: "다른 사이트", "Organic Social": "SNS", "Organic Video": "동영상(유튜브 등)", "Paid Search": "검색 광고", "Paid Social": "SNS 광고", Display: "디스플레이 광고", Email: "이메일", Unassigned: "기타", "Cross-network": "광고(여러 곳)" };
   function bars(list, label, value, { max = 10, fmt = num } = {}) {
+    list = [...list].sort((a, b) => value(b) - value(a));
     const top = list.slice(0, max), m = Math.max(1, ...top.map(value)), sum = list.reduce((t, x) => t + value(x), 0) || 1;
-    if (!top.length) return `<p class="muted small">아직 기록이 없어요.</p>`;
+    if (!top.length || !sum) return `<p class="muted small">이 기간에는 기록이 없어요.</p>`;
     return `<ol class="st-bars">${top.map((x) => `<li><span class="st-bars__l">${label(x)}</span><span class="st-bars__v">${fmt(value(x))} <small>${Math.round((value(x) / sum) * 100)}%</small></span><span class="st-bars__b"><i style="width:${(value(x) / m) * 100}%"></i></span></li>`).join("")}</ol>`;
   }
-  function chart(days) {
-    if (!days.length) return `<p class="muted small">아직 기록이 없어요.</p>`;
-    const W = Math.max(300, Math.min(1000, ($("#stBody").clientWidth || 720) - 42)), H = W < 500 ? 200 : 230, P = { l: 36, r: 10, t: 14, b: 26 };   // 화면 폭에 맞춰 그림 (모바일에서 글자가 작아지지 않게)
-    const mx = Math.max(1, ...days.map((d) => Math.max(d.users, d.video_play || 0)));
-    const step = (W - P.l - P.r) / days.length, bw = Math.max(3, step * 0.6);
+  // 막대(방문자) + 선(영상 재생) 그래프. pts: [{label, bar, line, tip}]
+  function chart(pts, { barName = "방문자", lineName = "영상 재생" } = {}) {
+    if (!pts.length) return `<p class="muted small">이 기간에는 기록이 없어요.</p>`;
+    const W = Math.max(300, Math.min(1000, ($("#stBody").clientWidth || 720) - 42)), H = W < 500 ? 200 : 230, P = { l: 36, r: 10, t: 14, b: 26 };
+    const mx = Math.max(1, ...pts.map((d) => Math.max(d.bar, d.line)));
+    const step = (W - P.l - P.r) / pts.length, bw = Math.max(2, step * 0.6);
     const y = (v) => H - P.b - (v / mx) * (H - P.t - P.b);
-    const bar = days.map((d, i) => `<rect x="${P.l + i * step + (step - bw) / 2}" y="${y(d.users)}" width="${bw}" height="${H - P.b - y(d.users)}" rx="2" class="st-c-bar"><title>${d.date} 방문자 ${num(d.users)}명 · 영상 재생 ${num(d.video_play)}회</title></rect>`).join("");
-    const line = days.map((d, i) => `${i ? "L" : "M"}${(P.l + i * step + step / 2).toFixed(1)},${y(d.video_play || 0).toFixed(1)}`).join("");
+    const cx = (i) => P.l + i * step + step / 2;
+    const bar = pts.map((d, i) => `<rect x="${cx(i) - bw / 2}" y="${y(d.bar)}" width="${bw}" height="${H - P.b - y(d.bar)}" rx="2" class="st-c-bar"><title>${escH(d.tip)}</title></rect>`).join("");
+    const line = pts.map((d, i) => `${i ? "L" : "M"}${cx(i).toFixed(1)},${y(d.line).toFixed(1)}`).join("");
     const ticks = [0, 0.5, 1].map((f) => `<text x="${P.l - 6}" y="${y(mx * f) + 4}" text-anchor="end" class="st-c-ax">${num(mx * f)}</text><line x1="${P.l}" x2="${W - P.r}" y1="${y(mx * f)}" y2="${y(mx * f)}" class="st-c-grid"/>`).join("");
-    const every = Math.ceil(days.length / (W < 500 ? 5 : 8)), last = days.length - 1;
-    const xl = days.map((d, i) => ((i % every === 0 && last - i >= every / 2) || i === last) ? `<text x="${P.l + i * step + step / 2}" y="${H - 8}" text-anchor="middle" class="st-c-ax">${+d.date.slice(5, 7)}/${+d.date.slice(8)}</text>` : "").join("");
-    return `<div class="st-legend"><span><i class="st-k st-k--bar"></i>방문자</span><span><i class="st-k st-k--line"></i>영상 재생</span></div>
-      <svg class="st-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="날짜별 방문자와 영상 재생">${ticks}${bar}<path d="${line}" class="st-c-line"/>${days.map((d, i) => `<circle cx="${P.l + i * step + step / 2}" cy="${y(d.video_play || 0)}" r="2.5" class="st-c-dot"/>`).join("")}${xl}</svg>`;
+    const every = Math.ceil(pts.length / (W < 500 ? 5 : 9)), last = pts.length - 1;
+    const xl = pts.map((d, i) => ((i % every === 0 && last - i >= every / 2) || i === last) ? `<text x="${cx(i)}" y="${H - 8}" text-anchor="middle" class="st-c-ax">${escH(d.label)}</text>` : "").join("");
+    return `<div class="st-legend"><span><i class="st-k st-k--bar"></i>${barName}</span><span><i class="st-k st-k--line"></i>${lineName}</span></div>
+      <svg class="st-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${barName}와 ${lineName}">${ticks}${bar}<path d="${line}" class="st-c-line"/>${pts.length <= 45 ? pts.map((d, i) => `<circle cx="${cx(i)}" cy="${y(d.line)}" r="2.5" class="st-c-dot"/>`).join("") : ""}${xl}</svg>`;
   }
+  const delta = (cur, prev) => {
+    if (!prev) return cur ? `<em class="st-d st-d--up">새로 생김</em>` : "";
+    const p = Math.round(((cur - prev) / prev) * 100);
+    return `<em class="st-d ${p > 0 ? "st-d--up" : p < 0 ? "st-d--down" : ""}">${p > 0 ? "▲" : p < 0 ? "▼" : ""}${Math.abs(p)}%</em>`;
+  };
+
   function renderStats() {
     const d = ST.data; if (!d) return;
-    const r = ST.range, n = r === "d7" ? 7 : 30;
-    document.querySelectorAll("#tab-stats [data-range]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === r)));
-    $("#stWhen").textContent = d.generatedAt ? `· ${new Date(d.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준` : "";
-    const days = (d.daily || []).slice(-n);
-    const sum = (k) => days.reduce((t, x) => t + (x[k] || 0), 0);
-    const T = d.totals?.[r] || {};
-    const kpi = [["방문자", T.users], ["새 방문자", T.newUsers], ["방문 횟수", T.sessions], ["페이지뷰", T.views], ["영상 재생", sum("video_play")], ["배너 클릭", sum("banner_click") + sum("strip_click")], ["검색", sum("search")], ["작품 열기", sum("work_open")]];
-    const pick = (k) => (d[k]?.[r] || []);
-    const short = (s, m = 60) => { s = String(s || ""); return s.length > m ? s.slice(0, m - 1) + "…" : s; };
-    const vidLabel = (x) => { const id = (x.path.match(/^\/watch\/([\w-]{11})\//) || [])[1]; return `${id ? `<img src="https://i.ytimg.com/vi/${id}/default.jpg" alt="" loading="lazy" width="40" height="30" />` : ""}<a href="..${escH(x.path)}" target="_blank" rel="noopener">${escH(short(x.title.replace(/\s*\|[^|]*$/, "") || x.path))}</a>`; };
     const box = $("#stBody");
     box.hidden = false;
+    if (d.v !== 2) { box.innerHTML = `<p class="muted">통계를 새 형식으로 다시 가져와야 해요. 위의 <b>지금 새로 가져오기</b>를 눌러 주세요.</p>`; return; }
+    const [from, to] = rangeOf(d);
+    const len = daysBetween(from, to);
+    const pFrom = addDays(from, -len), pTo = addDays(from, -1);   // 비교: 바로 전 같은 길이 기간
+    // 컨트롤 상태
+    document.querySelectorAll("#tab-stats [data-range]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === ST.mode)));
+    const allDates = (d.daily?.r || []).map((r) => r[0]).sort();
+    const today = ymd(new Date(d.generatedAt || Date.now()), d.timeZone);
+    const minD = allDates[0] || addDays(today, -(d.days || 90) + 1);
+    for (const [id, v] of [["#stFrom", from], ["#stTo", to]]) { const i = $(id); i.min = toIso(minD); i.max = toIso(today); i.value = toIso(v); }
+    $("#stWhen").textContent = d.generatedAt ? `· ${new Date(d.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준` : "";
+
+    const days = agg(d.daily, from, to, ["date"], ["activeUsers", "newUsers", "sessions", "screenPageViews"]);
+    const pdays = agg(d.daily, pFrom, pTo, ["date"], ["activeUsers", "newUsers", "sessions", "screenPageViews"]);
+    const ev = agg(d.events, from, to, ["date", "eventName"], ["eventCount"]);
+    const pev = agg(d.events, pFrom, pTo, ["eventName"], ["eventCount"]);
+    const evSum = (list, name) => list.filter((x) => x.eventName === name).reduce((t, x) => t + x.eventCount, 0);
+    const preset = { today: "today", yesterday: "yesterday", d7: "d7", d30: "d30" }[ST.mode];
+    const T = preset && d.totals?.[preset];   // 미리 정한 기간은 GA4 가 센 '중복 없는 방문자' 그대로
+    const cur = { users: T ? T.users : sumOf(days, "activeUsers"), newUsers: T ? T.newUsers : sumOf(days, "newUsers"), sessions: sumOf(days, "sessions"), views: sumOf(days, "screenPageViews") };
+    const prev = { users: sumOf(pdays, "activeUsers"), newUsers: sumOf(pdays, "newUsers"), sessions: sumOf(pdays, "sessions"), views: sumOf(pdays, "screenPageViews") };
+    const curU = sumOf(days, "activeUsers");   // 비교는 같은 방식(일별 합)으로
+    const kpi = [
+      ["방문자", cur.users, delta(curU, prev.users)], ["새 방문자", cur.newUsers, delta(sumOf(days, "newUsers"), prev.newUsers)],
+      ["방문 횟수", cur.sessions, delta(cur.sessions, prev.sessions)], ["페이지뷰", cur.views, delta(cur.views, prev.views)],
+      ["영상 재생", evSum(ev, "video_play"), delta(evSum(ev, "video_play"), evSum(pev, "video_play"))],
+      ["배너 클릭", evSum(ev, "banner_click") + evSum(ev, "strip_click"), delta(evSum(ev, "banner_click") + evSum(ev, "strip_click"), evSum(pev, "banner_click") + evSum(pev, "strip_click"))],
+      ["검색", evSum(ev, "search"), delta(evSum(ev, "search"), evSum(pev, "search"))], ["작품 열기", evSum(ev, "work_open"), delta(evSum(ev, "work_open"), evSum(pev, "work_open"))],
+    ];
+    const cmpLabel = len === 1 ? (ST.mode === "today" ? "어제 대비" : "그 전날 대비") : `이전 ${len}일 대비`;
+
+    // 애드센스
+    let adsHtml = "";
+    if (d.ads) {
+      const cur$ = d.ads.currency || "KRW";
+      const money = (n) => { try { return new Intl.NumberFormat("ko-KR", { style: "currency", currency: cur$, maximumFractionDigits: cur$ === "KRW" ? 0 : 2 }).format(n || 0); } catch { return num(n); } };
+      const a = agg(d.ads, from, to, [], ["totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"])[0] || {};
+      const pa = agg(d.ads, pFrom, pTo, [], ["totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"])[0] || {};
+      const rev = a.totalAdRevenue || 0, imp = a.publisherAdImpressions || 0, clk = a.publisherAdClicks || 0;
+      const rpm = cur.views ? (rev / cur.views) * 1000 : 0, prpm = prev.views ? ((pa.totalAdRevenue || 0) / prev.views) * 1000 : 0;
+      const ctr = imp ? (clk / imp) * 100 : 0, pctr = pa.publisherAdImpressions ? (pa.publisherAdClicks / pa.publisherAdImpressions) * 100 : 0;
+      const anyAds = (d.ads.r || []).some((r) => r[1] || r[2]);
+      const ak = [["예상 수익", money(rev), delta(rev, pa.totalAdRevenue)], ["페이지 RPM", money(rpm), delta(rpm, prpm)], ["노출 RPM", money(imp ? (rev / imp) * 1000 : 0), ""],
+        ["광고 노출", num(imp), delta(imp, pa.publisherAdImpressions)], ["광고 클릭", num(clk), delta(clk, pa.publisherAdClicks)], ["CTR", ctr.toFixed(2) + "%", delta(ctr, pctr)]];
+      adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수익 <span class="muted small">(구글 애널리틱스에 연결된 애드센스 기준)</span></h3>
+        ${anyAds ? "" : `<p class="st-note">아직 애드센스 숫자가 없어요. 구글 애널리틱스 <b>관리 → 제품 링크 → AdSense 링크</b>에서 애드센스를 연결하면 다음 수집부터 보여요.</p>`}
+        <div class="st-kpis st-kpis--ads">${ak.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div></section>`;
+    }
+    const adsByDate = d.ads ? new Map(agg(d.ads, from, to, ["date"], ["totalAdRevenue"]).map((x) => [x.date, x.totalAdRevenue])) : null;
+
+    // 그래프: 하루면 시간대별, 아니면 날짜별
+    let chartHtml, chartTitle;
+    const hourRows = len === 1 ? agg(d.hourly, "", "z", ["dateHour"], ["activeUsers", "screenPageViews"]).filter((x) => x.dateHour.slice(0, 8) === from) : [];
+    if (len === 1 && hourRows.length) {
+      const hEv = agg(d.hourlyEv, "", "z", ["dateHour", "eventName"], ["eventCount"]).filter((x) => x.eventName === "video_play" && x.dateHour.slice(0, 8) === from);
+      const lastH = from === today ? Math.max(0, ...hourRows.map((x) => +x.dateHour.slice(8))) : 23;
+      const pts = Array.from({ length: lastH + 1 }, (_, h) => {
+        const k = from + String(h).padStart(2, "0"), u = hourRows.find((x) => x.dateHour === k)?.activeUsers || 0, p = hEv.find((x) => x.dateHour === k)?.eventCount || 0;
+        return { label: `${h}시`, bar: u, line: p, tip: `${h}시 방문자 ${num(u)}명 · 영상 재생 ${num(p)}회` };
+      });
+      chartHtml = chart(pts); chartTitle = `${toIso(from).slice(5).replace("-", "/")} 시간대별 방문자 · 영상 재생`;
+    } else {
+      const pts = [];
+      for (let k = from; k <= to; k = addDays(k, 1)) {
+        const x = days.find((y) => y.date === k) || {}, p = ev.filter((e) => e.date === k && e.eventName === "video_play").reduce((t, e) => t + e.eventCount, 0);
+        pts.push({ label: `${+k.slice(4, 6)}/${+k.slice(6)}`, bar: x.activeUsers || 0, line: p, tip: `${toIso(k)} 방문자 ${num(x.activeUsers)}명 · 영상 재생 ${num(p)}회` });
+        if (pts.length > 400) break;
+      }
+      chartHtml = chart(pts); chartTitle = "날짜별 방문자 · 영상 재생";
+    }
+    const rowsHtml = [...days].sort((a, b) => (a.date < b.date ? 1 : -1)).map((x) => {
+      const e = (n) => ev.filter((y) => y.date === x.date && y.eventName === n).reduce((t, y) => t + y.eventCount, 0);
+      return `<tr><td>${toIso(x.date).slice(5).replace("-", "/")}</td><td>${num(x.activeUsers)}</td><td>${num(x.newUsers)}</td><td>${num(x.screenPageViews)}</td><td>${num(e("video_play"))}</td><td>${num(e("banner_click") + e("strip_click"))}</td><td>${num(e("search"))}</td>${adsByDate ? `<td>${num(adsByDate.get(x.date) || 0)}</td>` : ""}</tr>`;
+    }).join("");
+
+    const pick = (k, keys, mets) => agg(d[k], from, to, keys, mets);
+    const short = (s, m = 60) => { s = String(s || ""); return s.length > m ? s.slice(0, m - 1) + "…" : s; };
+    const vidLabel = (x) => { const id = (x.pagePath.match(/^\/watch\/([\w-]{11})\//) || [])[1]; return `${id ? `<img src="https://i.ytimg.com/vi/${id}/default.jpg" alt="" loading="lazy" width="40" height="30" />` : ""}<a href="..${escH(x.pagePath)}" target="_blank" rel="noopener">${escH(short(x.pageTitle.replace(/\s*\|[^|]*$/, "") || x.pagePath))}</a>`; };
+    const vids = pick("videos", ["pagePath"], ["screenPageViews", "activeUsers"]);
+    const titleOf = (t, path) => { for (let i = t.r.length - 1; i >= 0; i--) if (t.r[i][1] === path) return t.r[i][2]; return ""; };
+    for (const v of vids) v.pageTitle = titleOf(d.videos, v.pagePath);
+    const wks = pick("works", ["pagePath"], ["screenPageViews", "activeUsers"]);
+    for (const w of wks) w.pageTitle = titleOf(d.works, w.pagePath);
+    const custom = !preset;
     box.innerHTML = `
-      <div class="st-kpis">${kpi.map(([l, v]) => `<div class="st-kpi"><span>${l}</span><b>${num(v)}</b></div>`).join("")}</div>
-      <section class="adm-card st-card st-wide"><h3>날짜별 방문자 · 영상 재생</h3>${chart(days)}
-        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰</th><th>영상 재생</th><th>배너 클릭</th><th>검색</th></tr></thead>
-        <tbody>${[...days].reverse().map((x) => `<tr><td>${x.date.slice(5).replace("-", "/")}</td><td>${num(x.users)}</td><td>${num(x.newUsers)}</td><td>${num(x.views)}</td><td>${num(x.video_play)}</td><td>${num((x.banner_click || 0) + (x.strip_click || 0))}</td><td>${num(x.search)}</td></tr>`).join("")}</tbody></table></div></section>
+      <p class="st-period"><b>${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}</b> <span class="muted small">(${len}일 · 증감은 ${cmpLabel})</span></p>
+      <div class="st-kpis">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${num(v)}</b>${dl}</div>`).join("")}</div>
+      ${custom && len > 1 ? `<p class="muted small">* 직접 고른 기간의 방문자는 날짜별 방문자를 더한 숫자예요. 여러 날 온 사람은 여러 번 세어져요.</p>` : ""}
+      ${adsHtml}
+      <section class="adm-card st-card st-wide"><h3>${chartTitle}</h3>${chartHtml}
+        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰</th><th>영상 재생</th><th>배너 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
+        <tbody>${rowsHtml || `<tr><td colspan="8" class="muted">이 기간에는 기록이 없어요.</td></tr>`}</tbody></table></div></section>
       <div class="st-grid">
-        <section class="adm-card st-card"><h3>국가별 방문자</h3>${bars(pick("country"), (x) => `${flag(x.code)} ${escH(COUNTRY_KO(x.code, x.name))}`, (x) => x.users)}</section>
-        <section class="adm-card st-card"><h3>유입 경로</h3>${bars(pick("channel"), (x) => `${escH(GROUP_KO[x.group] || x.group)} <small class="muted">${escH(x.source)}</small>`, (x) => x.sessions)}</section>
-        <section class="adm-card st-card"><h3>기기</h3>${bars(pick("device"), (x) => escH(DEVICE_KO[x.name] || x.name), (x) => x.users)}</section>
-        <section class="adm-card st-card"><h3>브라우저 언어</h3>${bars(pick("language"), (x) => escH(x.name), (x) => x.users)}</section>
-        <section class="adm-card st-card st-wide"><h3>많이 본 영상</h3>${bars(pick("videos"), vidLabel, (x) => x.views, { max: 15 })}</section>
-        <section class="adm-card st-card"><h3>많이 본 작품</h3>${bars(pick("works"), (x) => `<a href="..${escH(x.path)}" target="_blank" rel="noopener">${escH(short(x.title.replace(/\s*\|[^|]*$/, "") || decodeURIComponent(x.path)))}</a>`, (x) => x.views)}</section>
-        <section class="adm-card st-card"><h3>검색어</h3>${bars(pick("search"), (x) => escH(short(x.term, 40)), (x) => x.count)}</section>
+        <section class="adm-card st-card"><h3>국가별 방문자</h3>${bars(pick("country", ["country", "countryId"], ["activeUsers"]), (x) => `${flag(x.countryId)} ${escH(COUNTRY_KO(x.countryId, x.country))}`, (x) => x.activeUsers)}</section>
+        <section class="adm-card st-card"><h3>유입 경로</h3>${bars(pick("channel", ["sessionDefaultChannelGroup", "sessionSource"], ["sessions"]), (x) => `${escH(GROUP_KO[x.sessionDefaultChannelGroup] || x.sessionDefaultChannelGroup)} <small class="muted">${escH(x.sessionSource)}</small>`, (x) => x.sessions)}</section>
+        <section class="adm-card st-card"><h3>기기</h3>${bars(pick("device", ["deviceCategory"], ["activeUsers"]), (x) => escH(DEVICE_KO[x.deviceCategory] || x.deviceCategory), (x) => x.activeUsers)}</section>
+        <section class="adm-card st-card"><h3>브라우저 언어</h3>${bars(pick("language", ["language"], ["activeUsers"]), (x) => escH(x.language), (x) => x.activeUsers)}</section>
+        <section class="adm-card st-card st-wide"><h3>많이 본 영상</h3>${bars(vids, vidLabel, (x) => x.screenPageViews, { max: 15 })}</section>
+        <section class="adm-card st-card"><h3>많이 본 작품</h3>${bars(wks, (x) => `<a href="..${escH(x.pagePath)}" target="_blank" rel="noopener">${escH(short(x.pageTitle.replace(/\s*\|[^|]*$/, "") || decodeURIComponent(x.pagePath)))}</a>`, (x) => x.screenPageViews)}</section>
+        <section class="adm-card st-card"><h3>검색어</h3>${bars(pick("search", ["searchTerm"], ["eventCount"]).filter((x) => x.searchTerm && x.searchTerm !== "(not set)"), (x) => escH(short(x.searchTerm, 40)), (x) => x.eventCount)}</section>
       </div>
-      <p class="muted small">숫자는 구글 애널리틱스 기준이에요. 6시간마다 새로 가져오고, 구글 쪽 집계가 몇 시간 늦을 수 있어요. 광고 차단기를 쓰는 방문자는 빠질 수 있어요.</p>`;
+      <p class="muted small">숫자는 구글 애널리틱스 기준이에요(최근 ${d.days || 90}일 보관). 6시간마다 새로 가져오고, 구글 쪽 집계가 몇 시간 늦을 수 있어요. 광고 차단기를 쓰는 방문자는 빠질 수 있어요.</p>`;
   }
   $("#stLogin").addEventListener("submit", loginStats);
+  $("#stRefresh").addEventListener("click", refreshStats);
+  document.querySelectorAll("#tab-stats [data-range]").forEach((b) => b.addEventListener("click", () => { ST.mode = b.dataset.range; renderStats(); }));
+  for (const id of ["#stFrom", "#stTo"]) $(id).addEventListener("change", () => {
+    const f = fromIso($("#stFrom").value), t = fromIso($("#stTo").value);
+    if (!/^\d{8}$/.test(f) || !/^\d{8}$/.test(t)) return;
+    ST.mode = "custom"; ST.from = f; ST.to = t; renderStats();
+  });
   let stW = innerWidth;
   addEventListener("resize", () => { if (innerWidth !== stW && ST.data && !$("#tab-stats").hidden) { stW = innerWidth; renderStats(); } });
-  $("#stRefresh").addEventListener("click", refreshStats);
-  document.querySelectorAll("#tab-stats [data-range]").forEach((b) => b.addEventListener("click", () => { ST.range = b.dataset.range; renderStats(); }));
 
   // ───────── 이벤트 ─────────
   $("#logout").addEventListener("click", logout);
