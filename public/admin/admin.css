@@ -303,3 +303,8 @@
 .st-kpis--sum .st-kpi b{font-size:22px}
 .st-sub{margin:10px 0 8px;font-size:13px;font-weight:700;color:var(--muted)}
 @media (max-width:760px){ .st-kpis--sum{grid-template-columns:repeat(2,minmax(0,1fr))} }
+
+.st-h4{margin:16px 0 10px!important;font-size:14px!important;color:var(--muted)}
+.st-kpis--sum .st-kpi b{overflow-wrap:anywhere}
+.st-kpis--ads.st-kpis--8{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:760px){ .st-kpis--ads.st-kpis--8{grid-template-columns:repeat(2,minmax(0,1fr))} }

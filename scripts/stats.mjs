@@ -10,6 +10,7 @@ import { createSign, pbkdf2Sync, randomBytes, createCipheriv } from "node:crypto
 import { writeFile, mkdir, rename } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { collectAdsense } from "./adsense.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = resolve(ROOT, "stats/stats.enc.json");
@@ -157,10 +158,12 @@ async function main() {
   let key; try { key = JSON.parse(keyRaw); } catch { throw new Error("GA_SA_KEY 에 서비스 계정 JSON 파일 내용 전체를 넣어 주세요"); }
   const token = await accessToken(key);
   const data = await collect(prop, token);
+  // 애드센스 공식 숫자 (ADSENSE_* 시크릿이 있을 때만). 실패해도 GA 통계는 저장
+  try { data.adsense = await collectAdsense(); } catch (e) { data.adsenseError = String(e.message || e).slice(0, 300); console.log("애드센스:", data.adsenseError); }
   await mkdir(dirname(OUT), { recursive: true });
   await writeFile(OUT + ".tmp", JSON.stringify(encrypt(data, password)) + "\n");
   await rename(OUT + ".tmp", OUT);
-  console.log(`통계 저장: 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, 애드센스 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}`);
+  console.log(`통계 저장: 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

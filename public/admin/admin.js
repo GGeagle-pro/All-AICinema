@@ -1352,7 +1352,44 @@
         <p class="st-sub">선택한 기간 (${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`})</p>
         <div class="st-kpis st-kpis--ads">${ak.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div></section>`;
     }
-    const adsByDate = d.ads ? new Map(agg(d.ads, from, to, ["date"], ["totalAdRevenue"]).map((x) => [x.date, x.totalAdRevenue])) : null;
+    // 애드센스 공식 숫자 (AdSense API) – 있으면 GA 기준 칸 대신 이걸 보여 줌
+    const AS = d.adsense;
+    if (AS) {
+      const cur$ = AS.currency || "USD";
+      const money = (n) => { try { return new Intl.NumberFormat("ko-KR", { style: "currency", currency: cur$, maximumFractionDigits: cur$ === "KRW" ? 0 : 2 }).format(n || 0); } catch { return num(n); } };
+      const S = AS.sums || {};
+      const pick = (o) => o || { earnings: 0, pageViews: 0, impressions: 0, clicks: 0 };
+      const top = [
+        ["오늘 현재까지", money(pick(S.today).earnings), ""],
+        ["어제", money(pick(S.yesterday).earnings), ""],
+        ["지난 7일", money(pick(S.d7).earnings), ""],
+        ["이번 달", money(pick(S.month).earnings), S.lastMonth ? delta(pick(S.month).earnings, S.lastMonth.earnings) : ""],
+        ["지난달", money(pick(S.lastMonth).earnings), ""],
+        ["잔고 (지급 전)", escH(AS.balance || "-"), AS.lastPayment ? `<em class="st-d">최근 지급 ${escH(AS.lastPayment.amount)} · ${escH(AS.lastPayment.date)}</em>` : ""],
+        ["누적 (최근 3년)", money(pick(S.all).earnings), `<em class="st-d">${escH(AS.allSince || "")}부터</em>`],
+        ["누적 페이지 RPM", money(pick(S.all).pageViews ? (pick(S.all).earnings / pick(S.all).pageViews) * 1000 : 0), ""],
+      ];
+      const M = ["ESTIMATED_EARNINGS", "PAGE_VIEWS", "IMPRESSIONS", "CLICKS"];
+      const c = agg(AS.daily, from, to, [], M)[0] || {}, pc = agg(AS.daily, pFrom, pTo, [], M)[0] || {};
+      const e = c.ESTIMATED_EARNINGS || 0, pv = c.PAGE_VIEWS || 0, im = c.IMPRESSIONS || 0, cl = c.CLICKS || 0;
+      const pe = pc.ESTIMATED_EARNINGS || 0, ppv = pc.PAGE_VIEWS || 0, pcl = pc.CLICKS || 0;
+      const sel = [
+        ["예상 수입", money(e), delta(e, pe)], ["페이지뷰", num(pv), delta(pv, ppv)], ["페이지 RPM", money(pv ? (e / pv) * 1000 : 0), delta(pv ? e / pv : 0, ppv ? pe / ppv : 0)],
+        ["노출수", num(im), delta(im, pc.IMPRESSIONS || 0)], ["클릭수", num(cl), delta(cl, pcl)], ["CPC", money(cl ? e / cl : 0), ""],
+        ["페이지 CTR", (pv ? (cl / pv) * 100 : 0).toFixed(2) + "%", ""], ["노출 RPM", money(im ? (e / im) * 1000 : 0), ""],
+      ];
+      const byCountry = agg(AS.country, from, to, ["country"], ["ESTIMATED_EARNINGS", "PAGE_VIEWS"]).filter((x) => x.ESTIMATED_EARNINGS > 0 || x.PAGE_VIEWS > 0);
+      adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수입 <span class="muted small">(애드센스 공식 숫자 · 시간대 ${escH(AS.timeZone || "")})</span></h3>
+        <div class="st-kpis st-kpis--sum">${top.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
+        <p class="st-sub">선택한 기간 (${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}) · 증감은 ${cmpLabel}</p>
+        <div class="st-kpis st-kpis--ads st-kpis--8">${sel.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
+        ${byCountry.length ? `<h3 class="st-h4">국가별 예상 수입</h3>${bars(byCountry, (x) => `${flag(x.country)} ${escH(COUNTRY_KO(x.country, x.country))}`, (x) => x.ESTIMATED_EARNINGS, { fmt: money })}` : ""}
+      </section>`;
+    } else if (d.adsenseError) {
+      adsHtml = `<p class="st-note">애드센스 공식 숫자를 가져오지 못했어요: ${escH(d.adsenseError)}</p>` + adsHtml;
+    }
+    const adsByDate = AS ? new Map(agg(AS.daily, from, to, ["date"], ["ESTIMATED_EARNINGS"]).map((x) => [x.date, x.ESTIMATED_EARNINGS]))
+      : d.ads ? new Map(agg(d.ads, from, to, ["date"], ["totalAdRevenue"]).map((x) => [x.date, x.totalAdRevenue])) : null;
 
     // 그래프: 하루면 시간대별, 아니면 날짜별
     let chartHtml, chartTitle;
