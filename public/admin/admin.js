@@ -634,7 +634,7 @@
       const altIn = el("input", { type: "text", value: b.alt || "", maxlength: "80", placeholder: "배너 문구 (예: ○○ 브랜드 할인)", "aria-label": `${K.label} ${i + 1} 문구` });
       // 띠 배너만: 보여 줄 방문자(국내/해외) + 제휴 고지 문구
       let targetSel = null, noteIn = null;
-      if (kind === "strips") {
+      if (kind === "strips" || kind === "banners") {
         targetSel = el("select", { "aria-label": `${K.label} ${i + 1} 보여 줄 방문자` },
           ...[["all", "모든 방문자에게"], ["kr", "국내(한국) 방문자에게만"], ["intl", "해외 방문자에게만"]].map(([v, t]) => el("option", { value: v, text: t })));
         targetSel.value = ["kr", "intl"].includes(b.target) ? b.target : "all";
@@ -651,10 +651,10 @@
         el("div", { class: `adm-banner__preview${kind === "strips" ? " adm-banner__preview--strip" : ""}` }, previewSrc ? el("img", { src: previewSrc, alt: "" }) : el("span", { class: "muted small", text: "비어 있음" })),
         el("label", { class: "btn adm-filebtn", for: fid }, "이미지 고르기"), fileIn,
         linkIn, altIn,
-        ...(kind === "strips" ? [targetSel, noteIn,
+        ...(targetSel ? [targetSel, noteIn,
           el("button", { class: "adm-linkbtn", type: "button", text: "쿠팡파트너스 문구 넣기", onclick: () => { noteIn.value = "이 배너는 쿠팡파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."; } })] : []),
         el("div", { class: "adm-actions" },
-          el("button", { class: "btn btn--primary", type: "button", text: "저장", onclick: () => saveBanner(i, linkIn.value, altIn.value, kind, kind === "strips" ? { target: targetSel.value, note: noteIn.value } : null) }),
+          el("button", { class: "btn btn--primary", type: "button", text: "저장", onclick: () => saveBanner(i, linkIn.value, altIn.value, kind, targetSel ? { target: targetSel.value, note: noteIn.value } : null) }),
           el("button", { class: "btn", type: "button", text: "비우기", disabled: !b.image && !file, onclick: () => clearBanner(i, kind) }),
         ),
         schedBox(kind, i, b),
@@ -688,7 +688,7 @@
         el("div", { class: "adm-sched__info" },
           el("span", { class: `pill adm-sched__st is-${st}`, text: SCHED_TXT[st] }),
           el("b", { text: `${fmtDt(c.start)} ~ ${fmtDt(c.end)}` }),
-          el("span", { class: "muted small", text: [c.alt, c.link, kind === "strips" && c.target && c.target !== "all" ? (c.target === "kr" ? "국내만" : "해외만") : ""].filter(Boolean).join(" · ") })),
+          el("span", { class: "muted small", text: [c.alt, c.link, c.target && c.target !== "all" ? (c.target === "kr" ? "국내만" : "해외만") : ""].filter(Boolean).join(" · ") })),
         el("button", { class: "btn adm-sched__del", type: "button", text: "삭제", onclick: () => deleteSched(kind, i, c) })));
     }
     det.append(ul);
@@ -702,8 +702,8 @@
       alt: el("input", { type: "text", maxlength: "80", placeholder: "광고 문구 / 광고주 이름 (선택)", "aria-label": "예약 광고 문구" }),
       start: el("input", { type: "datetime-local", value: dtLocal(start), "aria-label": "시작" }),
       end: el("input", { type: "datetime-local", value: dtLocal(end), "aria-label": "끝" }),
-      target: kind === "strips" ? el("select", { "aria-label": "보여 줄 방문자" }, ...[["all", "모든 방문자"], ["kr", "국내 방문자만"], ["intl", "해외 방문자만"]].map(([v, t]) => el("option", { value: v, text: t }))) : null,
-      note: kind === "strips" ? el("input", { type: "text", maxlength: "140", placeholder: "제휴·광고 고지 문구 (선택)", "aria-label": "예약 광고 고지 문구" }) : null,
+      target: true ? el("select", { "aria-label": "보여 줄 방문자" }, ...[["all", "모든 방문자"], ["kr", "국내 방문자만"], ["intl", "해외 방문자만"]].map(([v, t]) => el("option", { value: v, text: t }))) : null,
+      note: true ? el("input", { type: "text", maxlength: "140", placeholder: "제휴·광고 고지 문구 (선택)", "aria-label": "예약 광고 고지 문구" }) : null,
     };
     const pickName = el("span", { class: "muted small", text: "이미지를 골라 주세요" });
     f.file.addEventListener("change", () => (pickName.textContent = f.file.files?.[0]?.name || "이미지를 골라 주세요"));
@@ -1187,7 +1187,7 @@
     const old = state.site?.[kind]?.[i]?.image || "";
     if (!old) return renderBanners(kind);
     run(async () => {
-      await saveSite(`${K.label} ${i + 1} 비우기`, (s) => { const sched = s[kind][i]?.sched; s[kind][i] = { ...(kind === "strips" ? { image: "", link: "", alt: "", target: "all", note: "" } : { image: "", link: "", alt: "" }), ...(Array.isArray(sched) && sched.length ? { sched } : {}) }; return true; });
+      await saveSite(`${K.label} ${i + 1} 비우기`, (s) => { const sched = s[kind][i]?.sched; s[kind][i] = { ...{ image: "", link: "", alt: "", target: "all", note: "" }, ...(Array.isArray(sched) && sched.length ? { sched } : {}) }; return true; });
       if (SAFE_IMG.test(old)) await deleteFile(`public/${old}`, `${K.label} ${i + 1} 이미지 삭제`);
       renderBanners(kind);
       toast(`${K.label} ${i + 1}을 비웠어요.`);

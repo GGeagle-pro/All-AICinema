@@ -137,16 +137,20 @@
   }
   function renderPromo() {
     const box = $("#promo");
+    // 칸마다 보여 줄 방문자: all(모두) / kr(국내만) / intl(해외만) – 띠 배너와 같은 규칙
+    const kr = isKrVisitor();
     const items = (state.site.banners || []).slice(0, 3)
-      .map((b) => ({ img: SAFE_IMG.test(b?.image || "") ? b.image : "", link: safeLink(b?.link || ""), alt: str(b?.alt, 80) }))
-      .filter((b) => b.img);
+      .map((b) => ({ img: SAFE_IMG.test(b?.image || "") ? b.image : "", link: safeLink(b?.link || ""), alt: str(b?.alt, 80),
+        target: ["kr", "intl"].includes(b?.target) ? b.target : "all", note: str(b?.note, 140) }))
+      .filter((b) => b.img && (b.target === "all" || (b.target === "kr") === kr));
     box.hidden = !items.length;
     box.style.setProperty("--cols", String(items.length || 1));
     box.innerHTML = items.map((b) => {
       const img = `<img src="/${esc(b.img)}" alt="${esc(b.alt || T("광고 배너"))}" loading="lazy" decoding="async" /><span class="promo__label">${T("광고")}</span>`;
-      return b.link
+      const box = b.link
         ? `<a class="promo__item" href="${esc(b.link)}" target="_blank" rel="sponsored noopener noreferrer">${img}</a>`
         : `<div class="promo__item">${img}</div>`;
+      return b.note ? `<div class="promo__cell">${box}<p class="promo__note">${esc(b.note)}</p></div>` : box;
     }).join("");
   }
 
@@ -514,7 +518,7 @@
   let stripTurn = Math.floor(Math.random() * 5);   // 여러 개면 돌아가며 (첫 배너는 방문마다 다르게)
   const isOwnLink = (u) => { try { return new URL(u).origin === location.origin; } catch { return false; } };
   // 방문자가 국내인지 (IP 국가 → 없으면 한국 시간대·한국어로 짐작)
-  const isKrVisitor = () => { const cc = I18N.country ? I18N.country() : ""; return cc ? cc === "KR" : I18N.lang === "ko"; };
+  function isKrVisitor() { const cc = I18N.country ? I18N.country() : ""; return cc ? cc === "KR" : I18N.lang === "ko"; }
   function stripHtml(tag = "div") {
     const kr = isKrVisitor();
     const list = (state.site.strips || []).filter((b) => b.target === "all" || (b.target === "kr") === kr);
