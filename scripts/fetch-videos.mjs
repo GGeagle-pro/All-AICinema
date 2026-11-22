@@ -256,6 +256,8 @@ async function main() {
   const age = existing.generatedAt ? (Date.now() - new Date(existing.generatedAt)) / 3600e3 : Infinity;
   if (signature(index) === signature({ ...buildIndex(existing.videos), avatars: existing.avatars || {}, srcs: existing.srcs || {} }) && age < VIEWS_REFRESH_HOURS && !refreshAll && !didBackfill) {
     console.log(`변경 없음 – 저장 생략 (마지막 저장 ${age.toFixed(1)}시간 전)`);
+    // 영상은 그대로여도 관리자 설정(site.json: AI 도구 제휴 링크, 검색용 페이지 켜기/끄기 등)이 바뀌었을 수 있으니 페이지는 다시 생성 (바뀐 파일만 저장됨)
+    try { await (await import("./seo.mjs")).buildSeo(); } catch (err) { console.warn("SEO 파일 생성 실패:", err.message); }
     return;
   }
 
