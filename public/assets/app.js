@@ -524,14 +524,18 @@
   // 목록 위쪽 줄(선반)에 들어간 띠 배너 수 → 아래 영상 목록의 띠 배너는 그다음 자리부터 이어서 번호를 매김
   let shelfStripPos = 0;   // 선반에 배정된 띠 배너 자리 수 (빈 칸이라 안 보인 자리도 셈)
   function stripBase() { const sh = $("#shelves"); return sh && !sh.hidden ? shelfStripPos : 0; }
-  // 띠 배너 자리 pos(0부터) → 칸 번호 고정: 1번째 자리=1번, 2번째=2번 … 6번째=6번, 7번째부터 다시 1번
+  // 띠 배너 자리 pos(0부터) → 칸 번호: 1번째 자리=1번, 2번째=2번 … 6번째=6번
   //  - '1번을 모든 자리에' 체크: 모든 자리 = 1번
-  //  - 그 칸이 비어 있거나 노출 대상(국내/해외)이 아니면 그 자리는 비워 둠 (다른 칸 배너로 채우지 않음)
+  //  - 체크 풀림: 그 칸이 비었거나(이미지·링크 없음) 노출 대상이 아니면, 그리고 7번째 이후 자리는 → 2번 칸(기본 배너)
+  const STRIP_DEFAULT = 1;
   function stripHtml(tag = "div", pos = 0) {
     const kr = isKrVisitor();
-    const slot = state.site.stripsSame ? 0 : pos % 6;
-    const b = (state.site.strips || []).find((x) => x.slot === slot);
-    if (!b || !(b.target === "all" || (b.target === "kr") === kr)) return "";
+    const ok = (x) => x && (x.target === "all" || (x.target === "kr") === kr);
+    const at = (slot) => (state.site.strips || []).find((x) => x.slot === slot);
+    let b;
+    if (state.site.stripsSame) b = at(0);
+    else { b = pos < 6 ? at(pos) : null; if (!ok(b)) b = at(STRIP_DEFAULT); }
+    if (!ok(b)) return "";
     const own = isOwnLink(b.link);
     return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored nofollow noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
       <img src="/${esc(b.image)}" alt="${esc(b.alt)}" width="1920" height="240" loading="lazy" decoding="async" />
