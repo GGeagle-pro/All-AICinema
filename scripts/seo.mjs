@@ -8,6 +8,7 @@
 
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import vm from "node:vm";
+import { buildPages } from "./pages.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,7 +24,7 @@ const xml = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<
 const html = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 // JSON-LD 안에서 </script> 로 빠져나가지 못하게
 const jsonLd = (o) => JSON.stringify(o).replace(/</g, "\\u003c");
-const cut = (s, n) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+const cut = (s, n) => { const a = Array.from(String(s || "").replace(/\s+/g, " ").trim()); return a.length > n ? a.slice(0, n - 1).join("").trim() + "…" : a.join(""); };   // 글자 단위 (이모지가 반으로 잘리지 않게)
 
 // ── 해외 검색 노출: 언어별 페이지 ──
 // ko = 기본 주소(/), 나머지는 /en/ /ja/ /zh/ /es/ (미국·영국·싱가포르 등 영어권은 /en/, 중화권은 /zh/)
@@ -66,7 +67,7 @@ const hreflangLinks = () => Object.values(LANGS).map((l) => `<link rel="alternat
   + `\n  <link rel="alternate" hreflang="x-default" href="${SITE}/en/" />`;
 
 // 화면 글자 번역에 쓰는 사전(public/assets/i18n.js)을 그대로 불러옴
-async function loadI18n(code) {
+export async function loadI18n(code) {
   const src = await readFile(resolve(PUB, "assets/i18n.js"), "utf8");
   const store = {};
   const ctx = { window: {}, location: { search: "", pathname: `/${code}/` }, navigator: { language: code, languages: [code], userAgent: "" },
@@ -145,13 +146,15 @@ async function loadVideos() {
   };
 }
 
-function sitemap(lastmod) {
+function sitemap(lastmod, pages = []) {
   const alts = Object.values(LANGS).map((l) => `<xhtml:link rel="alternate" hreflang="${l.hreflang}" href="${SITE}${l.path}"/>`).join("")
     + `<xhtml:link rel="alternate" hreflang="x-default" href="${SITE}/en/"/>`;
   const urls = [
     ...Object.values(LANGS).map((l) => ({ loc: `${SITE}${l.path}`, lastmod, changefreq: "hourly", priority: l.path === "/" ? "1.0" : "0.9", alts })),
     { loc: `${SITE}/about.html`, changefreq: "monthly", priority: "0.5" },
     { loc: `${SITE}/privacy.html`, changefreq: "yearly", priority: "0.2" },
+    // 작품·영상 페이지 (scripts/pages.mjs)
+    ...pages.map((u) => ({ loc: u.loc, lastmod: u.lastmod, changefreq: u.loc.includes("/work/") ? "daily" : "weekly", priority: u.loc.includes("/work/") ? "0.8" : "0.6" })),
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
@@ -188,7 +191,7 @@ ${items}
 // 검색 로봇용 미리 그린 목록 (사이트가 열리면 자바스크립트가 같은 자리를 새 화면으로 바꿈)
 function ssrBlock(videos) {
   const list = videos.slice(0, SSR_COUNT);
-  const cards = list.map((v) => `<a class="card" href="?v=${v.id}"><div class="thumb"><img loading="lazy" decoding="async" src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg" width="320" height="180" alt="${html(cut(v.title, 120))}" /></div><div class="card__body"><div><h3>${html(v.title)}</h3><p>${html(v.channel)}</p></div></div></a>`).join("\n");
+  const cards = list.map((v) => `<a class="card" href="/watch/${v.id}/"><div class="thumb"><img loading="lazy" decoding="async" src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg" width="320" height="180" alt="${html(cut(v.title, 120))}" /></div><div class="card__body"><div><h3>${html(v.title)}</h3><p>${html(v.channel)}</p></div></div></a>`).join("\n");
   const ld = {
     "@context": "https://schema.org", "@type": "ItemList", name: "새로 올라온 AI 영화·드라마",
     itemListElement: list.map((v, i) => ({ "@type": "ListItem", position: i + 1, url: `${SITE}/?v=${v.id}`, name: cut(v.title, 150) })),
@@ -198,7 +201,10 @@ function ssrBlock(videos) {
 
 export async function buildSeo() {
   const { videos, generatedAt } = await loadVideos();
-  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt));
+  // 작품·영상 페이지 (index.html 의 자산 버전을 그대로 씀)
+  const ver = ((await readFile(resolve(PUB, "index.html"), "utf8")).match(/assets\/style\.css\?v=([\w.-]+)/) || [])[1] || "1";
+  const pages = await buildPages({ PUB, SITE, loadI18n, ver });
+  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls));
   await atomicWrite(resolve(PUB, "rss.xml"), rss(videos, generatedAt));
   const file = resolve(PUB, "index.html");
   const page = await readFile(file, "utf8");
@@ -213,7 +219,7 @@ export async function buildSeo() {
     await mkdir(resolve(PUB, code), { recursive: true });
     await atomicWrite(resolve(PUB, code, "index.html"), localize(next, code, I));
   }
-  console.log(`SEO: sitemap.xml, rss.xml(${Math.min(videos.length, RSS_COUNT)}개), index.html 미리보기 ${Math.min(videos.length, SSR_COUNT)}개, 언어별 페이지 ${Object.keys(LANGS).length - 1}개`);
+  console.log(`SEO: sitemap.xml, rss.xml(${Math.min(videos.length, RSS_COUNT)}개), index.html 미리보기 ${Math.min(videos.length, SSR_COUNT)}개, 언어별 페이지 ${Object.keys(LANGS).length - 1}개, 작품 ${pages.counts.works}·영상 ${pages.counts.videos}개 페이지(바뀐 파일 ${pages.changed}개)`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

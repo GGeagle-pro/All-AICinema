@@ -531,10 +531,24 @@
     }
     return out;
   }
+  // 작품 페이지 주소 (scripts/pages.mjs 의 slugify 와 같은 규칙, 이름이 겹치면 채널 이름을 붙임)
+  const slugify = (s) => String(s || "").normalize("NFKC").toLowerCase()
+    .replace(/[\s_]+/g, "-").replace(/[^\p{L}\p{N}-]+/gu, "").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "work";
+  let slugMap = null, slugFor = null;
+  function workSlug(w) {
+    if (slugFor !== state.all) {
+      slugFor = state.all; slugMap = new Map();
+      const keys = [...new Set(state.all.filter((v) => v.series).map((v) => v.channel + "\u0001" + v.series))]
+        .filter((k) => state.all.filter((v) => v.series && v.channel + "\u0001" + v.series === k).length >= 2).sort();
+      const used = new Set();
+      for (const k of keys) { const [ch, nm2] = k.split("\u0001"); let s = slugify(nm2); if (used.has(s)) s = `${s}-${slugify(ch)}`; used.add(s); slugMap.set(k, s); }
+    }
+    return slugMap.get(w.channel + "\u0001" + w.name) || slugify(w.name);
+  }
   const workByKey = (k) => worksOf(state.all.filter((v) => workKey(v) === k))[0] || null;
   function workCard(w) {
     const fresh = isNew(new Date(w.latest).toISOString());
-    return `<a class="wcard" href="?w=${encodeURIComponent(w.name)}&ch=${encodeURIComponent(w.channel)}" data-work="${esc(w.key)}">
+    return `<a class="wcard" href="/work/${encodeURIComponent(workSlug(w))}/" data-work="${esc(w.key)}">
       <div class="wcard__img"><img loading="lazy" decoding="async" src="${thumb(w.cover.id, "mqdefault")}" width="320" height="180" alt="" />
         ${fresh ? `<span class="badge">${T("새 회차")}</span>` : ""}
         <span class="wcard__count">${w.lastEp ? T("EP.{n}까지", { n: w.lastEp }) + " · " : ""}${T("{n}편", { n: w.list.length })}</span></div>
@@ -572,7 +586,7 @@
   }
 
   function card(v, i) {
-    return `<a class="card" href="?v=${v.id}" data-i="${i}">
+    return `<a class="card" href="/watch/${v.id}/" data-i="${i}">
       <div class="thumb">
         ${isNew(v.published) ? '<span class="badge">NEW</span>' : ""}
         ${v.short ? '<span class="badge badge--short">Shorts</span>' : ""}
