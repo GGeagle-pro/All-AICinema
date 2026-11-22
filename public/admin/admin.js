@@ -660,6 +660,7 @@
         schedBox(kind, i, b),
       ));
     });
+    if (kind === "strips") decorateSame();
   }
 
   // ───────── 예약 광고 (배너 칸마다: 시작~끝 시각에만 보이고, 끝나면 위의 '기본 광고'로 자동 복귀) ─────────
@@ -761,6 +762,25 @@
     });
   }
   const renderStrips = () => renderBanners("strips");
+  function decorateSame() {
+    // '1번을 모든 자리에' 체크 상태 표시: 2~6번 칸은 흐리게 + 안내
+    const same = state.site?.stripsSame === true;
+    const cb = $("#stripsSame"); if (cb) cb.checked = same;
+    $("#stripList")?.classList.toggle("is-same", same);
+    if (!same) $("#stripList")?.querySelectorAll(".adm-same__note").forEach((x) => x.remove());
+    if (same) [...$("#stripList").children].slice(1).forEach((card) => {
+      if (!card.querySelector(".adm-same__note")) card.querySelector(".adm-banner__head")?.append(el("span", { class: "pill adm-same__note", text: "지금은 1번 배너가 대신 나와요" }));
+    });
+  };
+  function saveStripsSame() {
+    const on = $("#stripsSame").checked;
+    run(async () => {
+      await saveSite(on ? "띠 배너: 1번을 모든 자리에" : "띠 배너: 칸마다 각자", (s) => { if ((s.stripsSame === true) === on) return false; if (on) s.stripsSame = true; else delete s.stripsSame; return true; });
+      decorateSame();
+      toast(on ? "이제 모든 띠 배너 자리에 1번 배너가 나와요." : "이제 칸마다 각자 넣은 배너가 나와요.");
+      afterSiteSave("띠 배너 설정 반영 중");
+    });
+  }
 
 
   // ───────── AI 제작 도구 추천 페이지 (public/data/tools.json + site.json tools) ─────────
@@ -1654,6 +1674,7 @@
   });
   $("#menuSave").addEventListener("click", saveMenu);
   $("#toolSave").addEventListener("click", saveTools);
+  $("#stripsSame").addEventListener("change", saveStripsSame);
   $("#kakaoForm").addEventListener("submit", saveKakao);
   $("#adsForm").addEventListener("submit", saveAds);
   $("#openModeForm").addEventListener("submit", saveOpenMode);

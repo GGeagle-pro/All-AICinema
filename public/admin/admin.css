@@ -340,3 +340,9 @@
 /* 등록된 채널 찾기 */
 .adm-chsearch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}
 .adm-chsearch input{flex:1 1 280px;min-width:0;min-height:44px}
+
+.adm-same{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer}
+.adm-same input{flex:none;width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}
+#stripList.is-same > .adm-banner:not(:first-child){opacity:.55}
+#stripList.is-same > .adm-banner:first-child{outline:2px solid var(--accent);outline-offset:-1px}
+.adm-same__note{background:rgba(255,61,127,.18);color:#ffb3cd;font-size:11px}

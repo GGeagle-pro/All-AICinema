@@ -227,13 +227,14 @@
         // 목록 사이 띠 배너 (관리자 > 카테고리·배너): 6:1 이미지 + 랜딩 URL + 문구
         // target: all(모두) / kr(국내 방문자만) / intl(해외 방문자만), note: 제휴 고지 문구 (예: 쿠팡파트너스)
         strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 6).map(nowCreative)
-          .map((b) => ({ image: SAFE_IMG.test(b?.image || "") ? b.image : "", alt: str(b?.alt, 80), link: safeLink(b?.link || ""),
+          .map((b, slot) => ({ slot, image: SAFE_IMG.test(b?.image || "") ? b.image : "", alt: str(b?.alt, 80), link: safeLink(b?.link || ""),
             target: ["kr", "intl"].includes(b?.target) ? b.target : "all", note: str(b?.note, 140) }))
           .filter((b) => b.image && b.link),
         // 영상 여는 방식: "page" = 목록에서 누르면 실제로 영상 페이지로 이동(애드센스 전면 광고 기회),
         //                 "inline" = 페이지 이동 없이 바로 플레이어 열기 (관리자 > 광고 설정에서 변경)
         openMode: s.openMode === "page" ? "page" : "inline",
         works: s.works !== false,
+        stripsSame: s.stripsSame === true,   // 관리자 체크: 1번 띠 배너를 모든 띠 배너 자리에 똑같이
         kakaoKey: /^[0-9a-f]{32}$/.test(s.kakaoKey || "") ? s.kakaoKey : "",   // 카카오 JavaScript 키 (공개용 키, 등록한 도메인에서만 동작)
         pages: s.pages !== false,   // 검색용 작품·영상 페이지 (관리자 > 작품 탭에서 끄면 예전 주소로)
       };
@@ -521,7 +522,7 @@
   function isKrVisitor() { const cc = I18N.country ? I18N.country() : ""; return cc ? cc === "KR" : I18N.lang === "ko"; }
   function stripHtml(tag = "div") {
     const kr = isKrVisitor();
-    const list = (state.site.strips || []).filter((b) => b.target === "all" || (b.target === "kr") === kr);
+    const list = (state.site.strips || []).filter((b) => (!state.site.stripsSame || b.slot === 0) && (b.target === "all" || (b.target === "kr") === kr));
     if (!list.length) return "";
     const b = list[stripTurn++ % list.length];
     const own = isOwnLink(b.link);
