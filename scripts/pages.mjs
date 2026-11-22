@@ -128,7 +128,7 @@ function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver }) {
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="/assets/style.css?v=${ver}" />
   <link rel="stylesheet" href="/assets/page.css?v=${ver}" />
-  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-947429542"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5PXH52MY88"></script>
   <script src="/assets/gtag-init.js?v=${ver}"></script>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8096684162493748" crossorigin="anonymous"></script>
   ${ld.map((o) => `<script type="application/ld+json">${jsonLd(o)}</script>`).join("\n  ")}
