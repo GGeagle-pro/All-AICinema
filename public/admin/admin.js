@@ -603,7 +603,7 @@
   // 배너 종류: 상단 배너(16:7) / 목록 사이 띠 배너(6:1) — 같은 편집기 사용
   const BKIND = {
     banners: { box: "#bannerList", label: "배너", prefix: "banner", files: state.bannerFiles, max: 1600 },
-    strips: { box: "#stripList", label: "띠 배너", prefix: "strip", files: (state.stripFiles = {}), max: 1200 },
+    strips: { box: "#stripList", label: "띠 배너", prefix: "strip", files: (state.stripFiles = {}), max: 1920 },
   };
   function renderBanners(kind = "banners") {
     const K = BKIND[kind];

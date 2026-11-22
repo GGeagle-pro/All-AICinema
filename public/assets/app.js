@@ -504,7 +504,7 @@
     const b = list[stripTurn++ % list.length];
     const own = isOwnLink(b.link);
     return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
-      <img src="/${esc(b.image)}" alt="${esc(b.alt)}" width="1200" height="200" loading="lazy" decoding="async" />
+      <img src="/${esc(b.image)}" alt="${esc(b.alt)}" width="1920" height="240" loading="lazy" decoding="async" />
       <span class="strip__ad">${T("광고")}</span></a></${tag}>`;
   }
   const STRIP_SHELF_FIRST = 2, STRIP_SHELF_EVERY = 5;

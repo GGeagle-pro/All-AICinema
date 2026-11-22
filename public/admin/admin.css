@@ -191,7 +191,8 @@
 }
 
 /* 목록 사이 띠 배너 미리보기 (6:1) */
-.adm-banner__preview--strip{aspect-ratio:6/1}
+.adm-banner__preview--strip{aspect-ratio:8/1}
+.adm-banner__preview--strip img{object-fit:cover}
 
 /* ───── 통계 탭 ───── */
 .st-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}

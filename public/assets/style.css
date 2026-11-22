@@ -471,15 +471,16 @@ button.sp-chip:hover,.sp-chip.is-sel{border-color:var(--text)}
 .player__actions .switch span{overflow:hidden;text-overflow:ellipsis}
 
 /* ───────── 목록 사이 띠 배너 (관리자에서 관리) ───────── */
-.strip{margin:0 auto 30px;max-width:728px;min-width:0}
+/* 띠 배너: PC는 목록 폭 그대로(8:1, 권장 이미지 1920×240), 모바일은 가운데 6:1만 보이게 양옆을 잘라 냄 */
+.strip{margin:0 0 30px;width:100%;min-width:0}
 .grid > .strip{grid-column:1 / -1;margin:4px auto;width:100%}
-.strip__in{position:relative;display:block;aspect-ratio:6/1;max-width:100%;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
-.strip__in img{display:block;width:100%;height:100%;object-fit:cover}
+.strip__in{position:relative;display:block;aspect-ratio:8/1;max-height:200px;max-width:100%;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.strip__in img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
 .strip__in:hover{border-color:var(--accent)}
 .strip__ad{position:absolute;top:6px;right:6px;font-size:10px;font-weight:800;letter-spacing:.04em;padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.55);color:#fff}
 @media (max-width:760px){
   .strip{margin-bottom:24px}
-  .strip__in{border-radius:10px}
+  .strip__in{border-radius:10px;aspect-ratio:6/1}
 }
 
 /* 검색 패널: 인기 영상 TOP 5 카테고리 탭 */
