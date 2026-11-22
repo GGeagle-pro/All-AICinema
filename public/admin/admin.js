@@ -1337,8 +1337,19 @@
       const anyAds = (d.ads.r || []).some((r) => r[1] || r[2]);
       const ak = [["예상 수익", money(rev), delta(rev, pa.totalAdRevenue)], ["페이지 RPM", money(rpm), delta(rpm, prpm)], ["노출 RPM", money(imp ? (rev / imp) * 1000 : 0), ""],
         ["광고 노출", num(imp), delta(imp, pa.publisherAdImpressions)], ["광고 클릭", num(clk), delta(clk, pa.publisherAdClicks)], ["CTR", ctr.toFixed(2) + "%", delta(ctr, pctr)]];
+      // 누적 · 이번 달 · 지난달 (고른 기간과 상관없이 항상 표시)
+      const S = d.ads.sums || {};
+      const all = S.all || { revenue: (d.ads.r || []).reduce((t, r) => t + (r[1] || 0), 0) };
+      const sumTiles = [
+        ["누적 예상 수익", money(all.revenue), d.ads.firstDay ? `<em class="st-d">${toIso(d.ads.firstDay)}부터</em>` : ""],
+        ["이번 달 예상 수익", money(S.month?.revenue), S.lastMonth ? delta(S.month?.revenue || 0, S.lastMonth.revenue) : ""],
+        ["지난달 예상 수익", money(S.lastMonth?.revenue), ""],
+        ["누적 페이지 RPM", money(all.views ? (all.revenue / all.views) * 1000 : 0), ""],
+      ];
       adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수익 <span class="muted small">(구글 애널리틱스에 연결된 애드센스 기준)</span></h3>
         ${anyAds ? "" : `<p class="st-note">아직 애드센스 숫자가 없어요. 구글 애널리틱스 <b>관리 → 제품 링크 → AdSense 링크</b>에서 애드센스를 연결하면 다음 수집부터 보여요.</p>`}
+        <div class="st-kpis st-kpis--sum">${sumTiles.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
+        <p class="st-sub">선택한 기간 (${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`})</p>
         <div class="st-kpis st-kpis--ads">${ak.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div></section>`;
     }
     const adsByDate = d.ads ? new Map(agg(d.ads, from, to, ["date"], ["totalAdRevenue"]).map((x) => [x.date, x.totalAdRevenue])) : null;

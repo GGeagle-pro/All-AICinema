@@ -109,10 +109,22 @@ export async function collect(prop, token) {
   // 애드센스 (GA4 에 애드센스를 연결해야 숫자가 나옴 – 안 되어 있으면 건너뜀)
   let ads = null, adsError = "";
   try {
-    const [a] = await batch(prop, token, [
+    // 누적(GA4 가 가진 처음부터) · 이번 달 · 지난달 합계도 함께 (90일보다 오래된 수익까지)
+    const tz = "Asia/Seoul";
+    const ymd = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+    const today = ymd(new Date()), monthStart = today.slice(0, 8) + "01";
+    const lastEnd = ymd(new Date(Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, 0)));   // 지난달 마지막 날
+    const lastStart = lastEnd.slice(0, 8) + "01";
+    const [a, sums] = await batch(prop, token, [
       { dateRanges: RANGE, dimensions: D("date"), metrics: D("totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"), limit: BIG },
+      { dateRanges: [{ startDate: "2015-08-14", endDate: "today", name: "all" }, { startDate: monthStart, endDate: "today", name: "month" }, { startDate: lastStart, endDate: lastEnd, name: "lastMonth" }],
+        metrics: D("totalAdRevenue", "publisherAdImpressions", "publisherAdClicks", "screenPageViews") },
     ]);
-    ads = { currency: a?.metadata?.currencyCode || "", ...table(a, ["date", "totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"]) };
+    const sumOf = {};
+    for (const r of rows(sums)) sumOf[r.dateRange] = { revenue: r.totalAdRevenue, impressions: r.publisherAdImpressions, clicks: r.publisherAdClicks, views: r.screenPageViews };
+    // 처음 수익이 생긴 날 (누적이 언제부터인지 표시용)
+    const firstDay = (a?.rows || []).map((r) => [r.dimensionValues[0].value, Number(r.metricValues[0].value)]).filter(([, v]) => v > 0).map(([d]) => d).sort()[0] || "";
+    ads = { currency: a?.metadata?.currencyCode || "", sums: sumOf, firstDay, ...table(a, ["date", "totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"]) };
   } catch (e) { adsError = String(e.message || e).slice(0, 200); }
 
   const tot = {};
