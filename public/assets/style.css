@@ -514,3 +514,38 @@ html{overflow-x:clip}
   .lang{margin-left:6px}
 }
 @media (max-width:340px){ .topbar__inner .brand__name{display:none} }
+
+/* 공유하기 창 (플레이어 위에 뜸) */
+.share-bg{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.6)}
+.share{position:fixed;z-index:71;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:var(--bg2);border:1px solid var(--line);border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.6);padding:18px}
+.share__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.share__head b{font-size:17px}
+.share__x{width:36px;height:36px;border:0;border-radius:50%;background:var(--bg);color:var(--text);font-size:22px;line-height:1;cursor:pointer}
+.share__pv{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;background:var(--bg);margin-bottom:14px;min-width:0}
+.share__pv img{flex:none;width:96px;height:54px;object-fit:cover;border-radius:8px;background:#000}
+.share__pv div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.share__pv b{font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.share__pv span{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.share__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 6px;margin-bottom:14px}
+.share__btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 2px;border:0;border-radius:12px;background:none;color:var(--text);font:inherit;font-size:12px;font-weight:700;cursor:pointer;min-width:0}
+.share__btn:hover .share__ic,.share__btn:focus-visible .share__ic{transform:translateY(-2px);box-shadow:0 0 0 3px rgba(255,255,255,.18)}
+.share__btn > span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.share__ic{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;transition:transform .15s,box-shadow .15s}
+.share__ic svg{width:26px;height:26px}
+.share__ic--kakao{background:#fee500}
+.share__ic--instagram{background:radial-gradient(circle at 30% 110%,#fdf497 0,#fd5949 45%,#d6249f 60%,#285aeb 90%)}
+.share__ic--x{background:#000;border:1px solid #333}
+.share__ic--facebook{background:#1877f2}
+.share__ic--threads{background:#000;border:1px solid #333}
+.share__ic--line{background:#06c755}
+.share__ic--whatsapp{background:#25d366}
+.share__ic--telegram{background:#229ed9}
+.share__ic--copy,.share__ic--more{background:#3a3a4a}
+.share__url{display:flex;gap:8px}
+.share__url input{flex:1;min-width:0;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--muted);font:inherit;font-size:13px}
+.share__url .btn{flex:none;height:42px;padding:0 14px}
+.share__msg{min-height:18px;margin:8px 0 0;font-size:13px;color:#8ef0b0}
+@media (max-width:760px){
+  .share{left:0;right:0;top:auto;bottom:0;transform:none;width:auto;border-radius:20px 20px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom))}
+  .share__ic{width:50px;height:50px}
+}

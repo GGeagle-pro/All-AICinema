@@ -294,3 +294,6 @@
 .adm-tool{display:grid;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);min-width:0}
 .adm-tool input[type=url]{width:100%;min-width:0}
 @media (max-width:760px){ .adm-tools{grid-template-columns:1fr} }
+
+.adm-inline{display:flex;gap:8px;flex-wrap:wrap}
+.adm-inline input{flex:1 1 240px;min-width:0}

@@ -218,6 +218,7 @@
         //                 "inline" = 페이지 이동 없이 바로 플레이어 열기 (관리자 > 광고 설정에서 변경)
         openMode: s.openMode === "page" ? "page" : "inline",
         works: s.works !== false,
+        kakaoKey: /^[0-9a-f]{32}$/.test(s.kakaoKey || "") ? s.kakaoKey : "",   // 카카오 JavaScript 키 (공개용 키, 등록한 도메인에서만 동작)
         pages: s.pages !== false,   // 검색용 작품·영상 페이지 (관리자 > 작품 탭에서 끄면 예전 주소로)
       };
     } catch {}
@@ -741,6 +742,98 @@
     c?.focus({ preventScroll: true });
   }
 
+  // ===== 공유하기 (카카오톡·인스타그램·X·페이스북·스레드·라인·왓츠앱·텔레그램·링크 복사) =====
+  // 공유 주소는 검색용 영상 페이지(/watch/ID/) → 카카오톡 등 미리보기에 그 영상의 썸네일·제목이 나옴
+  const shareUrlOf = (v) => state.site.pages ? `${location.origin}/watch/${v.id}/` : `${location.origin}${location.pathname}?v=${v.id}`;
+  const SHARE_ICON = {
+    kakao: '<svg viewBox="0 0 24 24"><path fill="#191919" d="M12 4C7 4 3 7.1 3 11c0 2.5 1.7 4.7 4.2 6l-1 3.6 4.1-2.7c.6.1 1.1.1 1.7.1 5 0 9-3.1 9-7s-4-7-9-7Z"/></svg>',
+    instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="#fff" stroke="none"/></svg>',
+    x: '<svg viewBox="0 0 24 24"><path fill="#fff" d="M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8L17.8 3Zm-1.1 16.2h1.7L7.4 4.7H5.6l11.1 14.5Z"/></svg>',
+    facebook: '<svg viewBox="0 0 24 24"><path fill="#fff" d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 3.9v2.3H8v3h2.5V21h3Z"/></svg>',
+    threads: '<svg viewBox="0 0 24 24"><path fill="#fff" d="M16.6 11.1c-.1 0-.2-.1-.3-.1-.2-3-1.8-4.7-4.6-4.7-1.6 0-3 .7-3.8 2l1.5 1c.6-.9 1.6-1.1 2.3-1.1 1 0 1.7.3 2.1.9.3.4.5 1 .6 1.7-.8-.1-1.6-.2-2.5-.1-2.5.1-4.1 1.6-4 3.6.1 1 .6 1.9 1.4 2.4.7.5 1.6.7 2.5.6 1.2-.1 2.2-.5 2.8-1.4.5-.7.8-1.5.9-2.6.6.4 1 .8 1.3 1.4.5 1 .5 2.7-.9 4.1-1.2 1.2-2.7 1.8-4.9 1.8-2.5 0-4.3-.8-5.5-2.3C4.4 16.8 3.8 14.7 3.8 12s.6-4.8 1.7-6.3C6.7 4.2 8.5 3.4 11 3.4s4.4.8 5.6 2.3c.6.8 1.1 1.7 1.4 2.8l1.8-.5c-.4-1.4-1-2.6-1.8-3.6C16.5 2.5 14.1 1.5 11 1.5S5.5 2.5 4 4.5C2.6 6.3 1.9 8.8 1.9 12s.7 5.7 2.1 7.5c1.5 1.9 3.8 3 6.9 3 2.7 0 4.6-.7 6.2-2.3 2.1-2.1 2-4.6 1.3-6.2-.5-1.2-1.4-2.1-2.6-2.7Zm-4.3 4.9c-1 .1-2.1-.4-2.1-1.4 0-.7.5-1.6 2.3-1.7h.6c.6 0 1.2.1 1.8.2-.2 2.4-1.4 2.8-2.6 2.9Z"/></svg>',
+    line: '<svg viewBox="0 0 24 24"><path fill="#fff" d="M12 3.5c-5 0-9 3.2-9 7.2 0 3.6 3.2 6.6 7.5 7.1.3.1.7.2.8.5.1.2.1.6 0 .8l-.1.8c0 .2-.2.9.8.5 1-.4 5.4-3.2 7.4-5.5 1.4-1.5 2-3 2-4.6 0-3.9-4-7.1-9-7.1Z"/></svg>',
+    whatsapp: '<svg viewBox="0 0 24 24"><path fill="#fff" d="M12 2.5a9.4 9.4 0 0 0-8.1 14.2L2.6 21.5l4.9-1.3A9.4 9.4 0 1 0 12 2.5Zm5.5 13.3c-.2.6-1.3 1.2-1.8 1.3-.5 0-1 .2-3.2-.7-2.7-1.1-4.4-3.8-4.5-4-.1-.2-1.1-1.4-1.1-2.7s.7-1.9.9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.1 1.4 1.8.9.9 1.7 1.1 2 1.3.3.1.4.1.6-.1l.8-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.4.2.5.3.1.2.1.7-.1 1.3Z"/></svg>',
+    telegram: '<svg viewBox="0 0 24 24"><path fill="#fff" d="m21.4 4.2-3.1 15c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2l-11 6.9-4.7-1.5c-1-.3-1-1 .2-1.5L20.1 3c.9-.3 1.6.2 1.3 1.2Z"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+    more: '<svg viewBox="0 0 24 24" fill="#fff"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  };
+  const SHARE_NAME = { kakao: "카카오톡", instagram: "인스타그램", x: "X", facebook: "Facebook", threads: "Threads", line: "LINE", whatsapp: "WhatsApp", telegram: "Telegram", copy: "링크 복사", more: "더보기" };
+  // 언어(나라)마다 많이 쓰는 앱을 앞으로
+  const SHARE_ORDER = {
+    ko: ["kakao", "instagram", "x", "facebook", "threads", "line", "copy", "more"],
+    ja: ["line", "x", "instagram", "facebook", "threads", "kakao", "copy", "more"],
+    zh: ["whatsapp", "telegram", "x", "facebook", "instagram", "line", "copy", "more"],
+    es: ["whatsapp", "instagram", "facebook", "x", "telegram", "threads", "copy", "more"],
+    en: ["whatsapp", "x", "facebook", "instagram", "threads", "telegram", "copy", "more"],
+  };
+  let shareV = null, shareFrom = null;
+  function openShare(v) {
+    shareV = v; shareFrom = document.activeElement;
+    const order = (SHARE_ORDER[I18N.lang] || SHARE_ORDER.en).filter((k) => k !== "more" || navigator.share);
+    const box = $("#share");
+    box.innerHTML = `<div class="share__head"><b id="shareTitle">${esc(T("공유하기"))}</b><button type="button" class="share__x" data-share="close" aria-label="${esc(T("닫기"))}">×</button></div>
+      <div class="share__pv"><img src="https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg" alt="" width="120" height="68" /><div><b>${esc(v.title)}</b><span>${esc(v.channel)}</span></div></div>
+      <div class="share__grid">${order.map((k) => `<button type="button" class="share__btn" data-share="${k}"><span class="share__ic share__ic--${k}">${SHARE_ICON[k]}</span><span>${esc(k === "x" || k === "facebook" || k === "threads" || k === "line" || k === "whatsapp" || k === "telegram" ? SHARE_NAME[k] : T(SHARE_NAME[k]))}</span></button>`).join("")}</div>
+      <div class="share__url"><input type="text" readonly value="${esc(shareUrlOf(v))}" aria-label="URL" /><button type="button" class="btn" data-share="copy">${esc(T("링크 복사"))}</button></div>
+      <p class="share__msg" role="status" aria-live="polite"></p>`;
+    box.hidden = false; $("#shareBg").hidden = false;
+    box.querySelector(".share__btn")?.focus();
+  }
+  function closeShare() {
+    $("#share").hidden = true; $("#shareBg").hidden = true;
+    try { shareFrom?.focus({ preventScroll: true }); } catch {}
+  }
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; }
+    catch { const i = $("#share input"); if (i) { i.select(); try { return document.execCommand("copy"); } catch {} } return false; }
+  }
+  const shareMsg = (m) => { const p = $("#share .share__msg"); if (p) { p.textContent = m; clearTimeout(shareMsg.t); shareMsg.t = setTimeout(() => (p.textContent = ""), 3500); } };
+  // 카카오 JavaScript 키가 관리자에 있으면 카카오 SDK로 바로 공유 (없으면 기기 공유 창 / 링크 복사)
+  let kakaoReady = null;
+  function loadKakao() {
+    const key = state.site.kakaoKey;
+    if (!key) return Promise.resolve(false);
+    if (kakaoReady) return kakaoReady;
+    kakaoReady = new Promise((res) => {
+      const s = document.createElement("script");
+      s.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"; s.crossOrigin = "anonymous";
+      s.onload = () => { try { if (!window.Kakao.isInitialized()) window.Kakao.init(key); res(true); } catch { res(false); } };
+      s.onerror = () => res(false);
+      document.head.appendChild(s);
+    });
+    return kakaoReady;
+  }
+  async function doShare(k) {
+    const v = shareV; if (!v) return;
+    const url = shareUrlOf(v), text = `${v.title} | All AI-Cinema`;
+    const enc = encodeURIComponent;
+    const open = (u) => window.open(u, "_blank", "noopener,noreferrer,width=620,height=640");
+    track("share", { method: k, content_type: "video", item_id: v.id });
+    if (k === "close") return closeShare();
+    if (k === "copy") { shareMsg((await copyText(url)) ? T("링크 복사됨") : url); return; }
+    if (k === "more") { try { await navigator.share({ title: v.title, text, url }); } catch {} return; }
+    if (k === "x") return open(`https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(url)}`);
+    if (k === "facebook") return open(`https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`);
+    if (k === "threads") return open(`https://www.threads.net/intent/post?text=${enc(text + " " + url)}`);
+    if (k === "line") return open(`https://social-plugins.line.me/lineit/share?url=${enc(url)}`);
+    if (k === "whatsapp") return open(`https://wa.me/?text=${enc(text + " " + url)}`);
+    if (k === "telegram") return open(`https://t.me/share/url?url=${enc(url)}&text=${enc(text)}`);
+    if (k === "kakao") {
+      if (await loadKakao()) { try { window.Kakao.Share.sendScrap({ requestUrl: url }); return; } catch {} }
+      if (navigator.share && env.mobile) { try { await navigator.share({ title: v.title, text, url }); } catch {} return; }
+      await copyText(url); shareMsg(T("링크를 복사했어요. 카카오톡 대화창에 붙여 넣어 주세요.")); return;
+    }
+    if (k === "instagram") {   // 인스타그램은 웹 공유 주소가 없어서: 휴대폰은 기기 공유 창(인스타 선택), PC는 링크 복사
+      if (navigator.share && env.mobile) { try { await navigator.share({ title: v.title, text, url }); } catch {} return; }
+      await copyText(url); shareMsg(T("링크를 복사했어요. 인스타그램 DM이나 스토리에 붙여 넣어 주세요.")); return;
+    }
+  }
+  function bindShare() {
+    $("#shareBg").addEventListener("click", closeShare);
+    $("#share").addEventListener("click", (e) => { const b = e.target.closest("[data-share]"); if (b) doShare(b.dataset.share); });
+    $("#share").addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); closeShare(); } });
+  }
+
   // ===== 즐겨찾기 · 홈 화면에 추가 (앱처럼 설치) =====
   // 브라우저 정책상 사이트가 즐겨찾기를 직접 추가할 수는 없어서, 기기마다 가장 쉬운 방법을 안내하고
   // 크롬·엣지·삼성 인터넷에서는 "앱 설치" 창을 바로 띄움.
@@ -1226,6 +1319,7 @@
     });
     bindSearch();
     bindInstall();
+    bindShare();
     bindLang();
     $("#chMore").addEventListener("click", () => setChOpen(!$("#chrow").classList.contains("open")));
     let rt;
@@ -1250,15 +1344,7 @@
       setFavBtn(toggleFav(v.id));
       if (state.cat === "전체" || state.cat === FAV_KEY) apply();   // 메인의 찜 목록도 바로 갱신
     };
-    $("#pShare").onclick = async () => {
-      const v = state.queue[state.current];
-      const url = location.origin + location.pathname + "?v=" + v.id;
-      const b = $("#pShare");
-      try {
-        if (navigator.share) await navigator.share({ title: v.title, url });
-        else { await navigator.clipboard.writeText(url); b.textContent = T("링크 복사됨"); setTimeout(() => (b.textContent = T("공유")), 1600); }
-      } catch {}
-    };
+    $("#pShare").onclick = () => { const v = state.queue[state.current]; if (v) openShare(v); };
     try { $("#pAuto").checked = localStorage.getItem("autoNext") !== "0"; } catch {}
     $("#pAuto").onchange = (e) => { try { localStorage.setItem("autoNext", e.target.checked ? "1" : "0"); } catch {} };
 

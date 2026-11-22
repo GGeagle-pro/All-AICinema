@@ -688,7 +688,19 @@
     });
   }
 
+  function renderKakao() { const i = $("#kakaoKey"); if (i) i.value = state.site?.kakaoKey || ""; }
+  function saveKakao(e) {
+    e.preventDefault();
+    const v = $("#kakaoKey").value.trim().toLowerCase();
+    if (v && !/^[0-9a-f]{32}$/.test(v)) return toast("카카오 JavaScript 키는 영어·숫자 32자리예요. 다시 확인해 주세요.", true);
+    run(async () => {
+      await saveSite(v ? "카카오톡 공유 키 저장" : "카카오톡 공유 키 지우기", (s) => { if ((s.kakaoKey || "") === v) return false; if (v) s.kakaoKey = v; else delete s.kakaoKey; return true; });
+      toast(v ? "저장했어요. 이제 카카오톡 공유가 바로 열려요." : "지웠어요.");
+      afterSiteSave("카카오톡 공유 설정 반영 중");
+    });
+  }
   function renderAds() {
+    renderKakao();
     const a = state.site?.adsense || { client: "", slots: {} };
     $("#adClient").value = a.client || "";
     const box = $("#adSlots");
@@ -1442,6 +1454,7 @@
   });
   $("#menuSave").addEventListener("click", saveMenu);
   $("#toolSave").addEventListener("click", saveTools);
+  $("#kakaoForm").addEventListener("submit", saveKakao);
   $("#adsForm").addEventListener("submit", saveAds);
   $("#openModeForm").addEventListener("submit", saveOpenMode);
   $("#worksQ").addEventListener("input", () => renderWorks());

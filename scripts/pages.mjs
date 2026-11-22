@@ -116,7 +116,7 @@ export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver,
   <meta property="og:url" content="${url}" />
   <meta property="og:title" content="${esc(title)}" />
   <meta property="og:description" content="${esc(desc)}" />
-  <meta property="og:image" content="${image}" />
+  <meta property="og:image" content="${image}" />${/maxresdefault/.test(image) ? `\n  <meta property="og:image:width" content="1280" />\n  <meta property="og:image:height" content="720" />` : ""}
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${esc(title)}" />
   <meta name="twitter:description" content="${esc(desc)}" />
@@ -200,7 +200,7 @@ function watchPage(v, ctx) {
     </article>
     ${w ? `<section class="pg-sec"><h2>${esc(w.name)} · ${esc(t("전체 회차"))}</h2><div class="grid pg-grid">${win.map((x) => miniCard(x, I, { now: x === v })).join("")}</div>${win.length < w.list.length ? `<p class="pg-all"><a class="btn" href="/work/${encodeURIComponent(w.slug)}/">${esc(t("전체 회차"))} · ${esc(t("총 {n}편", { n: w.list.length }))} →</a></p>` : ""}</section>` : ""}
     ${more.length ? `<section class="pg-sec"><h2>${esc(t("같은 채널의 다른 영상"))}</h2><div class="grid pg-grid">${more.map((x) => miniCard(x, I)).join("")}</div></section>` : ""}`;
-  return shell({ lang, title: `${cut(v.title, 70)} | ${v.channel} – All AI-Cinema`, desc, url, image: thumb(v.id, "hqdefault"), ogType: "video.other", ld, body, I, ver });
+  return shell({ lang, title: `${cut(v.title, 70)} | ${v.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(v.id) ? thumb(v.id, "maxresdefault") : thumb(v.id, "hqdefault"), ogType: "video.other", ld, body, I, ver });
 }
 
 function workPage(w, ctx) {
@@ -235,7 +235,33 @@ function workPage(w, ctx) {
     </section>
     <section class="pg-sec"><h2>${esc(t("작품 소개"))}</h2><p class="pg-desc">${esc(intro)}</p>${ex ? `<p class="pg-desc">${esc(ex)}</p><p class="muted small">— ${esc(w.channel)}, YouTube</p>` : ""}</section>
     <section class="pg-sec"><h2>${esc(t("전체 회차"))}</h2><div class="grid pg-grid">${w.list.map((x) => miniCard(x, I)).join("")}</div></section>`;
-  return shell({ lang, title: `${w.name} – ${t("전체 회차")} | ${w.channel} – All AI-Cinema`, desc, url, image: thumb(cover.id, "hqdefault"), ogType: "website", ld, body, I, ver });
+  return shell({ lang, title: `${w.name} – ${t("전체 회차")} | ${w.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(cover.id) ? thumb(cover.id, "maxresdefault") : thumb(cover.id, "hqdefault"), ogType: "website", ld, body, I, ver });
+}
+
+// 공유 미리보기(카카오톡 등)용 큰 썸네일: 유튜브 maxresdefault(1280×720)가 있는 영상만 (없으면 hqdefault)
+// 한 번 확인한 결과는 cache/thumbs.json 에 저장 → 새 영상만 확인. 확인 실패(네트워크)는 저장하지 않음
+async function bigThumbs(PUB, ids) {
+  const file = resolve(PUB, "../cache/thumbs.json");
+  let known = {};
+  try { known = JSON.parse(await readFile(file, "utf8")); } catch {}
+  const todo = ids.filter((id) => !(id in known)).slice(0, 400);
+  let i = 0, changed = false;
+  async function worker() {
+    while (i < todo.length) {
+      const id = todo[i++];
+      try {
+        const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 6000);
+        const res = await fetch(`https://i.ytimg.com/vi/${id}/maxresdefault.jpg`, { method: "HEAD", signal: ctl.signal });
+        clearTimeout(tm);
+        if (res.status === 200 || res.status === 404) { known[id] = res.status === 200 ? 1 : 0; changed = true; }
+      } catch {}
+    }
+  }
+  if (todo.length && typeof fetch === "function") await Promise.all(Array.from({ length: 8 }, worker));
+  const keep = new Set(ids);
+  for (const k of Object.keys(known)) if (!keep.has(k)) { delete known[k]; changed = true; }
+  if (changed) { await mkdir(resolve(file, ".."), { recursive: true }); await writeFile(file, JSON.stringify(known) + "\n"); }
+  return new Set(Object.keys(known).filter((k) => known[k] === 1));
 }
 
 // 모든 페이지 쓰기 + 없어진 페이지 지우기. 사이트맵용 주소 목록을 돌려줌
@@ -243,7 +269,8 @@ export async function buildPages({ PUB, SITE, loadI18n, ver, only }) {
   const { videos, works } = await loadAll(PUB);
   const cache = {};
   for (const l of ["ko", "en", "ja", "zh", "es"]) cache[l] = await loadI18n(l);
-  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver };
+  const big = await bigThumbs(PUB, videos.map((v) => v.id));
+  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big };
   let changed = 0;
   const pick = only ? new Set(only) : null;
   for (const v of videos) {
