@@ -458,9 +458,10 @@
       for (const [ch, list] of byCh) groups.push({ key: "ch:" + ch, title: ch, channel: ch, list, go: { ch } }); // 최근에 올린 채널 순
       if (groups.length < 2) return off();
     }
+    let shelfStripN = 0;
     box.innerHTML = groups.map((g, gi) => {
       state.shelves.set(String(gi), g);
-      const strip = gi + 1 < groups.length && gi + 1 >= STRIP_SHELF_FIRST && (gi + 1 - STRIP_SHELF_FIRST) % STRIP_SHELF_EVERY === 0 ? stripHtml() : "";
+      const strip = gi + 1 < groups.length && gi + 1 >= STRIP_SHELF_FIRST && (gi + 1 - STRIP_SHELF_FIRST) % STRIP_SHELF_EVERY === 0 ? stripHtml("div", shelfStripN++) : "";
       // 채널 줄 제목 옆에 그 채널의 작품 바로가기 (작품이 2개 이상일 때)
       const chWorks = g.channel ? worksOf(g.list).sort((a, b) => b.latest - a.latest) : [];
       const chips = chWorks.length >= 2 ? `<div class="shelf__works">${chWorks.slice(0, 4).map((w) =>
@@ -478,6 +479,7 @@
           ${more}</div>${chips}
         <div class="shelf__row">${body}</div></section>${strip}`;
     }).join("");
+    shelfStripPos = shelfStripN;
     box.hidden = false;
     return true;
   }
@@ -516,15 +518,20 @@
   // ===== 목록 사이 띠 배너 =====
   // 규칙: 메인 줄 사이 → 2번째 줄 다음, 그 뒤 5줄마다 / 영상 목록 → 애드센스 광고(36개마다)의 정확히 중간(18, 54, 90…)
   //       → 광고끼리 붙지 않고, 한 화면에 광고가 둘 이상 겹치지 않게
-  let stripTurn = Math.floor(Math.random() * 5);   // 여러 개면 돌아가며 (첫 배너는 방문마다 다르게)
   const isOwnLink = (u) => { try { return new URL(u).origin === location.origin; } catch { return false; } };
   // 방문자가 국내인지 (IP 국가 → 없으면 한국 시간대·한국어로 짐작)
   function isKrVisitor() { const cc = I18N.country ? I18N.country() : ""; return cc ? cc === "KR" : I18N.lang === "ko"; }
-  function stripHtml(tag = "div") {
+  // 목록 위쪽 줄(선반)에 들어간 띠 배너 수 → 아래 영상 목록의 띠 배너는 그다음 자리부터 이어서 번호를 매김
+  let shelfStripPos = 0;   // 선반에 배정된 띠 배너 자리 수 (빈 칸이라 안 보인 자리도 셈)
+  function stripBase() { const sh = $("#shelves"); return sh && !sh.hidden ? shelfStripPos : 0; }
+  // 띠 배너 자리 pos(0부터) → 칸 번호 고정: 1번째 자리=1번, 2번째=2번 … 6번째=6번, 7번째부터 다시 1번
+  //  - '1번을 모든 자리에' 체크: 모든 자리 = 1번
+  //  - 그 칸이 비어 있거나 노출 대상(국내/해외)이 아니면 그 자리는 비워 둠 (다른 칸 배너로 채우지 않음)
+  function stripHtml(tag = "div", pos = 0) {
     const kr = isKrVisitor();
-    const list = (state.site.strips || []).filter((b) => (!state.site.stripsSame || b.slot === 0) && (b.target === "all" || (b.target === "kr") === kr));
-    if (!list.length) return "";
-    const b = list[stripTurn++ % list.length];
+    const slot = state.site.stripsSame ? 0 : pos % 6;
+    const b = (state.site.strips || []).find((x) => x.slot === slot);
+    if (!b || !(b.target === "all" || (b.target === "kr") === kr)) return "";
     const own = isOwnLink(b.link);
     return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored nofollow noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
       <img src="/${esc(b.image)}" alt="${esc(b.alt)}" width="1920" height="240" loading="lazy" decoding="async" />
@@ -642,7 +649,7 @@
       frag.appendChild(tmp.firstElementChild);
       // 띠 배너: 광고 간격의 중간 지점 (기본 18·54·90번째 뒤)
       if ((i + 1) % feedEvery() === Math.floor(feedEvery() / 2) && i + 1 < state.list.length) {
-        const h = stripHtml(); if (h) { tmp.innerHTML = h; frag.appendChild(tmp.firstElementChild); }
+        const h = stripHtml("div", stripBase() + Math.floor(i / feedEvery())); if (h) { tmp.innerHTML = h; frag.appendChild(tmp.firstElementChild); }
       }
       if ((i + 1) % feedEvery() === 0 && i + 1 < state.list.length) {
         const ins = adIns("feed");
