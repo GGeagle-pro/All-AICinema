@@ -106,5 +106,6 @@
     "higgsfield": {
       "link": "https://higgsfield.ai/?fpr=t8y0ai"
     }
-  }
+  },
+  "stripsSame": true
 }
