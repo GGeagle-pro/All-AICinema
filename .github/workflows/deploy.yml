@@ -4,7 +4,8 @@ name: Cloudways 배포
 # 영상 자동 업데이트(update.yml)가 끝난 뒤에도 이 워크플로가 호출됩니다.
 #
 # 필요한 GitHub Secrets (Settings → Secrets and variables → Actions):
-#   CLOUDWAYS_API_TOKEN : Cloudways → API Integration → Create Access Token 으로 만든 토큰
+#   CLOUDWAYS_EMAIL     : Cloudways 로그인 이메일
+#   CLOUDWAYS_API_KEY   : Cloudways → 계정 → API Integration 의 API 키 (배포할 때마다 1시간짜리 토큰을 새로 발급)
 #   CLOUDWAYS_SERVER_ID : 서버 화면 주소창의 숫자 (…/server/123456/…)
 #   CLOUDWAYS_APP_ID    : 앱 화면 주소창의 숫자 (…/apps/7654321/…)
 #
@@ -16,6 +17,10 @@ on:
   workflow_dispatch:
   workflow_call:
     secrets:
+      CLOUDWAYS_EMAIL:
+        required: false
+      CLOUDWAYS_API_KEY:
+        required: false
       CLOUDWAYS_API_TOKEN:
         required: false
       CLOUDWAYS_SERVER_ID:

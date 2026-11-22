@@ -68,7 +68,4 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/deploy.yml
-    secrets:
-      CLOUDWAYS_API_TOKEN: ${{ secrets.CLOUDWAYS_API_TOKEN }}
-      CLOUDWAYS_SERVER_ID: ${{ secrets.CLOUDWAYS_SERVER_ID }}
-      CLOUDWAYS_APP_ID: ${{ secrets.CLOUDWAYS_APP_ID }}
+    secrets: inherit   # Cloudways 이메일·API 키·서버·앱 ID 를 그대로 넘김
