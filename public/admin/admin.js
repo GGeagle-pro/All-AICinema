@@ -248,6 +248,17 @@
     const m = (state.site?.menu || []).map((x) => clean(x, 30)).filter(Boolean);
     return m.length ? m : ["AI 드라마", "AI 영화", "AI 단편"];
   };
+  // 국가 / 장르 구분 (site.json: countries = 국가, genres = 국가 이름이지만 장르로 쓰는 것)
+  const COUNTRY_WORDS = new Set(["한국", "미국", "일본", "중국", "대만", "홍콩", "태국", "베트남", "인도네시아", "필리핀", "인도", "영국", "프랑스", "독일", "스페인", "이탈리아", "러시아", "캐나다", "호주", "브라질", "멕시코", "튀르키예", "터키", "아랍", "해외", "글로벌"]);
+  const isCountry = (m) => (state.site?.countries || []).includes(m) || (COUNTRY_WORDS.has(m) && !(state.site?.genres || []).includes(m));
+  // 칩 목록을 '국가' / '장르' 두 줄로 나눠 그림
+  function groupedChips(items, make) {
+    const c = items.filter(isCountry), g = items.filter((m) => !isCountry(m));
+    return [
+      c.length ? el("div", { class: "adm-chipgroup" }, el("span", { class: "adm-chipgroup__t", text: "국가" }), ...c.map(make)) : null,
+      el("div", { class: "adm-chipgroup" }, el("span", { class: "adm-chipgroup__t", text: "장르" }), ...g.map(make)),
+    ].filter(Boolean);
+  }
   const sameChannel = (a, r) =>
     (a.url && r.url && a.url.toLowerCase().replace(/\/+$/, "") === r.url.toLowerCase()) || (r.id && a.id === r.id);
 
@@ -353,21 +364,21 @@
   function renderAddCats() {
     const box = $("#addCats");
     box.textContent = "";
-    for (const m of menuItems()) {
-      box.append(el("button", {
-        type: "button", class: "adm-chip", "aria-pressed": String(state.addCats.has(m)), text: m,
-        onclick: () => { state.addCats.has(m) ? state.addCats.delete(m) : state.addCats.add(m); renderAddCats(); updateAddForm(); },
-      }));
-    }
-    box.append(el("button", {
+    const groups = groupedChips(menuItems(), (m) => el("button", {
+      type: "button", class: "adm-chip", "aria-pressed": String(state.addCats.has(m)), text: m,
+      onclick: () => { state.addCats.has(m) ? state.addCats.delete(m) : state.addCats.add(m); renderAddCats(); updateAddForm(); },
+    }));
+    groups[groups.length - 1].append(el("button", {
       type: "button", class: "adm-chip adm-chip--add", text: "+ 새 카테고리",
       "aria-expanded": String(!$("#newCatBox").hidden), "aria-controls": "newCatBox",
       onclick: () => openNewCat(true),
     }));
+    box.append(...groups);
   }
   function openNewCat(open) {
     $("#newCatBox").hidden = !open;
     $("#newCatName").value = "";
+    const g = document.querySelector('input[name="newCatType"][value="genre"]'); if (g) g.checked = true;
     renderAddCats();
     if (open) $("#newCatName").focus();
   }
@@ -379,18 +390,20 @@
     const current = menuItems();
     if (current.includes(v)) { state.addCats.add(v); openNewCat(false); updateAddForm(); return toast(`'${v}'은(는) 이미 있는 카테고리예요. 선택해 두었어요.`); }
     if (current.length >= 30) return toast("카테고리는 30개까지 만들 수 있어요.", true);
+    const country = document.querySelector('input[name="newCatType"]:checked')?.value === "country";
     run(async () => {
-      await saveSite(`카테고리 추가: ${v}`, (s) => {
+      await saveSite(`${country ? "국가" : "장르"} 카테고리 추가: ${v}`, (s) => {
         if (!s.menu.length) s.menu = [...current];   // 메뉴가 비어 있으면 지금 보이는 기본 카테고리부터 저장
         if (s.menu.includes(v)) return false;
         s.menu.push(v);
+        setKind(s, v, country);
         return true;
       });
       state.menuDraft = null;
       state.addCats.add(v);
       openNewCat(false);
       updateAddForm(); renderChannels(); renderMenu();
-      toast(`'${v}' 카테고리를 만들었어요. 사이트 위쪽 메뉴에도 추가돼요.`);
+      toast(country ? `'${v}' 국가를 만들었어요. 사이트 맨 위 국가 줄에 추가돼요.` : `'${v}' 장르를 만들었어요. 사이트 장르 메뉴에 추가돼요.`);
       afterSiteSave(`'${v}' 카테고리 추가 반영 중`);
     });
   }
@@ -436,7 +449,7 @@
       const dirty = () => { save.disabled = state.busy || ([...draft].sort().join("|") === orig && nameIn.value.trim() === name0) || !draft.size; };
       nameIn.addEventListener("input", dirty);
       const chips = el("div", { class: "adm-chips small-chips", role: "group", "aria-label": "메뉴" },
-        [...new Set([...menu, ...draft])].map((m) => {
+        groupedChips([...new Set([...menu, ...draft])], (m) => {
           const b = el("button", { type: "button", class: "adm-chip" + (menu.includes(m) ? "" : " stale"), "aria-pressed": String(draft.has(m)), text: m });
           b.addEventListener("click", () => { draft.has(m) ? draft.delete(m) : draft.add(m); b.setAttribute("aria-pressed", String(draft.has(m))); dirty(); });
           return b;
@@ -558,6 +571,7 @@
   // 메뉴 편집
   function renderMenu() {
     if (!state.menuDraft) state.menuDraft = [...(state.site?.menu || [])];
+    if (!state.kindDraft) state.kindDraft = new Map();
     const d = state.menuDraft;
     const list = $("#menuList");
     list.textContent = "";
@@ -566,7 +580,12 @@
     if (!d.length) list.append(el("li", { class: "adm-empty", text: "메뉴가 없어요. 아래에서 추가해 주세요." }));
     d.forEach((m, i) => {
       const mv = (to) => { [d[i], d[to]] = [d[to], d[i]]; renderMenu(); };
+      const kd = state.kindDraft;
+      const cnt = kd.has(m) ? kd.get(m) : isCountry(m);
+      const kindBtn = el("button", { class: `btn adm-kind${cnt ? " is-country" : ""}`, type: "button", "aria-label": `${m} 종류 바꾸기 (지금: ${cnt ? "국가" : "장르"})`, title: "누르면 국가 ↔ 장르", text: cnt ? "국가" : "장르",
+        onclick: () => { kd.set(m, !cnt); renderMenu(); } });
       list.append(el("li", { class: "adm-menuitem" },
+        kindBtn,
         el("span", { class: "adm-menuname", text: m }),
         el("span", { class: "muted small", text: used.get(m) ? `채널 ${used.get(m)}개` : "채널 없음" }),
         el("span", { class: "adm-menubtns" },
@@ -576,7 +595,8 @@
         ),
       ));
     });
-    $("#menuSave").disabled = state.busy || JSON.stringify(d) === JSON.stringify(state.site?.menu || []);
+    const kindChanged = [...state.kindDraft].some(([m, c]) => c !== isCountry(m));
+    $("#menuSave").disabled = state.busy || (JSON.stringify(d) === JSON.stringify(state.site?.menu || []) && !kindChanged);
   }
 
   // 배너 3칸 편집
@@ -904,11 +924,21 @@
     });
   }
 
+  // site.json 에 국가/장르 기록
+  function setKind(s, m, country) {
+    s.countries = (Array.isArray(s.countries) ? s.countries : ["한국", "미국", "일본", "중국"]).filter((x) => x !== m);
+    s.genres = (Array.isArray(s.genres) ? s.genres : []).filter((x) => x !== m);
+    if (country) s.countries.push(m);
+    else if (COUNTRY_WORDS.has(m)) s.genres.push(m);   // 국가 이름이지만 장르로 쓰겠다고 고른 경우
+    s.countries = s.countries.slice(0, 12);
+    if (!s.genres.length) delete s.genres;
+  }
   function saveMenu() {
     const d = state.menuDraft.map((m) => clean(m, 30)).filter(Boolean);
     run(async () => {
-      await saveSite("메뉴 변경", (s) => { s.menu = d; return true; });
-      state.menuDraft = [...state.site.menu];
+      const kinds = [...state.kindDraft];
+      await saveSite("메뉴 변경", (s) => { s.menu = d; for (const [m, c] of kinds) setKind(s, m, c); return true; });
+      state.menuDraft = [...state.site.menu]; state.kindDraft = new Map();
       renderMenu(); renderAddCats(); renderChannels();
       toast("카테고리를 저장했어요.");
       afterSiteSave("메뉴 변경 반영 중");
@@ -1326,6 +1356,10 @@
   });
   $("#addUrl").addEventListener("input", updateAddForm);
   $("#newCatSave").addEventListener("click", createCategory);
+  $("#newCatName").addEventListener("input", () => {   // 나라 이름을 쓰면 '국가'를 미리 골라 줌
+    const v = clean($("#newCatName").value, 30);
+    const r = document.querySelector(`input[name="newCatType"][value="${COUNTRY_WORDS.has(v) ? "country" : "genre"}"]`); if (r) r.checked = true;
+  });
   $("#newCatCancel").addEventListener("click", () => openNewCat(false));
   $("#newCatName").addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); createCategory(); }

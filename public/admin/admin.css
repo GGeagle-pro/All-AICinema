@@ -267,3 +267,21 @@
   .st-kpis--ads{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (min-width:761px) and (max-width:1000px){ .st-kpis--ads{grid-template-columns:repeat(3,minmax(0,1fr))} }
+
+/* 카테고리: 국가 / 장르 구분 */
+.adm-chipgroup{display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%}
+.adm-chipgroup + .adm-chipgroup{margin-top:8px}
+.adm-chipgroup__t{flex:none;min-width:34px;font-size:12px;font-weight:800;color:var(--muted)}
+.adm-newcat__kind{display:flex;flex-wrap:wrap;gap:8px 16px;width:100%;order:2}
+.adm-radio-sm{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;cursor:pointer;min-height:36px}
+.adm-radio-sm input{width:18px;height:18px;accent-color:var(--accent)}
+.adm-kind{flex:none;min-height:32px;padding:0 10px;font-size:12px;font-weight:800;border-radius:999px}
+.adm-kind.is-country{background:rgba(139,92,246,.2);border-color:var(--accent2);color:#e7dcff}
+.adm-newcat{flex-wrap:wrap}.adm-newcat #newCatName{flex:1 1 220px;min-width:0}
+.adm-menuitem{grid-template-columns:auto minmax(0,1fr) auto auto}
+.adm-newcat__kind{order:1}
+.adm-newcat #newCatSave,.adm-newcat #newCatCancel{order:2}
+@media (max-width:640px){ .adm-menuitem{grid-template-columns:auto minmax(0,1fr) auto} .adm-menuitem > .muted{display:none} }
+.adm-newcat__kind .adm-radio-sm{white-space:nowrap}
+.adm-newcat__kind .adm-radio-sm input{flex:none;width:18px;height:18px;min-height:0;padding:0;margin:0}
+@media (max-width:640px){ .adm-newcat__kind .muted{display:none} }

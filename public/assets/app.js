@@ -201,6 +201,7 @@
         menu: (Array.isArray(s.menu) ? s.menu : []).map((m) => str(m, 30)).filter(Boolean).slice(0, 30),
         // 나라 줄 (맨 위). 관리자의 카테고리 중 이 이름들은 장르 줄이 아니라 나라 줄에 나옴
         countries: (Array.isArray(s.countries) ? s.countries : ["한국", "미국", "일본", "중국"]).map((m) => str(m, 20)).filter(Boolean).slice(0, 12),
+        genres: (Array.isArray(s.genres) ? s.genres : []).map((m) => str(m, 30)).filter(Boolean).slice(0, 30),   // 국가 이름이지만 장르로 쓰는 것
         adsense: {
           client: str(s.adsense?.client, 30),
           slots: Object.fromEntries(Object.entries(s.adsense?.slots || {}).map(([k, v]) => [str(k, 20), str(String(v ?? ""), 12)])),
@@ -314,7 +315,7 @@
   const COUNTRY_WORDS = new Set(["한국", "미국", "일본", "중국", "대만", "홍콩", "태국", "베트남", "인도네시아", "필리핀", "인도", "영국", "프랑스", "독일", "스페인", "이탈리아", "러시아", "캐나다", "호주", "브라질", "멕시코", "튀르키예", "터키", "아랍", "해외", "글로벌"]);
   function countryList() {
     const inData = new Set(state.all.flatMap((v) => v.categories));
-    const extra = [...inData].filter((c) => COUNTRY_WORDS.has(c) && !state.site.countries.includes(c));
+    const extra = [...inData].filter((c) => COUNTRY_WORDS.has(c) && !state.site.countries.includes(c) && !state.site.genres.includes(c));
     return [...state.site.countries, ...extra];
   }
   function catList() {
