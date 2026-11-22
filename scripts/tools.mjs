@@ -1,6 +1,6 @@
 // "AI로 영화 만들기 도구" 추천 페이지 (5개 언어): /tools/, /en/tools/, /ja/tools/, /zh/tools/, /es/tools/
 //  - 내용: public/data/tools.json (도구 이름·분류·설명·공식 주소)
-//  - 제휴 링크·숨기기: public/data/site.json 의 tools { id: { link, on } } (관리자 > 카테고리·배너 탭)
+//  - 제휴 링크·숨기기: public/data/site.json 의 tools { id: { link, on } } (관리자 > 카테고리·도구 탭)
 //  - 제휴 링크는 rel="sponsored nofollow" + 페이지 위에 고지 문구 (공정위 추천·보증 지침)
 //  - seo.mjs 가 매 수집 때 호출
 

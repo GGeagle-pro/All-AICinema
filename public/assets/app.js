@@ -224,7 +224,7 @@
         },
         // 배너 칸마다 '기본(상시) 광고' + 예약 광고(sched: 시작~끝 시각). 지금 진행 중인 예약이 있으면 그걸, 없으면 기본을 보여 줌
         banners: (Array.isArray(s.banners) ? s.banners.slice(0, 3) : []).map(nowCreative),
-        // 목록 사이 띠 배너 (관리자 > 카테고리·배너): 6:1 이미지 + 랜딩 URL + 문구
+        // 목록 사이 띠 배너 (관리자 > 광고 설정): 6:1 이미지 + 랜딩 URL + 문구
         // target: all(모두) / kr(국내 방문자만) / intl(해외 방문자만), note: 제휴 고지 문구 (예: 쿠팡파트너스)
         strips: (Array.isArray(s.strips) ? s.strips : []).slice(0, 6).map(nowCreative)
           .map((b, slot) => ({ slot, image: SAFE_IMG.test(b?.image || "") ? b.image : "", alt: str(b?.alt, 80), link: safeLink(b?.link || ""),

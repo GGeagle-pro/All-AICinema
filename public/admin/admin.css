@@ -24,7 +24,8 @@
 .adm-status{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin:0 0 14px}
 .adm-status b{color:var(--text)}
 .adm-tabs{padding:0;margin:0 0 16px}
-.adm-pane{display:grid;gap:12px}
+.adm-pane{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.adm-pane>*{min-width:0}
 .adm-toolbar{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr) auto auto;gap:10px;align-items:center}
 .adm-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .adm-item{display:grid;grid-template-columns:auto 120px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 12px 8px 10px}
@@ -341,7 +342,7 @@
 .adm-chsearch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}
 .adm-chsearch input{flex:1 1 280px;min-width:0;min-height:44px}
 
-.adm-same{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer}
+.adm .adm-same{white-space:normal;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);cursor:pointer}
 .adm-same input{flex:none;width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}
 #stripList.is-same > .adm-banner:not(:first-child){opacity:.55}
 #stripList.is-same > .adm-banner:first-child{outline:2px solid var(--accent);outline-offset:-1px}
