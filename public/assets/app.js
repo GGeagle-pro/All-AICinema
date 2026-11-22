@@ -801,8 +801,17 @@
   }
   function bindInstall() {
     try { localStorage.setItem("aic:visits", String((+localStorage.getItem("aic:visits") || 0) + 1)); } catch {}
-    if (env.standalone) $("#saveBtn").hidden = true;   // 이미 앱으로 연 경우
-    $("#saveBtn").addEventListener("click", () => ($("#install").hidden ? openInstall() : closeInstall()));
+    // 이미 앱(홈 화면)으로 연 경우: 설치 안내 대신 '찜한 영상' 목록을 열어 줌 (버튼은 숨기지 않음)
+    $("#saveBtn").addEventListener("click", () => {
+      if (env.standalone) {
+        state.backTo = { cat: state.cat, ch: state.ch, country: state.country, y: scrollY, label: T("♥ 찜한 영상") };
+        state.cat = FAV_KEY; state.ch = "";
+        history.pushState({ list: 1, back: state.backTo }, "", location.href);
+        renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      $("#install").hidden ? openInstall() : closeInstall();
+    });
     $("#installBg").addEventListener("click", closeInstall);
     $("#install").addEventListener("click", (e) => {
       const a = e.target.closest("[data-act]")?.dataset.act;
