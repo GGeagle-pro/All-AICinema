@@ -13,7 +13,8 @@
     "중국",
     "드라마",
     "로맨스",
-    "공포"
+    "공포",
+    "FUN"
   ],
   "adsense": {
     "client": "ca-pub-8096684162493748",
@@ -51,5 +52,23 @@
     "일본",
     "중국"
   ],
-  "works": true
+  "works": true,
+  "pages": true,
+  "strips": [
+    {
+      "image": "",
+      "link": "",
+      "alt": ""
+    },
+    {
+      "image": "",
+      "link": "",
+      "alt": ""
+    },
+    {
+      "image": "",
+      "link": "",
+      "alt": ""
+    }
+  ]
 }
