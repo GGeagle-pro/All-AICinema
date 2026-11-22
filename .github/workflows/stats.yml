@@ -1,0 +1,39 @@
+name: 방문 통계 모으기
+
+# 구글 애널리틱스 4 숫자를 가져와 암호화해서 stats/stats.enc.json 에 저장 → 관리자 > 통계 탭
+# 필요한 Secrets: GA_PROPERTY_ID, GA_SA_KEY, STATS_PASSWORD (없으면 아무것도 안 하고 끝남)
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # 6시간마다
+  workflow_dispatch:          # 관리자 통계 탭의 '지금 새로 가져오기' 또는 Actions 탭에서 수동 실행
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stats
+  cancel-in-progress: false
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GA_PROPERTY_ID: ${{ secrets.GA_PROPERTY_ID }}
+      GA_SA_KEY: ${{ secrets.GA_SA_KEY }}
+      STATS_PASSWORD: ${{ secrets.STATS_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 통계 가져오기
+        run: node scripts/stats.mjs
+      - name: 저장
+        run: >
+          bash scripts/commit-and-push.sh
+          "방문 통계 업데이트 $(date -u +'%Y-%m-%d %H:%M')"
+          "node scripts/stats.mjs"
+          stats/stats.enc.json

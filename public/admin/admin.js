@@ -1042,6 +1042,8 @@
   }
   function logout() {
     store.clear();
+    try { sessionStorage.removeItem("aic:admin:statspw"); localStorage.removeItem("aic:admin:statspw"); } catch {}
+    if (typeof ST !== "undefined") ST.data = null;
     state.auth = null;
     $("#token").value = "";
     showLogin();
@@ -1069,13 +1071,135 @@
     }
   });
 
+  // ───────── 통계 (구글 애널리틱스 → stats/stats.enc.json, 통계 암호로 풀어서 보여 줌) ─────────
+  const ST = { data: null, range: "d7", loading: false };
+  const PW_KEY = "aic:admin:statspw";
+  const escH = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const nf = new Intl.NumberFormat("ko-KR");
+  const num = (n) => nf.format(Math.round(n || 0));
+  const fromB64 = (b) => Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
+  async function decryptStats(file, pw) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: fromB64(file.salt), iterations: file.iter || 250000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    const out = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(file.iv) }, key, fromB64(file.data));
+    return JSON.parse(new TextDecoder().decode(out));
+  }
+  const savedPw = () => { try { return sessionStorage.getItem(PW_KEY) || localStorage.getItem(PW_KEY) || ""; } catch { return ""; } };
+  function setupGuide(msg) {
+    const box = $("#stSetup");
+    box.hidden = false;
+    box.innerHTML = `<p><b>${escH(msg)}</b></p>
+      <ol class="st-steps">
+        <li>구글 애널리틱스(GA4) 측정 ID <code>G-5PXH52MY88</code> 는 사이트에 이미 넣었어요. 이제부터 방문 기록이 쌓여요.</li>
+        <li>GitHub 저장소 → Settings → Secrets and variables → Actions 에 <code>GA_PROPERTY_ID</code>, <code>GA_SA_KEY</code>, <code>STATS_PASSWORD</code> 3개를 넣어 주세요.</li>
+        <li>Actions 탭 → <b>방문 통계 모으기</b> → Run workflow 를 누르거나, 위의 <b>지금 새로 가져오기</b>를 누르세요. 1~2분 뒤 이 화면에 숫자가 나와요.</li>
+      </ol>`;
+  }
+  async function openStats(force = false) {
+    if (ST.loading || (ST.data && !force)) return ST.data && renderStats();
+    ST.loading = true;
+    $("#stSetup").hidden = true; $("#stErr").hidden = true;
+    try {
+      let file;
+      try { file = (await readJson("stats/stats.enc.json")).data; }
+      catch (e) { if (e.status === 404) { $("#stLogin").hidden = true; $("#stBody").hidden = true; setupGuide("아직 통계 파일이 없어요."); return; } throw e; }
+      const pw = savedPw();
+      if (!pw) { $("#stLogin").hidden = false; $("#stBody").hidden = true; ST.file = file; return; }
+      try { ST.data = await decryptStats(file, pw); }
+      catch { try { sessionStorage.removeItem(PW_KEY); localStorage.removeItem(PW_KEY); } catch {} ST.file = file; $("#stLogin").hidden = false; $("#stErr").textContent = "암호가 맞지 않아요."; $("#stErr").hidden = false; return; }
+      $("#stLogin").hidden = true;
+      renderStats();
+    } catch (e) { toast(explain(e), true); }
+    finally { ST.loading = false; }
+  }
+  async function loginStats(e) {
+    e.preventDefault();
+    const pw = $("#stPw").value;
+    if (!pw || !ST.file) return;
+    try {
+      ST.data = await decryptStats(ST.file, pw);
+      try { ($("#stRemember").checked ? localStorage : sessionStorage).setItem(PW_KEY, pw); } catch {}
+      $("#stPw").value = ""; $("#stLogin").hidden = true; $("#stErr").hidden = true;
+      renderStats();
+    } catch { $("#stErr").textContent = "암호가 맞지 않아요."; $("#stErr").hidden = false; }
+  }
+  async function refreshStats() {
+    const b = $("#stRefresh"); b.disabled = true;
+    try {
+      await gh(`${repoPath()}/actions/workflows/stats.yml/dispatches`, { method: "POST", body: JSON.stringify({ ref: BRANCH }) });
+      toast("통계를 새로 가져오는 중이에요. 1~2분 뒤 다시 열어 주세요.");
+      setTimeout(() => { ST.data = null; openStats(true); }, 120000);
+    } catch (e) {
+      toast(e.status === 403 || e.status === 404 ? "이 토큰은 Actions 실행 권한이 없어요. GitHub Actions 탭에서 '방문 통계 모으기'를 직접 실행해 주세요." : explain(e), true);
+    } finally { setTimeout(() => (b.disabled = false), 5000); }
+  }
+  const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map((c) => 0x1f1a5 + c.charCodeAt(0))) : "🌐";
+  const COUNTRY_KO = (code, name) => { try { return new Intl.DisplayNames(["ko"], { type: "region" }).of(code) || name; } catch { return name; } };
+  const DEVICE_KO = { mobile: "모바일", desktop: "PC", tablet: "태블릿", "smart tv": "TV" };
+  const GROUP_KO = { "Organic Search": "검색", Direct: "직접 방문", Referral: "다른 사이트", "Organic Social": "SNS", "Organic Video": "동영상(유튜브 등)", "Paid Search": "검색 광고", "Paid Social": "SNS 광고", Display: "디스플레이 광고", Email: "이메일", Unassigned: "기타", "Cross-network": "광고(여러 곳)" };
+  function bars(list, label, value, { max = 10, fmt = num } = {}) {
+    const top = list.slice(0, max), m = Math.max(1, ...top.map(value)), sum = list.reduce((t, x) => t + value(x), 0) || 1;
+    if (!top.length) return `<p class="muted small">아직 기록이 없어요.</p>`;
+    return `<ol class="st-bars">${top.map((x) => `<li><span class="st-bars__l">${label(x)}</span><span class="st-bars__v">${fmt(value(x))} <small>${Math.round((value(x) / sum) * 100)}%</small></span><span class="st-bars__b"><i style="width:${(value(x) / m) * 100}%"></i></span></li>`).join("")}</ol>`;
+  }
+  function chart(days) {
+    if (!days.length) return `<p class="muted small">아직 기록이 없어요.</p>`;
+    const W = Math.max(300, Math.min(1000, ($("#stBody").clientWidth || 720) - 42)), H = W < 500 ? 200 : 230, P = { l: 36, r: 10, t: 14, b: 26 };   // 화면 폭에 맞춰 그림 (모바일에서 글자가 작아지지 않게)
+    const mx = Math.max(1, ...days.map((d) => Math.max(d.users, d.video_play || 0)));
+    const step = (W - P.l - P.r) / days.length, bw = Math.max(3, step * 0.6);
+    const y = (v) => H - P.b - (v / mx) * (H - P.t - P.b);
+    const bar = days.map((d, i) => `<rect x="${P.l + i * step + (step - bw) / 2}" y="${y(d.users)}" width="${bw}" height="${H - P.b - y(d.users)}" rx="2" class="st-c-bar"><title>${d.date} 방문자 ${num(d.users)}명 · 영상 재생 ${num(d.video_play)}회</title></rect>`).join("");
+    const line = days.map((d, i) => `${i ? "L" : "M"}${(P.l + i * step + step / 2).toFixed(1)},${y(d.video_play || 0).toFixed(1)}`).join("");
+    const ticks = [0, 0.5, 1].map((f) => `<text x="${P.l - 6}" y="${y(mx * f) + 4}" text-anchor="end" class="st-c-ax">${num(mx * f)}</text><line x1="${P.l}" x2="${W - P.r}" y1="${y(mx * f)}" y2="${y(mx * f)}" class="st-c-grid"/>`).join("");
+    const every = Math.ceil(days.length / (W < 500 ? 5 : 8)), last = days.length - 1;
+    const xl = days.map((d, i) => ((i % every === 0 && last - i >= every / 2) || i === last) ? `<text x="${P.l + i * step + step / 2}" y="${H - 8}" text-anchor="middle" class="st-c-ax">${+d.date.slice(5, 7)}/${+d.date.slice(8)}</text>` : "").join("");
+    return `<div class="st-legend"><span><i class="st-k st-k--bar"></i>방문자</span><span><i class="st-k st-k--line"></i>영상 재생</span></div>
+      <svg class="st-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="날짜별 방문자와 영상 재생">${ticks}${bar}<path d="${line}" class="st-c-line"/>${days.map((d, i) => `<circle cx="${P.l + i * step + step / 2}" cy="${y(d.video_play || 0)}" r="2.5" class="st-c-dot"/>`).join("")}${xl}</svg>`;
+  }
+  function renderStats() {
+    const d = ST.data; if (!d) return;
+    const r = ST.range, n = r === "d7" ? 7 : 30;
+    document.querySelectorAll("#tab-stats [data-range]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === r)));
+    $("#stWhen").textContent = d.generatedAt ? `· ${new Date(d.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준` : "";
+    const days = (d.daily || []).slice(-n);
+    const sum = (k) => days.reduce((t, x) => t + (x[k] || 0), 0);
+    const T = d.totals?.[r] || {};
+    const kpi = [["방문자", T.users], ["새 방문자", T.newUsers], ["방문 횟수", T.sessions], ["페이지뷰", T.views], ["영상 재생", sum("video_play")], ["배너 클릭", sum("banner_click") + sum("strip_click")], ["검색", sum("search")], ["작품 열기", sum("work_open")]];
+    const pick = (k) => (d[k]?.[r] || []);
+    const short = (s, m = 60) => { s = String(s || ""); return s.length > m ? s.slice(0, m - 1) + "…" : s; };
+    const vidLabel = (x) => { const id = (x.path.match(/^\/watch\/([\w-]{11})\//) || [])[1]; return `${id ? `<img src="https://i.ytimg.com/vi/${id}/default.jpg" alt="" loading="lazy" width="40" height="30" />` : ""}<a href="..${escH(x.path)}" target="_blank" rel="noopener">${escH(short(x.title.replace(/\s*\|[^|]*$/, "") || x.path))}</a>`; };
+    const box = $("#stBody");
+    box.hidden = false;
+    box.innerHTML = `
+      <div class="st-kpis">${kpi.map(([l, v]) => `<div class="st-kpi"><span>${l}</span><b>${num(v)}</b></div>`).join("")}</div>
+      <section class="adm-card st-card st-wide"><h3>날짜별 방문자 · 영상 재생</h3>${chart(days)}
+        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰</th><th>영상 재생</th><th>배너 클릭</th><th>검색</th></tr></thead>
+        <tbody>${[...days].reverse().map((x) => `<tr><td>${x.date.slice(5).replace("-", "/")}</td><td>${num(x.users)}</td><td>${num(x.newUsers)}</td><td>${num(x.views)}</td><td>${num(x.video_play)}</td><td>${num((x.banner_click || 0) + (x.strip_click || 0))}</td><td>${num(x.search)}</td></tr>`).join("")}</tbody></table></div></section>
+      <div class="st-grid">
+        <section class="adm-card st-card"><h3>국가별 방문자</h3>${bars(pick("country"), (x) => `${flag(x.code)} ${escH(COUNTRY_KO(x.code, x.name))}`, (x) => x.users)}</section>
+        <section class="adm-card st-card"><h3>유입 경로</h3>${bars(pick("channel"), (x) => `${escH(GROUP_KO[x.group] || x.group)} <small class="muted">${escH(x.source)}</small>`, (x) => x.sessions)}</section>
+        <section class="adm-card st-card"><h3>기기</h3>${bars(pick("device"), (x) => escH(DEVICE_KO[x.name] || x.name), (x) => x.users)}</section>
+        <section class="adm-card st-card"><h3>브라우저 언어</h3>${bars(pick("language"), (x) => escH(x.name), (x) => x.users)}</section>
+        <section class="adm-card st-card st-wide"><h3>많이 본 영상</h3>${bars(pick("videos"), vidLabel, (x) => x.views, { max: 15 })}</section>
+        <section class="adm-card st-card"><h3>많이 본 작품</h3>${bars(pick("works"), (x) => `<a href="..${escH(x.path)}" target="_blank" rel="noopener">${escH(short(x.title.replace(/\s*\|[^|]*$/, "") || decodeURIComponent(x.path)))}</a>`, (x) => x.views)}</section>
+        <section class="adm-card st-card"><h3>검색어</h3>${bars(pick("search"), (x) => escH(short(x.term, 40)), (x) => x.count)}</section>
+      </div>
+      <p class="muted small">숫자는 구글 애널리틱스 기준이에요. 6시간마다 새로 가져오고, 구글 쪽 집계가 몇 시간 늦을 수 있어요. 광고 차단기를 쓰는 방문자는 빠질 수 있어요.</p>`;
+  }
+  $("#stLogin").addEventListener("submit", loginStats);
+  let stW = innerWidth;
+  addEventListener("resize", () => { if (innerWidth !== stW && ST.data && !$("#tab-stats").hidden) { stW = innerWidth; renderStats(); } });
+  $("#stRefresh").addEventListener("click", refreshStats);
+  document.querySelectorAll("#tab-stats [data-range]").forEach((b) => b.addEventListener("click", () => { ST.range = b.dataset.range; renderStats(); }));
+
   // ───────── 이벤트 ─────────
   $("#logout").addEventListener("click", logout);
   document.querySelector(".adm-tabs").addEventListener("click", (e) => {
     const t = e.target.closest(".tab");
     if (!t) return;
     document.querySelectorAll(".adm-tabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b === t)));
-    for (const p of ["channels", "works", "videos", "hidden", "menu", "ads"]) $(`#tab-${p}`).hidden = p !== t.dataset.tab;
+    for (const p of ["channels", "stats", "works", "videos", "hidden", "menu", "ads"]) $(`#tab-${p}`).hidden = p !== t.dataset.tab;
+    if (t.dataset.tab === "stats") openStats();
     t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   });
   $("#addUrl").addEventListener("input", updateAddForm);

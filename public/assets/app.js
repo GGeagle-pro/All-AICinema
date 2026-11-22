@@ -66,6 +66,8 @@
   // ── 다국어 (assets/i18n.js): T(한국어 원문, 값) → 고른 언어, nm(장르·국가 이름) → 고른 언어
   const I18N = window.AIC_I18N || { t: (s, v) => (v ? s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m) : s), name: (x) => x, views: (n) => (n ? `조회수 ${n}회` : ""), viewsShort: (n) => String(n || ""), ago: () => "", applyStatic() {}, setLang() {}, LANGS: [], lang: "ko", meta: { yt: "ko" } };
   const T = (s, v) => I18N.t(s, v);
+  // 통계(구글 애널리틱스) 기록: 실패해도 사이트 동작에는 영향 없음
+  const track = (name, params = {}) => { try { if (typeof window.gtag === "function") window.gtag("event", name, { ...params, ui_lang: I18N.lang }); } catch {} };
   const nm = (x) => I18N.name(x);
   const views = (n) => I18N.views(n);         // "조회수 1.2만회" / "12K views" / "1.2万回視聴" / "1.2万次观看"
   const ago = (iso) => I18N.ago(iso);
@@ -581,6 +583,10 @@
       history.pushState({ list: 1, back: state.backTo }, "", location.href);
     }
     const w = workByKey(key);
+    if (w) {
+      track("page_view", { page_location: `${location.origin}/work/${encodeURIComponent(workSlug(w))}/`, page_title: `${w.name} | ${w.channel}` });
+      track("work_open", { work: w.name, channel: w.channel });
+    }
     state.work = key; state.q = ""; $("#q").value = "";
     if (w) state.ch = w.channel;
     renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" });
@@ -662,6 +668,11 @@
 
     $("#pTitle").textContent = v.title;
     if (/^[\w-]{11}$/.test(v.id)) addHist(v.id);
+    // 통계: 영상 재생 (검색용 영상 페이지와 같은 주소로 기록 → 관리자 통계의 인기 영상)
+    if (VALID_ID.test(v.id)) {
+      track("page_view", { page_location: `${location.origin}/watch/${v.id}/`, page_title: `${v.title} | ${v.channel}` });
+      track("video_play", { video_id: v.id, video_title: v.title.slice(0, 90), channel: v.channel });
+    }
     setFavBtn(fav.has(v.id));
     $("#pChannel").innerHTML = avatarHtml(v.channel, "avatar avatar--sm", v.cid) + `<span>${esc(v.channel)}</span>`;
     const w = v.series ? workByKey(workKey(v)) : null;
@@ -966,6 +977,7 @@
   function runSearch(q) {
     q = String(q || "").trim();
     addRecent(q);
+    if (q) track("search", { search_term: q.slice(0, 80) });
     state.backTo = null; state.work = ""; state.q = q;
     $("#q").value = q; $("#spq").value = q;
     closeSearch();
@@ -1120,6 +1132,11 @@
   // ===== 이벤트 =====
   function bind() {
     trackHeaderHeight();
+    // 통계: 배너·띠 배너 클릭
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a.promo__item, a.strip__in");
+      if (a) track(a.classList.contains("strip__in") ? "strip_click" : "banner_click", { link_url: a.href.slice(0, 200) });
+    }, true);
     $("#shelves").addEventListener("click", (e) => {
       const wk = e.target.closest("[data-work]");
       if (wk && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); openWork(wk.dataset.work); return; }

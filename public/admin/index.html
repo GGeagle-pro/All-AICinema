@@ -12,8 +12,8 @@
   <link rel="icon" href="../icon-192.png?v=2" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="../apple-touch-icon.png?v=2" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <link rel="stylesheet" href="../assets/style.css?v=20261122d" />
-  <link rel="stylesheet" href="admin.css?v=20261122d" />
+  <link rel="stylesheet" href="../assets/style.css?v=20261122e" />
+  <link rel="stylesheet" href="admin.css?v=20261122e" />
 </head>
 <body>
   <header class="topbar adm-top">
@@ -55,6 +55,7 @@
 
       <nav class="menu adm-tabs" role="tablist" aria-label="관리 메뉴">
         <button class="tab" type="button" data-tab="channels" aria-pressed="true">채널 관리</button>
+        <button class="tab" type="button" data-tab="stats" aria-pressed="false">통계</button>
         <button class="tab" type="button" data-tab="works" aria-pressed="false">작품</button>
         <button class="tab" type="button" data-tab="videos" aria-pressed="false">영상 관리</button>
         <button class="tab" type="button" data-tab="hidden" aria-pressed="false">숨긴 영상 <span id="hiddenCount"></span></button>
@@ -205,10 +206,35 @@
           <p class="muted small">양옆 세로 광고(160×600)는 PC 화면에서 양쪽 똑같이 페이지와 함께 움직여요. 번호를 한쪽에만 넣어도 양쪽에 같은 광고 단위가 쓰여요. (애드센스 정책상 양쪽 모두 따라오게 할 수는 없어요.)</p>
         </div>
       </div>
+
+      <!-- ───── 통계 ───── -->
+      <div id="tab-stats" class="adm-pane" hidden>
+        <div class="adm-card st-top">
+          <div class="st-head">
+            <h2>방문 통계 <span class="muted small" id="stWhen"></span></h2>
+            <div class="st-ctrl">
+              <div class="st-seg" role="group" aria-label="기간">
+                <button type="button" class="btn" data-range="d7" aria-pressed="true">최근 7일</button>
+                <button type="button" class="btn" data-range="d30" aria-pressed="false">최근 30일</button>
+              </div>
+              <button type="button" class="btn" id="stRefresh">지금 새로 가져오기</button>
+            </div>
+          </div>
+          <form id="stLogin" class="st-login" novalidate hidden>
+            <label for="stPw">통계 암호 <span class="muted small">(GitHub Secrets 의 STATS_PASSWORD)</span></label>
+            <input id="stPw" type="password" autocomplete="current-password" />
+            <label class="adm-check"><input type="checkbox" id="stRemember" /> 이 브라우저에서 기억하기</label>
+            <button class="btn btn--primary" type="submit">통계 보기</button>
+            <p id="stErr" class="adm-err" hidden></p>
+          </form>
+          <div id="stSetup" class="st-setup" hidden></div>
+        </div>
+        <div id="stBody" class="st-body" hidden></div>
+      </div>
     </section>
   </main>
 
   <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
-  <script src="admin.js?v=20261122d" defer></script>
+  <script src="admin.js?v=20261122e" defer></script>
 </body>
 </html>

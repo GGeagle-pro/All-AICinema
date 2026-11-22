@@ -7,3 +7,5 @@ function gtag() { window.dataLayer.push(arguments); }
 window.gtag = gtag;
 gtag("js", new Date());
 gtag("config", "AW-947429542");
+// Google 애널리틱스 4 (방문·클릭·국가 통계 → 관리자 > 통계 탭)
+gtag("config", "G-5PXH52MY88");
