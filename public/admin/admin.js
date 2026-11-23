@@ -283,6 +283,8 @@
     // 채널 이름 → 유튜브 프로필 사진 (yt3 주소만)
     state.avatarByName = new Map();
     const av = d.avatars && typeof d.avatars === "object" ? d.avatars : {};
+    // 채널 ID → 유튜브 프로필 사진 (이름 없이 주소만 넣은 채널도 같은 사진이 나오게)
+    state.avatarByCid = new Map(Object.entries(av).filter(([cid, u]) => /^UC[\w-]{22}$/.test(cid) && typeof u === "string" && /^https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[\w\-./=~%]{10,500}$/.test(u)));
     for (const x of items) {
       const name = clean(d.channels?.[x?.[2]], 80), u = av[d.cids?.[x?.[7]]];
       if (name && !state.avatarByName.has(name) && typeof u === "string" && /^https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[\w\-./=~%]{10,500}$/.test(u)) state.avatarByName.set(name, u);
@@ -495,7 +497,7 @@
         el("div", { class: "adm-chhead" },
           (() => {
             const avEl = el("span", { class: "chtab__av", "aria-hidden": "true", text: label.replace(/^@/, "")[0] || "?" });
-            const u = state.avatarByName?.get(name0) || state.avatarByName?.get(label);
+            const u = state.avatarByCid?.get(cidOfCfg(c)) || state.avatarByName?.get(name0) || state.avatarByName?.get(label) || state.avatarByName?.get(cidName.get(cidOfCfg(c)));
             if (u) { const im = el("img", { src: u, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }); im.addEventListener("error", () => im.remove()); avEl.append(im); }
             return avEl;
           })(),
