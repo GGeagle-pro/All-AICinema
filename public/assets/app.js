@@ -845,7 +845,7 @@
     if (kakaoReady) return kakaoReady;
     kakaoReady = new Promise((res) => {
       const s = document.createElement("script");
-      s.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"; s.crossOrigin = "anonymous";
+      s.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.8.4/kakao.min.js"; s.crossOrigin = "anonymous";
       s.onload = () => { try { if (!window.Kakao.isInitialized()) window.Kakao.init(key); res(true); } catch { res(false); } };
       s.onerror = () => res(false);
       document.head.appendChild(s);
