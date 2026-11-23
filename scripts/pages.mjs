@@ -227,6 +227,52 @@ function watchPage(v, ctx, force = "") {
   return shell({ lang, title: `${cut(v.title, 70)} | ${v.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(v.id) ? thumb(v.id, "maxresdefault") : thumb(v.id, "hqdefault"), ogType: "video.other", ld, body, I, ver, head, noTrack: !!ctx.kids?.has(v.id) });
 }
 
+// ── 작품 가이드 (사이트가 직접 만든 정보: 유튜브 데이터만 있는 페이지가 되지 않게) ──
+const GUIDE = {
+  ko: { t: "작품 가이드", genre: "장르·국가", eps: "공개된 회차", first: "첫 화 공개", last: "최근 화 공개", every: "업데이트 주기", everyV: (d) => (d < 1.5 ? "거의 매일" : `평균 ${Math.round(d)}일마다`), done: "완결 또는 휴식 중", rec: "이런 분께 추천해요", note: "에디터 노트", same: "같은 채널의 다른 작품", like: "비슷한 장르 작품", n: (n) => `${n}화` },
+  en: { t: "Series guide", genre: "Genre & country", eps: "Episodes", first: "First episode", last: "Latest episode", every: "Update pace", everyV: (d) => (d < 1.5 ? "Almost daily" : `About every ${Math.round(d)} days`), done: "Finished or on break", rec: "Who will enjoy it", note: "Editor's note", same: "More from this channel", like: "Similar series", n: (n) => `${n} eps` },
+  ja: { t: "作品ガイド", genre: "ジャンル・国", eps: "公開話数", first: "第1話公開", last: "最新話公開", every: "更新ペース", everyV: (d) => (d < 1.5 ? "ほぼ毎日" : `平均${Math.round(d)}日ごと`), done: "完結または休止中", rec: "こんな方におすすめ", note: "編集部メモ", same: "同じチャンネルの作品", like: "似たジャンルの作品", n: (n) => `全${n}話` },
+  zh: { t: "作品指南", genre: "类型与国家", eps: "已更新集数", first: "第1集上线", last: "最新一集", every: "更新频率", everyV: (d) => (d < 1.5 ? "几乎每天" : `平均每${Math.round(d)}天`), done: "已完结或暂停", rec: "推荐给这些观众", note: "编辑点评", same: "同频道的其他作品", like: "类似类型作品", n: (n) => `共${n}集` },
+  es: { t: "Guía de la serie", genre: "Género y país", eps: "Episodios", first: "Primer episodio", last: "Último episodio", every: "Ritmo", everyV: (d) => (d < 1.5 ? "Casi a diario" : `Cada ${Math.round(d)} días aprox.`), done: "Terminada o en pausa", rec: "Para quién es", note: "Nota del editor", same: "Más de este canal", like: "Series parecidas", n: (n) => `${n} episodios` },
+};
+// 장르별 추천 문구 (사이트에서 직접 쓴 글)
+const REC = {
+  "액션·히어로": { ko: "시원한 액션과 통쾌한 반전을 좋아하는 분", en: "Fans of big action and satisfying comebacks", ja: "爽快なアクションと逆転劇が好きな方", zh: "喜欢爽快动作与逆袭剧情的观众", es: "Quienes disfrutan la acción y las remontadas" },
+  "판타지": { ko: "현실에서 볼 수 없는 세계와 능력이 궁금한 분", en: "Viewers who love other worlds and special powers", ja: "異世界や特殊能力の物語が好きな方", zh: "喜欢异世界与超能力设定的观众", es: "Amantes de mundos fantásticos y poderes" },
+  "사극·무협": { ko: "옛날 배경, 궁중 암투, 무협 액션을 즐기는 분", en: "Fans of period drama, palace intrigue and martial arts", ja: "時代劇・宮廷劇・武侠アクションが好きな方", zh: "喜欢古装、宫斗与武侠的观众", es: "Fans de época, intrigas de palacio y artes marciales" },
+  "SF": { ko: "미래 기술, 우주, AI가 등장하는 이야기를 좋아하는 분", en: "Sci-fi fans: future tech, space and AI", ja: "未来技術・宇宙・AIの物語が好きな方", zh: "喜欢未来科技、太空与AI题材的观众", es: "Fans de la ciencia ficción, el espacio y la IA" },
+  "미스터리·스릴러": { ko: "끝까지 범인과 진실을 추리하고 싶은 분", en: "Anyone who likes to solve the mystery before the end", ja: "最後まで謎解きを楽しみたい方", zh: "喜欢推理悬疑、猜真相的观众", es: "Quienes quieren resolver el misterio antes del final" },
+  "코미디": { ko: "가볍게 웃으며 보고 싶은 분", en: "Anyone looking for a light laugh", ja: "気軽に笑いたい方", zh: "想轻松一笑的观众", es: "Quienes buscan reír sin complicaciones" },
+  "드라마": { ko: "인물의 감정과 관계 변화를 따라가는 이야기를 좋아하는 분", en: "Viewers who enjoy character-driven stories", ja: "人物の感情や関係の変化を味わいたい方", zh: "喜欢人物情感与关系变化的观众", es: "Quienes disfrutan historias centradas en personajes" },
+  "로맨스": { ko: "설레는 연애와 반전 있는 사랑 이야기를 찾는 분", en: "Romance fans who like a twist", ja: "ときめく恋愛と逆転劇が好きな方", zh: "喜欢心动恋爱与反转爱情的观众", es: "Amantes del romance con giros" },
+  "공포": { ko: "오싹한 분위기와 긴장감을 즐기는 분", en: "Horror fans who like the tension", ja: "ぞくっとする緊張感が好きな方", zh: "喜欢惊悚紧张氛围的观众", es: "Fans del terror y la tensión" },
+  "애니메이션": { ko: "그림체와 연출이 독특한 AI 애니메이션이 궁금한 분", en: "Curious about the look of AI animation", ja: "AIアニメの独特な絵柄と演出が気になる方", zh: "想看风格独特的AI动画的观众", es: "Curiosos por la animación hecha con IA" },
+};
+function workGuide(w, ctx, I, lang, L) {
+  const G = GUIDE[lang], eps = w.list.filter((x) => !isBinge(x));
+  const ts = eps.map((x) => Date.parse(x.published)).filter(Number.isFinite).sort((a, b) => a - b);
+  const span = ts.length > 1 ? (ts[ts.length - 1] - ts[0]) / 864e5 / (ts.length - 1) : 0;
+  const idle = ts.length ? (Date.now() - ts[ts.length - 1]) / 864e5 : 0;
+  const cats = [...new Set(w.list.flatMap((x) => x.categories))].filter((c) => c !== "기타");
+  const recs = cats.map((c) => REC[c]?.[lang]).filter(Boolean).slice(0, 3);
+  const note = ctx.notes?.[w.slug];
+  const others = (ctx.works || []).filter((o) => o !== w && o.channel === w.channel).slice(0, 6);
+  const like = (ctx.works || []).filter((o) => o !== w && o.channel !== w.channel && o.list.some((x) => x.categories.some((c) => cats.includes(c) && !ctx.countries?.has(c)))).slice(0, 6);
+  const wl = (o) => `<li><a href="${workPath(o, ctx, L)}">${esc(o.name)}</a> <span class="muted">· ${esc(o.channel)} · ${esc(G.n(o.list.length))}</span></li>`;
+  return `<section class="pg-sec wg"><h2>${esc(G.t)}</h2>
+      ${note ? `<div class="wg-note"><b>${esc(G.note)}</b><p>${esc(note)}</p></div>` : ""}
+      <dl class="geo-facts wg-facts">
+        ${cats.length ? `<div><dt>${esc(G.genre)}</dt><dd>${cats.map((c) => esc(I.name(c))).join(" · ")}</dd></div>` : ""}
+        <div><dt>${esc(G.eps)}</dt><dd>${esc(G.n(eps.length))}</dd></div>
+        ${ts.length ? `<div><dt>${esc(G.first)}</dt><dd>${esc(dateText(new Date(ts[0]).toISOString(), lang))}</dd></div><div><dt>${esc(G.last)}</dt><dd>${esc(dateText(new Date(ts[ts.length - 1]).toISOString(), lang))}</dd></div>` : ""}
+        ${span ? `<div><dt>${esc(G.every)}</dt><dd>${esc(idle > Math.max(14, span * 4) ? G.done : G.everyV(span))}</dd></div>` : ""}
+      </dl>
+      ${recs.length ? `<h3 class="wg-h">${esc(G.rec)}</h3><ul class="wg-rec">${recs.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+    </section>
+    ${others.length ? `<section class="pg-sec"><h2>${esc(G.same)}</h2><ul class="geo-list">${others.map(wl).join("")}</ul></section>` : ""}
+    ${like.length ? `<section class="pg-sec"><h2>${esc(G.like)}</h2><ul class="geo-list">${like.map(wl).join("")}</ul></section>` : ""}`;
+}
+
 function workPage(w, ctx, force = "") {
   const { SITE, I: getI, ver } = ctx;
   const orig = langOf(w.name + " " + w.list[0].title), lang = force || orig, I = getI(lang), t = (s, x) => I.t(s, x);
@@ -260,6 +306,7 @@ function workPage(w, ctx, force = "") {
         </div></div>
     </section>
     <section class="pg-sec"><h2>${esc(t("작품 소개"))}</h2><p class="pg-desc">${esc(intro)}</p>${ex ? `<p class="pg-desc">${esc(ex)}</p><p class="muted small">— ${esc(w.channel)}, YouTube</p>` : ""}</section>
+    ${workGuide(w, ctx, I, lang, L)}
     <section class="pg-sec"><h2>${esc(t("전체 회차"))}</h2><div class="grid pg-grid">${w.list.map((x) => miniCard(x, I, { ctx, l: L })).join("")}</div></section>`;
   return shell({ lang, title: `${w.name} – ${t("전체 회차")} | ${w.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(cover.id) ? thumb(cover.id, "maxresdefault") : thumb(cover.id, "hqdefault"), ogType: "website", ld, body, I, ver, head });
 }
@@ -300,7 +347,10 @@ export async function buildPages({ PUB, SITE, loadI18n, ver, only }) {
   const loc = { watch: new Set([...videos].sort((a, b) => b.views - a.views).slice(0, LOCAL_TOP).map((v) => v.id)), work: new Set(works.map((w) => w.slug)) };
   let kids = new Set();
   try { const raw = JSON.parse(await readFile(resolve(PUB, "data/videos.json"), "utf8")); kids = new Set(Array.isArray(raw.kids) ? raw.kids : []); } catch {}
-  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big, loc, kids };
+  // 관리자가 쓴 작품 소개(에디터 노트): site.json 의 workNotes { 작품주소: "글" }
+  let notes = {}, countries = new Set(["한국", "미국", "일본", "중국"]);
+  try { const st = JSON.parse(await readFile(resolve(PUB, "data/site.json"), "utf8")); if (st.workNotes && typeof st.workNotes === "object") notes = st.workNotes; if (Array.isArray(st.countries)) countries = new Set(st.countries); } catch {}
+  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big, loc, kids, notes, works, countries };
   let changed = 0;
   const pick = only ? new Set(only) : null;
   const keepL = Object.fromEntries(Object.keys(LP).map((l) => [l, { watch: new Set(), work: new Set() }]));
