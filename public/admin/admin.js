@@ -1935,7 +1935,14 @@
       : android ? ["Chrome 오른쪽 위 <b>⋮ 메뉴</b>를 눌러요.", "<b>홈 화면에 추가</b>(또는 <b>앱 설치</b>)를 눌러요.", "<b>추가/설치</b>를 누르면 끝이에요."]
       : ["PC에서는 <b>Ctrl+D</b>(맥은 <b>⌘+D</b>)로 즐겨찾기에 추가할 수 있어요.", "Chrome·Edge 주소창 오른쪽의 <b>설치 아이콘</b>이 보이면 눌러서 앱처럼 설치할 수도 있어요."];
     const open = (on) => { $("#pinBox").hidden = !on; if (on) { $("#pinInstall").hidden = !evt; $("#pinSteps").innerHTML = steps().map((t) => `<li>${t}</li>`).join(""); ($("#pinInstall").hidden ? $("#pinClose") : $("#pinInstall")).focus(); } };
-    $("#pinAdmin").addEventListener("click", () => open(true));
+    // 📌 누르면 바로 설치 창 (브라우저가 바로 설치를 허용할 때). 아이폰 등 안 되는 곳만 방법 안내
+    const installNow = async () => {
+      if (!evt) return open(true);
+      const e = evt; evt = null;
+      e.prompt();
+      try { const r = await e.userChoice; if (r?.outcome === "dismissed") evt = null; } catch {}
+    };
+    $("#pinAdmin").addEventListener("click", installNow);
     $("#pinClose").addEventListener("click", () => open(false));
     $("#pinBox").addEventListener("click", (e) => { if (e.target.id === "pinBox") open(false); });
     addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#pinBox").hidden) open(false); });
@@ -1952,7 +1959,7 @@
     showBanner();
     addEventListener("beforeinstallprompt", showBanner);
     addEventListener("appinstalled", () => { $("#appBanner").hidden = true; $("#pinAdmin").hidden = true; });
-    $("#appBannerGo").addEventListener("click", async () => { if (evt) { evt.prompt(); try { await evt.userChoice; } catch {} evt = null; } else open(true); });
+    $("#appBannerGo").addEventListener("click", installNow);
     $("#appBannerNo").addEventListener("click", () => { try { localStorage.setItem(HIDE, String(Date.now() + 30 * 864e5)); } catch {} $("#appBanner").hidden = true; });
   }
   document.querySelector(".adm-tabs").addEventListener("click", (e) => {
