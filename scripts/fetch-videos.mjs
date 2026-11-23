@@ -12,7 +12,7 @@
 //  - 접속하는 주소는 www.youtube.com 고정, 요청마다 시간·크기 제한
 //  - 영상 ID·채널 ID는 정해진 형식만 통과, 글자는 길이 제한·제어문자 제거 후 저장
 //  - 화면에 넣을 때는 프런트엔드에서 다시 한 번 이스케이프(이중 방어)
-import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename, readdir, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
@@ -34,7 +34,7 @@ const DATA_DIR = resolve(ROOT, "public/data");   // 웹에 공개되는 폴더�
 const OUT_FILE = resolve(DATA_DIR, "videos.json");
 const DESC_FILE = resolve(DATA_DIR, "desc.json");
 const META_FILE = resolve(DATA_DIR, "meta.json");
-const MAX_VIDEOS = 5000;        // 보관할 최대 영상 수 (직접 추가한 영상은 항상 보관)
+const MAX_VIDEOS = 10000;       // 보관할 최대 영상 수 (직접 추가한 영상은 항상 보관)
 const MAX_CHANNELS = 200;
 const MAX_MANUAL = 1000;
 const AVATAR_REFRESH_HOURS = 24; // 채널 프로필 사진은 하루 1번만 다시 확인
@@ -346,10 +346,35 @@ async function main() {
   const save = async (file, obj) => { await writeFile(file + ".tmp", JSON.stringify(obj)); await rename(file + ".tmp", file); };
   await save(DESC_FILE, desc);
   await save(OUT_FILE, { v: 2, generatedAt, avatarsCheckedAt, backfilled, ...index });
+  await writeSplit({ videos, desc, generatedAt, avatars, srcs, save });
   await save(META_FILE, meta);
   // 검색엔진용 sitemap·RSS·미리 그린 목록 갱신 (실패해도 영상 수집은 성공 처리)
   try { await (await import("./seo.mjs")).buildSeo(); } catch (err) { console.warn("SEO 파일 생성 실패:", err.message); }
   console.log(`완료: 총 ${videos.length}개 (신규 ${added}개, 삭제 ${[...prevIds].filter((id) => !map.has(id)).length}개)`);
+}
+
+// 방문자 화면을 가볍게: 첫 화면용 최근 영상 파일 + 영상 설명을 영상ID 첫 글자별로 나눈 파일
+//  - public/data/videos-recent.json : 최근 RECENT_N편 + 직접 추가한 영상 (사이트가 처음 받는 파일)
+//  - public/data/videos.json        : 전체 (사이트는 검색·작품·채널을 볼 때나 몇 초 뒤에 받음, 관리자·스크립트는 이 파일 사용)
+//  - public/data/desc/<16진수>.json : 영상 설명 나눔 (플레이어가 그 영상의 조각만 받음). desc.json(전체)은 스크립트용
+const RECENT_N = 2000;
+export async function writeSplit({ videos, desc, generatedAt, avatars, srcs, save }) {
+  const recent = [...videos.filter((v) => v.manual), ...videos.filter((v) => !v.manual).slice(0, RECENT_N)]
+    .sort((a, b) => new Date(b.published) - new Date(a.published));
+  const ids = new Set(recent.map((v) => v.id));
+  const usedCids = new Set(recent.map((v) => v.cid).filter(Boolean));
+  const av = Object.fromEntries(Object.entries(avatars || {}).filter(([c]) => usedCids.has(c)));
+  await save(resolve(DATA_DIR, "videos-recent.json"), { v: 2, generatedAt, partial: videos.length > ids.size, total: videos.length, ...buildIndex(recent), avatars: av, srcs });
+  const shards = {};
+  for (const [id, d] of Object.entries(desc)) { const k = id.charCodeAt(0).toString(16); (shards[k] ||= {})[id] = d; }
+  const dir = resolve(DATA_DIR, "desc"); await mkdir(dir, { recursive: true });
+  for (const [k, o] of Object.entries(shards)) {
+    const f = resolve(dir, `${k}.json`), text = JSON.stringify(o);
+    let old = ""; try { old = await readFile(f, "utf8"); } catch {}
+    if (old !== text) { await writeFile(f + ".tmp", text); await rename(f + ".tmp", f); }
+  }
+  // 없어진 조각 지우기
+  try { for (const n of await readdir(dir)) if (/\.json$/.test(n) && !shards[n.replace(/\.json$/, "")]) await rm(resolve(dir, n), { force: true }); } catch {}
 }
 
 // 압축 형식: 목록용 최소 정보를 배열로 저장 (첫 방문 시 1회 다운로드)

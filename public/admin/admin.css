@@ -380,3 +380,12 @@
 .adm-table--compact th,.adm-table--compact td{padding:8px 8px}
 @media (max-width:520px){.adm-table--compact{font-size:12.5px}.adm-table--compact td.slot small{max-width:130px}.adm-table--compact th{white-space:normal}}
 .adm-table tr.unk td{color:var(--muted)}
+
+/* 홈 화면에 추가 */
+.adm-pin{min-height:40px;padding:8px 12px;font-size:13px;white-space:nowrap}
+@media (max-width:520px){.adm-pin__t{display:none}.adm-pin{padding:8px 10px}}
+.adm-pinbox{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.adm-pinbox[hidden]{display:none}
+.adm-pinbox__in{background:var(--bg2,#14141c);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow:auto}
+.adm-pinbox__in h2{font-size:18px;margin:0 0 6px}
+.adm-pinbox__in .btn{margin-top:10px;width:100%}

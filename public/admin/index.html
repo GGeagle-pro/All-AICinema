@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src 'self' https://i.ytimg.com https://yt3.ggpht.com https://yt3.googleusercontent.com data: blob:; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src 'self' https://i.ytimg.com https://yt3.ggpht.com https://yt3.googleusercontent.com data: blob:; connect-src 'self' https://api.github.com; manifest-src 'self'; base-uri 'none'; form-action 'none'" />
   <meta name="referrer" content="no-referrer" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -11,9 +11,12 @@
   <link rel="icon" href="../favicon-32.png?v=2" sizes="32x32" type="image/png" />
   <link rel="icon" href="../icon-192.png?v=2" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="../apple-touch-icon.png?v=2" />
+  <link rel="manifest" href="manifest.webmanifest?v=1" />
+  <meta name="theme-color" content="#0b0b10" />
+  <meta name="apple-mobile-web-app-title" content="AI시네마 관리" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="../assets/style.css?v=20261123b" />
-  <link rel="stylesheet" href="admin.css?v=20261123n" />
+  <link rel="stylesheet" href="admin.css?v=20261123p" />
 </head>
 <body>
   <header class="topbar adm-top">
@@ -23,11 +26,21 @@
       </a>
       <span class="adm-badge">관리자</span>
       <div class="adm-head-right">
+        <button id="pinAdmin" class="btn adm-pin" type="button" aria-haspopup="dialog" title="휴대폰 홈 화면·즐겨찾기에 관리자 추가">📌<span class="adm-pin__t"> 홈 화면에 추가</span></button>
         <span id="who" class="muted"></span>
         <button id="logout" class="btn" type="button" hidden>로그아웃</button>
       </div>
     </div>
   </header>
+  <div id="pinBox" class="adm-pinbox" role="dialog" aria-modal="true" aria-labelledby="pinTitle" hidden>
+    <div class="adm-pinbox__in">
+      <h2 id="pinTitle">관리자를 홈 화면에 추가</h2>
+      <p class="muted small">한 번 추가하면 앱처럼 바로 열려요. 로그인은 그대로 필요해요(개인 휴대폰이면 '이 기기에서 로그인 유지'를 켜 두면 편해요).</p>
+      <button id="pinInstall" class="btn btn--primary" type="button" hidden>지금 홈 화면에 추가</button>
+      <ul class="adm-checklist" id="pinSteps"></ul>
+      <button id="pinClose" class="btn" type="button">닫기</button>
+    </div>
+  </div>
 
   <main class="wrap adm">
     <!-- 로그인 -->
@@ -329,6 +342,6 @@
   </main>
 
   <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
-  <script src="admin.js?v=20261123n" defer></script>
+  <script src="admin.js?v=20261123p" defer></script>
 </body>
 </html>

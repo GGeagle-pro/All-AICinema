@@ -1912,6 +1912,26 @@
 
   // ───────── 이벤트 ─────────
   $("#logout").addEventListener("click", logout);
+  // ── 관리자를 휴대폰 홈 화면·즐겨찾기에 추가 ──
+  {
+    let evt = null;
+    addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); evt = e; });
+    const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const samsung = /SamsungBrowser/i.test(ua), android = /Android/i.test(ua), inApp = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\//i.test(ua);
+    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    if (standalone) $("#pinAdmin").hidden = true;
+    const steps = () => inApp ? ["지금은 앱 안 브라우저예요. 오른쪽 위 메뉴에서 <b>다른 브라우저로 열기</b>(Safari·Chrome)를 누른 뒤 다시 이 버튼을 눌러 주세요."]
+      : ios ? ["Safari 아래쪽(또는 위쪽) <b>공유 버튼(□↑)</b>을 눌러요.", "목록을 내려 <b>홈 화면에 추가</b>를 눌러요.", "이름을 확인하고 오른쪽 위 <b>추가</b>를 누르면 끝이에요."]
+      : samsung ? ["아래쪽 <b>≡ 메뉴</b>를 눌러요.", "<b>현재 페이지 추가 → 홈 화면</b>을 눌러요.", "<b>추가</b>를 누르면 끝이에요."]
+      : android ? ["Chrome 오른쪽 위 <b>⋮ 메뉴</b>를 눌러요.", "<b>홈 화면에 추가</b>(또는 <b>앱 설치</b>)를 눌러요.", "<b>추가/설치</b>를 누르면 끝이에요."]
+      : ["PC에서는 <b>Ctrl+D</b>(맥은 <b>⌘+D</b>)로 즐겨찾기에 추가할 수 있어요.", "Chrome·Edge 주소창 오른쪽의 <b>설치 아이콘</b>이 보이면 눌러서 앱처럼 설치할 수도 있어요."];
+    const open = (on) => { $("#pinBox").hidden = !on; if (on) { $("#pinInstall").hidden = !evt; $("#pinSteps").innerHTML = steps().map((t) => `<li>${t}</li>`).join(""); ($("#pinInstall").hidden ? $("#pinClose") : $("#pinInstall")).focus(); } };
+    $("#pinAdmin").addEventListener("click", () => open(true));
+    $("#pinClose").addEventListener("click", () => open(false));
+    $("#pinBox").addEventListener("click", (e) => { if (e.target.id === "pinBox") open(false); });
+    addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#pinBox").hidden) open(false); });
+    $("#pinInstall").addEventListener("click", async () => { if (!evt) return; evt.prompt(); try { await evt.userChoice; } catch {} evt = null; open(false); });
+  }
   document.querySelector(".adm-tabs").addEventListener("click", (e) => {
     const t = e.target.closest(".tab");
     if (!t) return;

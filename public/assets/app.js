@@ -60,7 +60,7 @@
   // ===== 상태 =====
   const $ = (s) => document.querySelector(s);
   const state = {
-    all: [], list: [], shown: 0,
+    all: [], list: [], shown: 0, full: false,
     cat: "전체", ch: "", q: "", sort: "new", country: "", work: "",
     current: -1, latest: null, cids: [], avatars: {}, queue: [],
     site: { siteName: SITE_NAME_DEFAULT, menu: [], adsense: { client: "", slots: {} }, banners: [] },
@@ -254,11 +254,16 @@
   }
 
   // 설명은 플레이어를 처음 열 때 한 번만 받음 (목록 로딩을 가볍게)
-  let descPromise;
-  const getDesc = () => (descPromise ||= fetch("/data/desc.json", { cache: "no-cache" })
-    .then((r) => (r.ok ? r.json() : {}))
-    .then((d) => (d && typeof d === "object" && !Array.isArray(d) ? d : {}))
-    .catch(() => ({})));
+  //  - 영상ID 첫 글자별로 나눈 작은 파일(/data/desc/<16진수>.json)만 받음
+  let descPromise = {};
+  const getDesc = (id) => {
+    const k = String(id || "").charCodeAt(0).toString(16);
+    if (!/^[0-9a-f]{2}$/.test(k)) return Promise.resolve({});
+    return (descPromise[k] ||= fetch(`/data/desc/${k}.json`, { cache: "no-cache" })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => (d && typeof d === "object" && !Array.isArray(d) ? d : {}))
+      .catch(() => { delete descPromise[k]; return {}; }));
+  };
 
   // 새 영상 확인: 먼저 100바이트짜리 meta.json만 받아 비교하고, 바뀌었을 때만 전체 목록을 받음
   async function checkUpdate() {
@@ -267,7 +272,7 @@
       const r = await fetch("/data/meta.json", { cache: "no-cache" });
       if (!r.ok) return;
       const m = await r.json();
-      if (m.generatedAt && m.generatedAt !== state.latest) { descPromise = null; await load(false); }
+      if (m.generatedAt && m.generatedAt !== state.latest) { descPromise = {}; await load(false); }
     } catch {}
     refreshNew();
   }
@@ -281,20 +286,44 @@
     if (ids !== state.list.map((v) => v.id).sort().join() && scrollY < 400) { renderMenus(); apply(); }
   }
 
-  async function load(initial) {
+  // 영상 목록: 처음에는 가벼운 '최근 영상' 파일(videos-recent.json)만 받고,
+  // 전체(videos.json)는 검색·작품·채널·카테고리를 볼 때, 목록 끝까지 내렸을 때, 또는 몇 초 뒤에 받음
+  async function fetchIndex(file) {
     // cache:"no-cache" → 서버(또는 CDN)에 "바뀌었나?"만 물어보고, 안 바뀌었으면 304로 본문 없이 재사용
-    const res = await fetch("/data/videos.json", { cache: "no-cache" });
+    const res = await fetch(file, { cache: "no-cache" });
     if (!res.ok) throw new Error(T("데이터를 불러오지 못했습니다"));
-    const data = await res.json();
+    return res.json();
+  }
+  const mergeVids = (first, rest) => { const seen = new Set(first.map((v) => v.id)); return [...first, ...rest.filter((v) => !seen.has(v.id))]; };
+  let fullPromise = null;
+  function loadFull() {
+    if (state.full) return Promise.resolve();
+    return (fullPromise ||= fetchIndex("/data/videos.json").then((data) => {
+      const vids = parseIndex(data);
+      state.all = mergeVids(vids, state.all);   // 전체 + (혹시 전체에 아직 없는 새 영상)
+      state.avatars = { ...state.avatars, ...parseAvatars(data.avatars) };
+      state.full = true;
+      renderMenus();
+      // 걸러 보는 화면이면 전체로 다시 그림, 첫 화면(스크롤 중)이면 목록은 그대로 두고 끝에 닿으면 이어 붙임
+      if (viewNeedsAll() || scrollY < 300) apply(); else state.listStale = true;
+    }).catch(() => { fullPromise = null; }));
+  }
+  const viewNeedsAll = () => !!(state.q || state.work || state.ch || state.country || state.cat !== "전체" || state.sort !== "new");
+  async function load(initial) {
+    let data;
+    try { data = await fetchIndex(state.full ? "/data/videos.json" : "/data/videos-recent.json"); }
+    catch { data = await fetchIndex("/data/videos.json"); }   // 예전 배포(나눠진 파일이 없을 때)
     const vids = parseIndex(data);
     state.latest = data.generatedAt;
-    state.avatars = parseAvatars(data.avatars);
+    state.avatars = { ...state.avatars, ...parseAvatars(data.avatars) };
     $("#meta").textContent = data.generatedAt ? T("업데이트 {t}", { t: ago(data.generatedAt) }) : "";
     if (initial) {
       state.all = vids;
+      if (!data.partial) state.full = true;
       renderMenus();
       apply();
       welcomeBack();
+      if (!state.full) setTimeout(loadFull, viewNeedsAll() ? 0 : 5000);
       return;
     }
     const known = new Set(state.all.map((v) => v.id));
@@ -303,7 +332,7 @@
       const t = $("#toast");
       t.textContent = T("새 영상 {n}개 ↑", { n: fresh.length });
       t.hidden = false;
-      t.onclick = () => { t.hidden = true; state.all = vids; renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" }); };
+      t.onclick = () => { t.hidden = true; state.all = mergeVids(vids, state.all); renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" }); };
     }
   }
 
@@ -403,6 +432,8 @@
   }
 
   function apply() {
+    if (!state.full && viewNeedsAll()) loadFull();   // 걸러 보는 화면은 전체 목록이 필요 (받는 동안은 최근 영상으로 먼저 보여 줌)
+    state.listStale = false;
     const q = state.q.trim().toLowerCase();
     let list = state.all.filter((v) => inCountry(v) && inCat(v) && (!state.ch || v.channel === state.ch) &&
       (!q || (v.title + " " + v.channel).toLowerCase().includes(q)));
@@ -667,6 +698,14 @@
 
   function more() {
     const grid = $("#grid");
+    // 목록 끝: 전체 목록을 받았으면 이어 붙이고, 아직이면 받기 시작
+    if (state.list.length && state.shown >= state.list.length) {
+      if (state.listStale) {
+        const shownIds = new Set(state.list.map((v) => v.id));
+        state.list = state.list.concat(state.all.filter((v) => !shownIds.has(v.id) && inCountry(v) && inCat(v)).sort((a, b) => new Date(b.published) - new Date(a.published)));
+        state.listStale = false;
+      } else if (!state.full) { loadFull(); return; }
+    }
     const start = state.shown, end = Math.min(start + PAGE_SIZE, state.list.length);
     if (start >= end) return;
     const frag = document.createDocumentFragment();
@@ -770,7 +809,7 @@
     $("#pDesc").textContent = v.description || "";
     $("#pDesc").hidden = !v.description;
     fitDesc();
-    if (v.description === undefined) getDesc().then((d) => {
+    if (v.description === undefined) getDesc(v.id).then((d) => {
       v.description = typeof d[v.id] === "string" ? clean({ ...v, description: d[v.id] }).description : "";
       if (state.queue[state.current] === v) { $("#pDesc").textContent = v.description; $("#pDesc").hidden = !v.description; fitDesc(); }
     });
@@ -1174,6 +1213,7 @@
   }
   function openSearch() {
     if (search.open) return;
+    loadFull();   // 검색은 전체 영상에서
     search.open = true;
     search.mobile = mqMobile.matches;
     const sp = $("#sp");
@@ -1577,6 +1617,7 @@
     if (!VALID_ID.test(id)) return;
     if ($("#player").hidden || !state.queue.some((v) => v.id === id)) state.queue = state.list.slice();
     let i = state.queue.findIndex((v) => v.id === id);
+    if (i < 0 && !state.full && !state.all.some((x) => x.id === id)) { loadFull().then(() => openById(id, push)); return; }   // 오래된 영상: 전체 목록을 받은 뒤 열기
     if (i < 0) { // 목록에 없는 영상(공유 링크 등)도 재생
       const v = state.all.find((x) => x.id === id) || { id, title: "", channel: "", cid: "", categories: [], published: new Date().toISOString() };
       state.queue.unshift(v); i = 0;
@@ -1601,9 +1642,11 @@
     renderAds();
     renderPromo();
     return load(true);
-  }).then(() => {
+  }).then(async () => {
     const params = new URLSearchParams(location.search);
     const id = params.get("v");
+    // 주소에 카테고리·채널·작품·검색어가 있으면 전체 목록을 먼저 받음 (오래된 채널·작품도 찾도록)
+    if (!state.full && ["c", "ch", "w", "q", "n", "s"].some((k) => params.get(k))) await loadFull();
     // 보던 카테고리·채널·정렬 이어서 보기 (영상 페이지 ↔ 목록 오갈 때)
     const c = params.get("c"), ch = params.get("ch"), so = params.get("s"), na = params.get("n");
     if (na && countryList().includes(na)) state.country = na;
