@@ -50,3 +50,29 @@ jobs:
       contents: read
     uses: ./.github/workflows/deploy.yml
     secrets: inherit   # Cloudways 이메일·API 키·서버·앱 ID 를 그대로 넘김
+
+  # 배포가 끝난 뒤 새·바뀐·삭제된 페이지를 Bing·네이버에 바로 알림 (IndexNow, 키는 공개용)
+  indexnow:
+    needs: [update, deploy]
+    if: always() && needs.update.result == 'success' && (needs.deploy.result == 'success' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 검색엔진에 알리기
+        run: node scripts/indexnow.mjs
+        env:
+          INDEXNOW: "1"
+      - name: 보낸 기록 저장
+        run: >
+          bash scripts/commit-and-push.sh
+          "검색엔진 알림 기록 $(date -u +'%Y-%m-%d %H:%M')"
+          "INDEXNOW=1 node scripts/indexnow.mjs"
+          cache/indexnow.json
