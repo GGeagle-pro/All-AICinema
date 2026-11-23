@@ -459,3 +459,8 @@
 .adm-appbanner__btns .btn{min-height:40px}
 /* 앱(설치)으로 열었을 때 위쪽 상태바 여백 */
 @media (display-mode: standalone){ .adm-top{padding-top:env(safe-area-inset-top)} }
+
+/* 작품 에디터 노트 */
+.adm-note{grid-column:1/-1;margin:2px 0 4px}
+.adm-note summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--muted);padding:4px 0}
+.adm-note textarea{width:100%;box-sizing:border-box;margin:2px 0 6px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:inherit;font:inherit;resize:vertical}

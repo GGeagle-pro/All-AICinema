@@ -8,6 +8,7 @@
 
 import { readFile, writeFile, rename, mkdir, readdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
+import { workAnalysis, videoAnalysis, channelRanks, editorNote, noteKey, LANGS } from "./guide.mjs";
 
 const VIDEO_ID = /^[\w-]{11}$/;
 const CHANNEL_ID = /^UC[\w-]{22}$/;
@@ -213,6 +214,7 @@ function watchPage(v, ctx, force = "") {
     <article class="pg-watch">
       <div class="pg-player"><iframe src="https://www.youtube.com/embed/${v.id}?rel=0&amp;playsinline=1&amp;hl=${lang === "zh" ? "zh-Hans" : lang}" title="${esc(v.title)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
       <h1 class="pg-title">${esc(v.title)}</h1>${intro ? `\n      <p class="pg-intro">${esc(intro)}</p>` : ""}
+      ${(() => { const w = ctx.workOf?.get(v.id); const a = videoAnalysis(v, lang, { rank: ctx.ranks?.get(v.id), work: w && !isBinge(v) ? w.name : "", ep: w ? w.list.filter((x) => !isBinge(x)).indexOf(v) + 1 : 0, name: (c) => I.name(c), countries: ctx.countries }); return a ? `<p class="pg-ana">${esc(a)}</p>` : ""; })()}
       <p class="pg-meta">${v.cid ? `<a href="https://www.youtube.com/channel/${v.cid}" target="_blank" rel="noopener">${esc(v.channel)}</a>` : esc(v.channel)} · <time datetime="${v.published}">${esc(dateText(v.published, lang))}</time>${v.categories.length ? " · " + v.categories.map((c) => `<a href="${HOME[lang]}?c=${encodeURIComponent(c)}">${esc(I.name(c))}</a>`).join(", ") : ""}</p>
       <div class="pg-btns">
         <a class="btn btn--primary" href="${HOME[lang]}?v=${v.id}">${esc(t("다음 화 자동 재생으로 보기"))}</a>
@@ -229,11 +231,11 @@ function watchPage(v, ctx, force = "") {
 
 // ── 작품 가이드 (사이트가 직접 만든 정보: 유튜브 데이터만 있는 페이지가 되지 않게) ──
 const GUIDE = {
-  ko: { t: "작품 가이드", genre: "장르·국가", eps: "공개된 회차", first: "첫 화 공개", last: "최근 화 공개", every: "업데이트 주기", everyV: (d) => (d < 1.5 ? "거의 매일" : `평균 ${Math.round(d)}일마다`), done: "완결 또는 휴식 중", rec: "이런 분께 추천해요", note: "에디터 노트", same: "같은 채널의 다른 작품", like: "비슷한 장르 작품", n: (n) => `${n}화` },
-  en: { t: "Series guide", genre: "Genre & country", eps: "Episodes", first: "First episode", last: "Latest episode", every: "Update pace", everyV: (d) => (d < 1.5 ? "Almost daily" : `About every ${Math.round(d)} days`), done: "Finished or on break", rec: "Who will enjoy it", note: "Editor's note", same: "More from this channel", like: "Similar series", n: (n) => `${n} eps` },
-  ja: { t: "作品ガイド", genre: "ジャンル・国", eps: "公開話数", first: "第1話公開", last: "最新話公開", every: "更新ペース", everyV: (d) => (d < 1.5 ? "ほぼ毎日" : `平均${Math.round(d)}日ごと`), done: "完結または休止中", rec: "こんな方におすすめ", note: "編集部メモ", same: "同じチャンネルの作品", like: "似たジャンルの作品", n: (n) => `全${n}話` },
-  zh: { t: "作品指南", genre: "类型与国家", eps: "已更新集数", first: "第1集上线", last: "最新一集", every: "更新频率", everyV: (d) => (d < 1.5 ? "几乎每天" : `平均每${Math.round(d)}天`), done: "已完结或暂停", rec: "推荐给这些观众", note: "编辑点评", same: "同频道的其他作品", like: "类似类型作品", n: (n) => `共${n}集` },
-  es: { t: "Guía de la serie", genre: "Género y país", eps: "Episodios", first: "Primer episodio", last: "Último episodio", every: "Ritmo", everyV: (d) => (d < 1.5 ? "Casi a diario" : `Cada ${Math.round(d)} días aprox.`), done: "Terminada o en pausa", rec: "Para quién es", note: "Nota del editor", same: "Más de este canal", like: "Series parecidas", n: (n) => `${n} episodios` },
+  ko: { ana: "작품 분석", t: "작품 가이드", genre: "장르·국가", eps: "공개된 회차", first: "첫 화 공개", last: "최근 화 공개", every: "업데이트 주기", everyV: (d) => (d < 1.5 ? "거의 매일" : `평균 ${Math.round(d)}일마다`), done: "완결 또는 휴식 중", rec: "이런 분께 추천해요", note: "에디터 노트", same: "같은 채널의 다른 작품", like: "비슷한 장르 작품", n: (n) => `${n}화` },
+  en: { ana: "Analysis", t: "Series guide", genre: "Genre & country", eps: "Episodes", first: "First episode", last: "Latest episode", every: "Update pace", everyV: (d) => (d < 1.5 ? "Almost daily" : `About every ${Math.round(d)} days`), done: "Finished or on break", rec: "Who will enjoy it", note: "Editor's note", same: "More from this channel", like: "Similar series", n: (n) => `${n} eps` },
+  ja: { ana: "作品分析", t: "作品ガイド", genre: "ジャンル・国", eps: "公開話数", first: "第1話公開", last: "最新話公開", every: "更新ペース", everyV: (d) => (d < 1.5 ? "ほぼ毎日" : `平均${Math.round(d)}日ごと`), done: "完結または休止中", rec: "こんな方におすすめ", note: "編集部メモ", same: "同じチャンネルの作品", like: "似たジャンルの作品", n: (n) => `全${n}話` },
+  zh: { ana: "作品分析", t: "作品指南", genre: "类型与国家", eps: "已更新集数", first: "第1集上线", last: "最新一集", every: "更新频率", everyV: (d) => (d < 1.5 ? "几乎每天" : `平均每${Math.round(d)}天`), done: "已完结或暂停", rec: "推荐给这些观众", note: "编辑点评", same: "同频道的其他作品", like: "类似类型作品", n: (n) => `共${n}集` },
+  es: { ana: "Análisis", t: "Guía de la serie", genre: "Género y país", eps: "Episodios", first: "Primer episodio", last: "Último episodio", every: "Ritmo", everyV: (d) => (d < 1.5 ? "Casi a diario" : `Cada ${Math.round(d)} días aprox.`), done: "Terminada o en pausa", rec: "Para quién es", note: "Nota del editor", same: "Más de este canal", like: "Series parecidas", n: (n) => `${n} episodios` },
 };
 // 장르별 추천 문구 (사이트에서 직접 쓴 글)
 const REC = {
@@ -255,12 +257,14 @@ function workGuide(w, ctx, I, lang, L) {
   const idle = ts.length ? (Date.now() - ts[ts.length - 1]) / 864e5 : 0;
   const cats = [...new Set(w.list.flatMap((x) => x.categories))].filter((c) => c !== "기타");
   const recs = cats.map((c) => REC[c]?.[lang]).filter(Boolean).slice(0, 3);
-  const note = ctx.notes?.[w.slug];
+  const note = editorNote(ctx.notes, w, lang);
+  const ana = workAnalysis({ ...w, list: w.list.filter((x) => !isBinge(x)) }, lang, (c) => I.name(c), ctx.countries);
   const others = (ctx.works || []).filter((o) => o !== w && o.channel === w.channel).slice(0, 6);
   const like = (ctx.works || []).filter((o) => o !== w && o.channel !== w.channel && o.list.some((x) => x.categories.some((c) => cats.includes(c) && !ctx.countries?.has(c)))).slice(0, 6);
   const wl = (o) => `<li><a href="${workPath(o, ctx, L)}">${esc(o.name)}</a> <span class="muted">· ${esc(o.channel)} · ${esc(G.n(o.list.length))}</span></li>`;
   return `<section class="pg-sec wg"><h2>${esc(G.t)}</h2>
       ${note ? `<div class="wg-note"><b>${esc(G.note)}</b><p>${esc(note)}</p></div>` : ""}
+      ${ana ? `<div class="wg-ana"><b>${esc(G.ana)}</b><p>${esc(ana)}</p></div>` : ""}
       <dl class="geo-facts wg-facts">
         ${cats.length ? `<div><dt>${esc(G.genre)}</dt><dd>${cats.map((c) => esc(I.name(c))).join(" · ")}</dd></div>` : ""}
         <div><dt>${esc(G.eps)}</dt><dd>${esc(G.n(eps.length))}</dd></div>
@@ -350,7 +354,24 @@ export async function buildPages({ PUB, SITE, loadI18n, ver, only }) {
   // 관리자가 쓴 작품 소개(에디터 노트): site.json 의 workNotes { 작품주소: "글" }
   let notes = {}, countries = new Set(["한국", "미국", "일본", "중국"]);
   try { const st = JSON.parse(await readFile(resolve(PUB, "data/site.json"), "utf8")); if (st.workNotes && typeof st.workNotes === "object") notes = st.workNotes; if (Array.isArray(st.countries)) countries = new Set(st.countries); } catch {}
-  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big, loc, kids, notes, works, countries };
+  const workOf = new Map(); for (const w of works) for (const x of w.list) workOf.set(x.id, w);
+  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big, loc, kids, notes, works, countries, workOf, ranks: channelRanks(videos) };
+  // 사이트 화면(작품 보기)에서 언어에 맞춰 보여 줄 작품 분석·에디터 노트·추천 문구
+  {
+    const out = {};
+    for (const w of works) {
+      const o = {};
+      for (const l of LANGS) {
+        const I = cache[l] || cache.ko;
+        const cats = [...new Set(w.list.flatMap((x) => x.categories))];
+        o[l] = { a: workAnalysis({ ...w, list: w.list.filter((x) => !isBinge(x)) }, l, (c) => I.name(c), countries), n: editorNote(notes, w, l), r: cats.map((c) => REC[c]?.[l]).filter(Boolean).slice(0, 3) };
+      }
+      out[noteKey(w)] = o;
+    }
+    const f = resolve(PUB, "data/guides.json"), text = JSON.stringify({ v: 1, works: out });
+    let old = ""; try { old = await readFile(f, "utf8"); } catch {}
+    if (old !== text) { await writeFile(f + ".tmp", text); await rename(f + ".tmp", f); }
+  }
   let changed = 0;
   const pick = only ? new Set(only) : null;
   const keepL = Object.fromEntries(Object.keys(LP).map((l) => [l, { watch: new Set(), work: new Set() }]));

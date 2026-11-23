@@ -81,6 +81,9 @@
     // 줄(선반)
     "이어서 보기": ["Continue watching", "続きを見る", "继续观看", "Seguir viendo"],
     "봤어요": ["Watched", "視聴済み", "已看", "Visto"],
+    "에디터 노트": ["Editor's note", "編集部メモ", "编辑点评", "Nota del editor"],
+    "작품 분석": ["Analysis", "作品分析", "作品分析", "Análisis"],
+    "이런 분께 추천해요": ["Who will enjoy it", "こんな方におすすめ", "推荐给这些观众", "Para quién es"],
     "{n}화까지 봤어요": ["You've watched up to episode {n}", "第{n}話まで視聴しました", "已看到第{n}集", "Has visto hasta el episodio {n}"],
     "▶ 이어보기 ({n}화)": ["▶ Resume (Ep. {n})", "▶ 続きを見る（第{n}話）", "▶ 继续观看（第{n}集）", "▶ Continuar (ep. {n})"],
     "▶ {n}화 보기": ["▶ Watch Ep. {n}", "▶ 第{n}話を見る", "▶ 观看第{n}集", "▶ Ver ep. {n}"],

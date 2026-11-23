@@ -572,3 +572,11 @@ html{overflow-x:clip}
 .whead__prog{margin:8px 0 0;font-size:13.5px;color:#e6e6f0;font-weight:700}
 .whead__prog small{display:block;font-weight:500;color:var(--muted);margin-top:3px}
 .ep-done{position:absolute;top:6px;right:6px;z-index:2;background:rgba(0,0,0,.72);color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:2px 6px}
+
+/* 작품 보기: 작품 분석·에디터 노트 */
+.wguide{position:relative;z-index:1;margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(18,18,26,.72);font-size:14px;line-height:1.65;color:#d6d6e2}
+.wguide b{color:#fff;font-weight:800;margin-right:4px}
+.wguide p{margin:0 0 6px}.wguide p:last-child{margin:0}
+.wguide__note{background:linear-gradient(135deg,rgba(255,61,127,.14),rgba(139,92,246,.14));border-radius:10px;padding:10px 12px;margin:0 0 8px}
+.wguide__note p{margin:4px 0 0;white-space:pre-line}
+@media (max-width:640px){.wguide{font-size:13.5px;padding:10px 12px}}

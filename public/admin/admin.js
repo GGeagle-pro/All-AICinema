@@ -1088,6 +1088,38 @@
       afterSiteSave("검색용 페이지 설정 반영 중");
     });
   }
+  // 작품 에디터 노트 (site.json workNotes["채널 / 작품"] = 한국어 글 또는 { ko, en, ja, zh, es })
+  //  - 비워 둔 언어는 그 언어 화면에서 안 보이고, 자동 '작품 분석'만 보여요
+  const NOTE_LANGS = [["ko", "한국어"], ["en", "English"], ["ja", "日本語"], ["zh", "中文"], ["es", "Español"]];
+  function noteEditor(ch, name) {
+    const key = `${ch} / ${name}`, cur = state.site?.workNotes?.[key];
+    const val = (l) => (typeof cur === "string" ? (l === "ko" ? cur : "") : cur?.[l] || "");
+    const has = NOTE_LANGS.some(([l]) => val(l));
+    const det = el("details", { class: "adm-note" }, el("summary", { text: has ? "✎ 에디터 노트 (작성됨)" : "✎ 에디터 노트 쓰기" }));
+    const areas = {};
+    for (const [l, label] of NOTE_LANGS) {
+      areas[l] = el("textarea", { rows: l === "ko" ? "4" : "2", maxlength: "1000", placeholder: l === "ko" ? "이 작품을 왜 추천하는지, 볼 만한 포인트를 2~3문장으로 (사이트에 그대로 보여요)" : `${label} (비우면 이 언어에선 안 보여요)`, "aria-label": `${name} 에디터 노트 ${label}` });
+      areas[l].value = val(l);
+      det.append(el("label", { class: "adm-label", text: label }), areas[l]);
+    }
+    const save = el("button", { type: "button", class: "btn btn--primary", text: "노트 저장" });
+    save.addEventListener("click", () => run(async () => {
+      const o = {}; for (const [l] of NOTE_LANGS) { const t = clean(areas[l].value, 1000); if (t) o[l] = t; }
+      await saveSite(`에디터 노트: ${name}`, (s) => {
+        s.workNotes = s.workNotes && typeof s.workNotes === "object" ? s.workNotes : {};
+        const next = Object.keys(o).length ? (Object.keys(o).length === 1 && o.ko ? o.ko : o) : null;
+        if (JSON.stringify(s.workNotes[key] ?? null) === JSON.stringify(next)) return false;
+        if (next) s.workNotes[key] = next; else delete s.workNotes[key];
+        if (!Object.keys(s.workNotes).length) delete s.workNotes;
+        return true;
+      });
+      toast("저장했어요. 3~5분 뒤 작품 페이지와 사이트에 보여요.");
+      afterSiteSave("에디터 노트 반영 중");
+    }));
+    det.append(save);
+    return det;
+  }
+
   function renderWorks() {
     renderWorksSwitch();
     renderPagesSwitch();
@@ -1128,7 +1160,7 @@
         merge.addEventListener("change", () => { const to = merge.value; if (to) saveSeriesConf(g.name, g.cid, `'${n}'을 '${to}'에 합치기`, (s) => { s.rename[n] = to; }); });
         const ungroup = el("button", { type: "button", class: "btn btn--danger", text: "묶지 않기" });
         ungroup.addEventListener("click", () => saveSeriesConf(g.name, g.cid, `'${n}' 묶지 않기`, (s) => { s.rename[n] = ""; }));
-        list.append(el("li", {}, el("span", { class: "adm-work__count", text: `${c}편` }), nameIn, rename, merge, ungroup));
+        list.append(el("li", {}, el("span", { class: "adm-work__count", text: `${c}편` }), nameIn, rename, merge, ungroup, noteEditor(g.name, n)));
       }
       if (!names.length) list.append(el("li", { class: "muted small", text: "아직 묶인 작품이 없어요. 아래 '규칙 추가'로 직접 묶을 수 있어요." }));
       det.append(list);

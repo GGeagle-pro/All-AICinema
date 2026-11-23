@@ -665,9 +665,25 @@
           })()}
           <div class="whead__btns" ${state.list.some((x) => progOf(x.id) > 0.05 || hist.includes(x.id)) ? "hidden" : ""}><button type="button" class="btn btn--primary" data-play="first">${T("▶ 1화부터 보기")}</button>
             <button type="button" class="btn" data-play="last">${T("최신화 보기")}</button></div>
-        </div></div>`;
+        </div></div>
+      <div class="wguide" id="wGuide" hidden></div>`;
     box.hidden = false;
+    fillGuide(w);
     return w;
+  }
+  // 작품 분석·에디터 노트·추천 대상 (data/guides.json – 수집할 때 5개 언어로 자동 생성, 화면 언어에 맞춰 표시)
+  let guidesP = null;
+  const getGuides = () => (guidesP ||= fetch("/data/guides.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => { guidesP = null; return {}; }));
+  async function fillGuide(w) {
+    const g = (await getGuides())?.works?.[`${w.channel} / ${w.name}`];
+    const box = $("#wGuide");
+    if (!box || !g || state.work !== w.key) return;
+    const x = g[I18N.lang] || g.en || g.ko;
+    if (!x || !(x.a || x.n || x.r?.length)) return;
+    box.innerHTML = `${x.n ? `<div class="wguide__note"><b>${esc(T("에디터 노트"))}</b><p>${esc(x.n)}</p></div>` : ""}
+      ${x.a ? `<p class="wguide__ana"><b>${esc(T("작품 분석"))}</b> ${esc(x.a)}</p>` : ""}
+      ${x.r?.length ? `<p class="wguide__rec"><b>${esc(T("이런 분께 추천해요"))}</b> ${x.r.map(esc).join(" · ")}</p>` : ""}`;
+    box.hidden = false;
   }
   function openWork(key, { remember = true } = {}) {
     if (!key) return;
