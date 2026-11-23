@@ -15,7 +15,8 @@ import { collectAdsense } from "./adsense.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = resolve(ROOT, "stats/stats.enc.json");
 const ITER = 250000;
-const EVENTS = ["video_play", "banner_click", "strip_click", "search", "work_open", "video_error", "share"];
+const EVENTS = ["video_play", "banner_click", "strip_click", "banner_view", "strip_view", "search", "work_open", "video_error", "share"];
+const SLOT_EVENTS = ["banner_click", "strip_click", "banner_view", "strip_view"];
 const DAYS = 90;   // 날짜별로 쪼갠 기록을 몇 일치 보관할지 (관리자에서 달력으로 아무 기간이나 골라 합산)
 const FROM = `${DAYS - 1}daysAgo`;
 const RANGES = [
@@ -120,6 +121,13 @@ export async function collect(prop, token) {
       { dateRanges: RANGE, dimensions: D("date", "linkUrl", "linkText"), metrics: D("eventCount"), dimensionFilter: { filter: { fieldName: "eventName", stringFilter: { value: "video_error" } } }, limit: BIG },
     ]);
   } catch {}
+  // 광고 칸별 노출·클릭 (link_text = banner-1~3, strip-1~6)
+  let slots = null;
+  try {
+    [slots] = await batch(prop, token, [
+      { dateRanges: RANGE, dimensions: D("date", "eventName", "linkText"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", SLOT_EVENTS), limit: BIG },
+    ]);
+  } catch {}
   // 성별·나이대 (GA4 'Google 신호'를 켜야 하고, 사람이 적으면 구글이 숨김 → 실패해도 건너뜀)
   let gender = null, age = null, demoError = "";
   try {
@@ -174,6 +182,7 @@ export async function collect(prop, token) {
     demoError,
     hourlyEv: table(hourlyEv, ["dateHour", "eventName", "eventCount"]),
     errors: errors ? table(errors, ["date", "linkUrl", "linkText", "eventCount"]) : null,
+    slots: slots ? table(slots, ["date", "eventName", "linkText", "eventCount"]) : null,
     ads, adsError,
   };
 }

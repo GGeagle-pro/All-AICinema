@@ -152,7 +152,7 @@
     // 칸마다 보여 줄 방문자: all(모두) / kr(국내만) / intl(해외만) – 띠 배너와 같은 규칙
     const kr = isKrVisitor();
     const items = (state.site.banners || []).slice(0, 3)
-      .map((b) => ({ img: SAFE_IMG.test(b?.image || "") ? b.image : "", link: safeLink(b?.link || ""), alt: str(b?.alt, 80),
+      .map((b, slot) => ({ slot, img: SAFE_IMG.test(b?.image || "") ? b.image : "", link: safeLink(b?.link || ""), alt: str(b?.alt, 80),
         target: ["kr", "intl"].includes(b?.target) ? b.target : "all", note: str(b?.note, 140) }))
       .filter((b) => b.img && (b.target === "all" || (b.target === "kr") === kr));
     box.hidden = !items.length;
@@ -160,8 +160,8 @@
     box.innerHTML = items.map((b) => {
       const img = `<img src="/${esc(b.img)}" alt="${esc(b.alt || T("광고 배너"))}" loading="lazy" decoding="async" /><span class="promo__label">${T("광고")}</span>`;
       const box = b.link
-        ? `<a class="promo__item" href="${esc(b.link)}" target="_blank" rel="sponsored noopener noreferrer">${img}</a>`
-        : `<div class="promo__item">${img}</div>`;
+        ? `<a class="promo__item" data-slot="banner-${b.slot + 1}" href="${esc(b.link)}" target="_blank" rel="sponsored noopener noreferrer">${img}</a>`
+        : `<div class="promo__item" data-slot="banner-${b.slot + 1}">${img}</div>`;
       return b.note ? `<div class="promo__cell">${box}<p class="promo__note">${esc(b.note)}</p></div>` : box;
     }).join("");
   }
@@ -549,7 +549,7 @@
     else { b = pos < 6 ? at(pos) : null; if (!ok(b)) b = at(STRIP_DEFAULT); }
     if (!ok(b)) return "";
     const own = isOwnLink(b.link);
-    return `<${tag} class="strip"><a class="strip__in" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored nofollow noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
+    return `<${tag} class="strip"><a class="strip__in" data-slot="strip-${b.slot + 1}" href="${esc(b.link)}"${own ? "" : ' target="_blank" rel="sponsored nofollow noopener noreferrer"'}${b.alt ? ` aria-label="${esc(b.alt)}"` : ""}>
       <img src="/${esc(b.image)}" alt="${esc(b.alt)}" width="1920" height="240" loading="lazy" decoding="async" />
       <span class="strip__ad">${T("광고")}</span></a>${b.note ? `<p class="strip__note">${esc(b.note)}</p>` : ""}</${tag}>`;
   }
@@ -1368,8 +1368,27 @@
     // 통계: 배너·띠 배너 클릭
     document.addEventListener("click", (e) => {
       const a = e.target.closest("a.promo__item, a.strip__in");
-      if (a) track(a.classList.contains("strip__in") ? "strip_click" : "banner_click", { link_url: a.href.slice(0, 200) });
+      if (a) track(a.classList.contains("strip__in") ? "strip_click" : "banner_click", { link_url: a.href.slice(0, 200), link_text: a.dataset.slot || "" });
     }, true);
+    // 통계: 배너·띠 배너 노출 (화면에 절반 이상 1초 보이면 1회, 같은 배너 요소는 한 번만)
+    if ("IntersectionObserver" in window) {
+      const seen = new WeakSet(), timers = new WeakMap();
+      const io = new IntersectionObserver((ents) => {
+        for (const en of ents) {
+          const el = en.target;
+          if (seen.has(el)) { io.unobserve(el); continue; }
+          if (en.isIntersecting) timers.set(el, setTimeout(() => {
+            seen.add(el); io.unobserve(el);
+            track(el.classList.contains("strip__in") ? "strip_view" : "banner_view", { link_text: el.dataset.slot || "", link_url: (el.href || "").slice(0, 200) });
+          }, 1000));
+          else { clearTimeout(timers.get(el)); }
+        }
+      }, { threshold: 0.5 });
+      const watch = (root) => { for (const el of root.querySelectorAll(".promo__item[data-slot], .strip__in[data-slot]")) if (!seen.has(el)) io.observe(el); };
+      let pend = 0;
+      new MutationObserver(() => { if (!pend) pend = setTimeout(() => { pend = 0; watch(document); }, 300); }).observe(document.body, { childList: true, subtree: true });
+      watch(document);
+    }
     $("#shelves").addEventListener("click", (e) => {
       const wk = e.target.closest("[data-work]");
       if (wk && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); openWork(wk.dataset.work); return; }

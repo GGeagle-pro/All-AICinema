@@ -1528,6 +1528,57 @@
     for (const th of document.querySelectorAll("#perfTable th")) th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.k === DASH.sort ? (DASH.dir < 0 ? " ▼" : " ▲") : "");
   }
 
+  // ── 광고 칸별 성과 (광고 배너 1~3, 띠 배너 1~6): 노출·클릭·클릭률, 날짜별 ──
+  const SLOT_LIST = [["banner-1", "광고 배너 1"], ["banner-2", "광고 배너 2"], ["banner-3", "광고 배너 3"],
+    ["strip-1", "띠 배너 1"], ["strip-2", "띠 배너 2"], ["strip-3", "띠 배너 3"], ["strip-4", "띠 배너 4"], ["strip-5", "띠 배너 5"], ["strip-6", "띠 배너 6"]];
+  function slotInfo(key) {
+    const [kind, n] = key.split("-"), b = (kind === "banner" ? state.site?.banners : state.site?.strips)?.[Number(n) - 1];
+    if (!b?.image) return "비어 있음";
+    let host = ""; try { host = new URL(b.link).hostname.replace(/^www\./, ""); } catch {}
+    return [b.alt, host].filter(Boolean).join(" · ") || "이미지만";
+  }
+  function slotReport(sd, from, to, { daily = true } = {}) {
+    if (!sd) return `<p class="adm-hint">통계 암호를 넣으면 보여요. <button class="btn" type="button" data-go-stats>통계 암호 넣기</button></p>`;
+    const rows = sd.slots ? agg(sd.slots, from, to, ["eventName", "linkText"], ["eventCount"]) : [];
+    const get = (ev, key) => rows.filter((x) => x.eventName === ev && x.linkText === key).reduce((t, x) => t + x.eventCount, 0);
+    const pct = (c, v) => (v ? ((c / v) * 100).toFixed(2) + "%" : "–");
+    const evs = sd.events ? agg(sd.events, from, to, ["eventName"], ["eventCount"]) : [];
+    const evN = (n) => evs.filter((x) => x.eventName === n).reduce((t, x) => t + x.eventCount, 0);
+    const tr = SLOT_LIST.map(([k, label]) => {
+      const kind = k.split("-")[0], v = get(kind + "_view", k), c = get(kind + "_click", k);
+      return `<tr><td class="slot"><b>${label}</b><small>${escH(slotInfo(k))}</small></td><td class="num">${v.toLocaleString()}</td><td class="num">${c.toLocaleString()}</td><td class="num">${pct(c, v)}</td></tr>`;
+    });
+    // 합계는 위 칸들을 더한 값 (칸 기록이 생기기 전 클릭은 통계 '광고 배너 클릭·띠 배너 클릭'에만 들어가요)
+    const sum = (kind) => { const ks = SLOT_LIST.filter(([k]) => k.startsWith(kind)).map(([k]) => k); const v = ks.reduce((t, k) => t + get(kind + "_view", k), 0), c = ks.reduce((t, k) => t + get(kind + "_click", k), 0); return `<td class="num">${v.toLocaleString()}</td><td class="num">${c.toLocaleString()}</td><td class="num">${pct(c, v)}</td>`; };
+    let html = `<div class="adm-tablewrap adm-tablewrap--free"><table class="adm-table adm-table--compact"><thead><tr><th>광고 칸</th><th class="num">노출</th><th class="num">클릭</th><th class="num">클릭률</th></tr></thead><tbody>
+      ${tr.slice(0, 3).join("")}<tr class="sum"><td>광고 배너 합계</td>${sum("banner")}</tr>
+      ${tr.slice(3).join("")}<tr class="sum"><td>띠 배너 합계</td>${sum("strip")}</tr></tbody></table></div>`;
+    if (daily) {
+      const days = []; for (let t = to; t >= from && days.length < 31; t = addDays(t, -1)) days.push(t);
+      const dRows = days.slice(0, 31).map((d) => {
+        const e = sd.events ? agg(sd.events, d, d, ["eventName"], ["eventCount"]) : [];
+        const n = (x) => e.filter((y) => y.eventName === x).reduce((t, y) => t + y.eventCount, 0);
+        return `<tr><td>${toIso(d)}</td><td class="num">${n("banner_view").toLocaleString()}</td><td class="num">${n("banner_click").toLocaleString()}</td><td class="num">${n("strip_view").toLocaleString()}</td><td class="num">${n("strip_click").toLocaleString()}</td></tr>`;
+      });
+      html += `<h3 class="adm-sub">날짜별</h3><div class="adm-tablewrap adm-tablewrap--free"><table class="adm-table adm-table--compact"><thead><tr><th>날짜</th><th class="num">배너 노출</th><th class="num">배너 클릭</th><th class="num">띠 노출</th><th class="num">띠 클릭</th></tr></thead><tbody>${dRows.join("")}</tbody></table></div>`;
+    }
+    return html;
+  }
+  const AP = { r: "today" };
+  function rangeYmd(r, sd) {
+    const today = ymd(new Date(sd?.generatedAt || Date.now()), sd?.timeZone);
+    return r === "yesterday" ? [addDays(today, -1), addDays(today, -1)] : r === "d7" ? [addDays(today, -6), today] : r === "d30" ? [addDays(today, -29), today] : [today, today];
+  }
+  async function renderAdPerf() {
+    const box = $("#adPerf"); if (!box) return;
+    let sd = ST.data;
+    if (!sd && savedPw()) { try { const f = (await readJson("stats/stats.enc.json")).data; sd = ST.data = await decryptStats(f, savedPw()); } catch {} }
+    const [from, to] = rangeYmd(AP.r, sd);
+    for (const b of document.querySelectorAll("#adPerfRange button")) b.setAttribute("aria-pressed", String(b.dataset.r === AP.r));
+    $("#adPerfAt").textContent = sd?.generatedAt ? `통계 ${new Date(sd.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준` : "";
+    box.innerHTML = slotReport(sd, from, to, { daily: AP.r !== "today" && AP.r !== "yesterday" });
+  }
+
   async function openStats(force = false) {
     if (ST.loading || (ST.data && !force)) return ST.data && renderStats();
     ST.loading = true;
@@ -1707,7 +1758,8 @@
       ["방문자", cur.users, sameTime ? delta(cur.hUsers, prev.hUsers) : delta(curU, prev.users)], ["새 방문자", cur.newUsers, sameTime ? "" : delta(sumOf(days, "newUsers"), prev.newUsers)],
       ["방문 횟수", cur.sessions, sameTime ? "" : delta(cur.sessions, prev.sessions)], ["페이지뷰 (GA·영상 열기 포함)", cur.views, delta(cur.views, prev.views)],
       ["영상 재생", evSum(ev, "video_play"), delta(evSum(ev, "video_play"), evSum(pev, "video_play"))],
-      ["배너 클릭", evSum(ev, "banner_click") + evSum(ev, "strip_click"), delta(evSum(ev, "banner_click") + evSum(ev, "strip_click"), evSum(pev, "banner_click") + evSum(pev, "strip_click"))],
+      ["광고 배너 클릭", evSum(ev, "banner_click"), delta(evSum(ev, "banner_click"), evSum(pev, "banner_click"))],
+      ["띠 배너 클릭", evSum(ev, "strip_click"), delta(evSum(ev, "strip_click"), evSum(pev, "strip_click"))],
       ["검색", evSum(ev, "search"), delta(evSum(ev, "search"), evSum(pev, "search"))], ["작품 열기", evSum(ev, "work_open"), delta(evSum(ev, "work_open"), evSum(pev, "work_open"))],
     ];
     const cmpLabel = len === 1 ? (ST.mode === "today" ? (sameTime ? `어제 같은 시각(${sameTime})까지 대비` : "어제 대비") : "그 전날 대비") : `이전 ${len}일 대비`;
@@ -1818,9 +1870,10 @@
       <p class="st-period"><b>${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}</b> <span class="muted small">(${len}일 · 증감은 ${cmpLabel})</span></p>
       <div class="st-kpis">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${num(v)}</b>${dl}</div>`).join("")}</div>
       ${custom && len > 1 ? `<p class="muted small">* 직접 고른 기간의 방문자는 날짜별 방문자를 더한 숫자예요. 여러 날 온 사람은 여러 번 세어져요.</p>` : ""}
+      <section class="adm-card st-card st-wide"><h3>광고 칸별 성과 <span class="muted small">(이 기간 · 광고 배너 1~3, 띠 배너 1~6)</span></h3>${slotReport(d, from, to, { daily: false })}</section>
       ${adsHtml}
       <section class="adm-card st-card st-wide"><h3>${chartTitle}</h3>${chartHtml}
-        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰(GA)</th><th>영상 재생</th><th>배너 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
+        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰(GA)</th><th>영상 재생</th><th>배너+띠 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
         <tbody>${rowsHtml || `<tr><td colspan="8" class="muted">이 기간에는 기록이 없어요.</td></tr>`}</tbody></table></div></section>
       <div class="st-grid">
         <section class="adm-card st-card"><h3>국가별 방문자</h3>${bars(pick("country", ["country", "countryId"], ["activeUsers"]), (x) => `${flag(x.countryId)} ${escH(COUNTRY_KO(x.countryId, x.country))}`, (x) => x.activeUsers)}</section>
@@ -1858,6 +1911,7 @@
     for (const p of ["dash", "channels", "stats", "works", "videos", "hidden", "menu", "ads"]) $(`#tab-${p}`).hidden = p !== t.dataset.tab;
     if (t.dataset.tab === "stats") openStats();
     if (t.dataset.tab === "dash") renderDash();
+    if (t.dataset.tab === "ads") renderAdPerf();
     t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   });
   $("#addUrl").addEventListener("input", updateAddForm);
@@ -1908,6 +1962,8 @@
   $("#pagesSwitch").addEventListener("submit", savePagesSwitch);
   $("#langCountrySwitch").addEventListener("submit", saveLangCountry);
   $("#dashGoStats").addEventListener("click", () => document.querySelector('.adm-tabs [data-tab="stats"]').click());
+  $("#adPerfRange").addEventListener("click", (e) => { const b = e.target.closest("button[data-r]"); if (!b) return; AP.r = b.dataset.r; renderAdPerf(); });
+  document.addEventListener("click", (e) => { if (e.target.closest("[data-go-stats]")) document.querySelector('.adm-tabs [data-tab="stats"]').click(); });
   $("#perfTable thead").addEventListener("click", (e) => { const th = e.target.closest("th[data-k]"); if (!th) return; DASH.dir = DASH.sort === th.dataset.k ? -DASH.dir : -1; DASH.sort = th.dataset.k; renderDash(); });
 
   // 시작
