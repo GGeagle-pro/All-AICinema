@@ -16,7 +16,7 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
-import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds, embedStatus } from "./youtube-api.mjs";
+import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds, embedStatus, channelAvatars } from "./youtube-api.mjs";
 import { assignSeries } from "./series.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -266,8 +266,15 @@ async function main() {
   const avAge = existing.avatarsCheckedAt ? (Date.now() - new Date(existing.avatarsCheckedAt)) / 3600e3 : Infinity;
   const refreshAll = !(avAge < AVATAR_REFRESH_HOURS);
   let avatarsCheckedAt = refreshAll ? new Date().toISOString() : existing.avatarsCheckedAt;
+  // 공식 API가 있으면 매번 전 채널 사진을 한 번에 확인 (유튜브에서 바꾼 사진이 1시간 안에 반영, 50채널당 1단위)
+  let apiAv = new Map();
+  if (apiKey()) {
+    try { apiAv = await channelAvatars([...tracked.keys()]); console.log(`✓ 채널 사진 ${apiAv.size}/${tracked.size}개 (공식 API)`); }
+    catch (err) { console.warn(`✗ 채널 사진(공식 API): ${err.message}`); }
+  }
   for (const cid of tracked.keys()) {
     const prev = existing.avatars?.[cid];
+    if (apiAv.has(cid)) { avatars[cid] = apiAv.get(cid); continue; }
     if (!refreshAll && isAvatarUrl(prev)) { avatars[cid] = prev; continue; }
     try {
       const url = await fetchChannelAvatar(cid);

@@ -88,6 +88,21 @@ export async function embedStatus(ids) {
   return out;
 }
 
+/** 채널 프로필 사진 (공식 API, 유튜브 채널에 지금 걸려 있는 사진) → Map(채널ID → yt3 주소). 50개당 1단위 */
+export async function channelAvatars(cids) {
+  const out = new Map(), ok = /^https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[\w\-./=~%]{10,500}$/;
+  const list = cids.filter((c) => CHANNEL_ID.test(c));
+  for (let i = 0; i < list.length; i += 50) {
+    const d = await apiGet("channels", { part: "snippet", id: list.slice(i, i + 50).join(","), maxResults: 50 });
+    for (const it of d?.items || []) {
+      const th = it?.snippet?.thumbnails || {};
+      const u = String(th.high?.url || th.medium?.url || th.default?.url || "").replace(/=s\d+(-[^/?#]*)?$/, "=s176-c-k-c0x00ffffff-no-rj");
+      if (CHANNEL_ID.test(it?.id || "") && ok.test(u)) out.set(it.id, u);
+    }
+  }
+  return out;
+}
+
 /** 채널의 재생목록 (제작자가 직접 만든 것) */
 export async function listPlaylists(cid, { max = 100 } = {}) {
   if (!CHANNEL_ID.test(cid)) return [];

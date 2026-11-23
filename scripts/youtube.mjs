@@ -94,7 +94,7 @@ export function avatarFromPage(html) {
   const m = String(html).match(/<meta property="og:image" content="([^"]+)"/) ||
             String(html).match(/<link itemprop="thumbnailUrl" href="([^"]+)"/);
   if (!m) return "";
-  const url = decodeXml(m[1]).replace(/=s\d+(-[^/?#]*)?$/, "=s88-c-k-c0x00ffffff-no-rj");
+  const url = decodeXml(m[1]).replace(/=s\d+(-[^/?#]*)?$/, "=s176-c-k-c0x00ffffff-no-rj");
   return AVATAR_URL.test(url) ? url : "";
 }
 export const isAvatarUrl = (u) => typeof u === "string" && AVATAR_URL.test(u);
