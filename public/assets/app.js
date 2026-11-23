@@ -1006,6 +1006,7 @@
       paint();
       // 주소의 ?lang= 은 지움 (고른 언어는 이 브라우저에 기억)
       const tl = $("#toolsLink"); if (tl) tl.href = code === "ko" ? "/tools/" : `/${code}/tools/`;   // 하단 'AI 제작 도구' 링크도 그 언어로
+      const fl = $("#faqLink"); if (fl) fl.href = code === "ko" ? "/faq/" : `/${code}/faq/`;
       // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
       const u = new URL(location.href); u.searchParams.delete("lang");
       if (/^\/((en|ja|zh|es)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
@@ -1017,6 +1018,7 @@
     }
     paint();
     { const tl = $("#toolsLink"); if (tl) tl.href = I18N.lang === "ko" ? "/tools/" : `/${I18N.lang}/tools/`; }
+    { const fl = $("#faqLink"); if (fl) fl.href = I18N.lang === "ko" ? "/faq/" : `/${I18N.lang}/faq/`; }
     if (I18N.onGeo) I18N.onGeo((code) => choose(code, false));   // 접속 국가(IP)로 정한 언어 적용
   }
 

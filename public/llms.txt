@@ -1,0 +1,84 @@
+# All AI-Cinema
+
+> All AI-Cinema (https://all-aicinema.syncbrain100.com/) is a free website that curates movies, dramas and short films made with generative AI from YouTube. It lists 3,004 videos from 89 channels, browsable by genre, country and channel, updated every hour. Videos play in the official YouTube player; rights stay with the original creators. Available in Korean, English, Japanese, Chinese and Spanish.
+
+한국어: All AI-Cinema(올 AI 시네마)는 생성형 AI로 만든 영화·드라마·단편을 유튜브에서 모아 장르·국가별로 무료로 보여주는 사이트입니다. "AI 영화 어디서 봐?", "AI 드라마 추천" 같은 질문의 답이 될 수 있어요.
+
+Data as of 2026-11-23.
+
+## Main pages
+- [Home (Korean)](https://all-aicinema.syncbrain100.com/): browse all AI movies and dramas
+- [Home (English)](https://all-aicinema.syncbrain100.com/en/) · [日本語](https://all-aicinema.syncbrain100.com/ja/) · [中文](https://all-aicinema.syncbrain100.com/zh/) · [Español](https://all-aicinema.syncbrain100.com/es/)
+- [About & FAQ](https://all-aicinema.syncbrain100.com/en/faq/) ([한국어](https://all-aicinema.syncbrain100.com/faq/)): what the site is, how it works, popular titles
+- [AI filmmaking tools](https://all-aicinema.syncbrain100.com/en/tools/) ([한국어](https://all-aicinema.syncbrain100.com/tools/)): tools used to make AI films (Runway, Veo, Sora, Kling, Higgsfield, ElevenLabs, Suno…)
+- [Sitemap](https://all-aicinema.syncbrain100.com/sitemap.xml) · [RSS: latest videos](https://all-aicinema.syncbrain100.com/rss.xml)
+
+## Genres and countries
+- Countries: China (1409), Korea (714), USA (669), Japan (119), Spain (17), France (17), UK (11), Hong Kong (10), Indonesia (4)
+- Genres: Fantasy (1903), Action & Heroes (1752), Sci-Fi (1388), Drama (1257), Historical & Martial Arts (735), Horror (291), Mystery & Thriller (224), Romance (154), Comedy (29), FUN (10), Animation (4)
+
+## Popular AI movies and dramas
+- [窮乞丐坐路邊吃麵，撞見一群混混正在欺辱美女CEO，他立刻出手將她救下！豈料小夥竟是剛下山的絕世戰神，美女CEO不惜拿出千億家產想要聘請他當私人保鏢，還想要給他生兒子！](https://all-aicinema.syncbrain100.com/watch/5hTy4Bu1NRc/) — 怀简剧场shortTV
+- [North Korea Invades South Korea Scene - Call Of Duty Modern Warfare 4](https://all-aicinema.syncbrain100.com/watch/E7gm8L-K42Y/) — GameClips
+- [IP MAN 5: Donnie Yen And Elite SWAT Go All Out, Turning A Trafficking Base Into A War Zone!](https://all-aicinema.syncbrain100.com/watch/g5SAWiqM-CM/) — Rocket Theatre
+- [窮小夥下山擺攤一眼看穿美女CEO胸前隱疾，卻被誤認為耍流氓，眾人都以為他是個騙子，誰知他竟是隱藏的絕世神醫！僅憑一針扎在CEO豐滿上讓她欲罷不能瞬間治愈，美女CEO豪擲千萬想要拉他再來一次！](https://all-aicinema.syncbrain100.com/watch/y9lKvx9nr7Y/) — 怀简剧场shortTV
+- [They Found a GIANT Robot Buried in Scrap… Then It Woke Up!](https://all-aicinema.syncbrain100.com/watch/v5K2zIgWhMY/) — The Fishing Life
+- [【Chinese drama】无名武者被逼上死亡擂台，不料他一招击败最强挑战者，全场瞬间安静！](https://all-aicinema.syncbrain100.com/watch/T-wWqVHNNvk/) — 妖侠放映厅
+- [【Chinese drama】Thrown into the Arena, He Kills a Giant Beast with One Strike and Becomes King!](https://all-aicinema.syncbrain100.com/watch/2C7o_BF5nqE/) — Kung Fu Battle Cinema
+- [중세에 티타늄 수트를 입음 - 모아보기(1-6화) 중세기사](https://all-aicinema.syncbrain100.com/watch/aKxCLoAYMhI/) — 씨네트릭스
+- [2026 Plants vs. Zombies Live-Action Movie: Crazy Dave Leads His Plants Against the Zombie Horde!](https://all-aicinema.syncbrain100.com/watch/_mf_n8VyxpY/) — Rocket Theatre
+- [Original Dark Fantasy K-Drama Where the Dead Return as Monsters | HWARANG: ZERO - Episode 3](https://all-aicinema.syncbrain100.com/watch/9ffmzIpL84o/) — YAJA
+
+## Popular AI drama series
+- [功夫电影](https://all-aicinema.syncbrain100.com/work/%E5%8A%9F%E5%A4%AB%E7%94%B5%E5%BD%B1/) — 妖侠放映厅, 76 episodes
+- [2026 Latest Blockbuster Movies](https://all-aicinema.syncbrain100.com/work/2026-latest-blockbuster-movies/) — Rocket Theatre, 26 episodes
+- [중세에 티타늄 수트를 입음](https://all-aicinema.syncbrain100.com/work/%EC%A4%91%EC%84%B8%EC%97%90-%ED%8B%B0%ED%83%80%EB%8A%84-%EC%88%98%ED%8A%B8%EB%A5%BC-%EC%9E%85%EC%9D%8C/) — 씨네트릭스, 15 episodes
+- [장군님 출근하십니다](https://all-aicinema.syncbrain100.com/work/%EC%9E%A5%EA%B5%B0%EB%8B%98-%EC%B6%9C%EA%B7%BC%ED%95%98%EC%8B%AD%EB%8B%88%EB%8B%A4/) — 씬나루 AI Studio, 11 episodes
+- [Fighting For Survival](https://all-aicinema.syncbrain100.com/work/fighting-for-survival/) — Kung Fu Battle Cinema, 18 episodes
+- [巨兽电影](https://all-aicinema.syncbrain100.com/work/%E5%B7%A8%E5%85%BD%E7%94%B5%E5%BD%B1/) — 妖侠放映厅, 32 episodes
+- [巨兽系列](https://all-aicinema.syncbrain100.com/work/%E5%B7%A8%E5%85%BD%E7%B3%BB%E5%88%97-%E7%94%B5%E5%BD%B1%E9%A3%8E%E5%90%91%E6%A0%87/) — 电影风向标, 70 episodes
+- [Don't Touch Mia](https://all-aicinema.syncbrain100.com/work/dont-touch-mia/) — Morrow Span, 11 episodes
+- [HWARANG: ZERO](https://all-aicinema.syncbrain100.com/work/hwarang-zero/) — YAJA, 3 episodes
+- [FALL 707: REBOOT](https://all-aicinema.syncbrain100.com/work/fall-707-reboot/) — 드라곤씨네마, 17 episodes
+
+## Top channels
+- DramaWrath (208 videos)
+- 摸鱼短剧站 (200 videos)
+- 奇幻影视 (162 videos)
+- GameClips (161 videos)
+- 电影风向标 (160 videos)
+- 妖侠放映厅 (157 videos)
+- 재벌의 숨겨진 딸 (132 videos)
+- 高分观影社 (130 videos)
+- CINOVA Drama (125 videos)
+- Fresh Drama + (116 videos)
+- Robotech Macross Stories (104 videos)
+- 怀简剧场shortTV (79 videos)
+
+## FAQ
+### What is All AI-Cinema?
+All AI-Cinema is a free curation site that gathers movies, dramas and short films made with generative AI from YouTube in one place. It currently lists 3,004 videos from 89 channels, which you can filter by genre, country and channel and play with one click.
+
+### Where can I watch AI-generated movies and AI dramas for free?
+You can watch them for free, with no sign-up, on All AI-Cinema (https://all-aicinema.syncbrain100.com/en/). Videos play in the official YouTube player, and multi-part AI dramas can be watched in order from episode 1.
+
+### What genres and countries of AI films are there?
+Genres include Fantasy (1903), Action & Heroes (1752), Sci-Fi (1388), Drama (1257), Historical & Martial Arts (735), Horror (291), Mystery & Thriller (224), Romance (154), Comedy (29), FUN (10), Animation (4), with works from creators in China (1409), Korea (714), USA (669), Japan (119), Spain (17), France (17), UK (11), Hong Kong (10), Indonesia (4) and more.
+
+### How often are new AI movies added?
+When a listed YouTube channel uploads a new video, it is added automatically within an hour.
+
+### Is it legal? Who owns the videos?
+All videos belong to their original YouTube channels and creators. The site never copies videos; it only plays them in the official YouTube player, so views and revenue go to the original channel. Videos whose owners disabled embedding are removed automatically.
+
+### Which tools are used to make AI movies?
+Creators generate scenes with AI video tools such as Runway, Google Veo (Flow), Sora, Kling and Higgsfield, then add voices with tools like ElevenLabs and music with tools like Suno. Tool guide: https://all-aicinema.syncbrain100.com/en/tools/
+
+### Can I submit my own AI film or channel?
+Yes. Send your channel or video link to champkj79@gmail.com and it will be reviewed and added. Rights holders who want a video removed can use the same address.
+
+### Is the site available in other languages?
+Yes: Korean, English, Japanese, Simplified Chinese and Spanish. The language matching your country is shown first.
+
+## Contact
+champkj79@gmail.com (submissions and takedown requests)

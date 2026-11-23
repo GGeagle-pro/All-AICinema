@@ -10,6 +10,7 @@ import { readFile, writeFile, rename, mkdir, rm } from "node:fs/promises";
 import vm from "node:vm";
 import { buildPages } from "./pages.mjs";
 import { buildTools } from "./tools.mjs";
+import { buildGeo } from "./geo.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -215,7 +216,9 @@ export async function buildSeo() {
   if (pagesOn) pages = await buildPages({ PUB, SITE, loadI18n, ver });
   else for (const d of ["watch", "work"]) await rm(resolve(PUB, d), { recursive: true, force: true });
   const tools = await buildTools({ PUB, SITE, loadI18n, ver });
-  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, tools.urls));
+  // AI 검색용: /faq/ (5개 언어) + /llms.txt
+  const geo = await buildGeo({ PUB, SITE, loadI18n, ver, pagesOn });
+  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls]));
   await atomicWrite(resolve(PUB, "rss.xml"), rss(videos, generatedAt));
   const file = resolve(PUB, "index.html");
   const page = await readFile(file, "utf8");
