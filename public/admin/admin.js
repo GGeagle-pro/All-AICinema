@@ -358,7 +358,7 @@
       el("span", {}, "사이트 영상 ", el("b", { text: `${state.videos.length}개` })),
       el("span", {}, "마지막 수집 ", el("b", { text: Number.isFinite(gen) ? ago(gen) : "아직 없음" })),
       state.pending.size ? el("span", {}, "숨김 반영 대기 ", el("b", { text: `${state.pending.size}개` })) : null,
-      el("button", { class: "btn", type: "button", onclick: refresh, text: "새로고침" }),
+      el("button", { class: "btn adm-refresh", type: "button", onclick: refresh, "aria-label": "새로고침" }, "↻", el("span", { class: "adm-refresh__t", text: " 새로고침" })),
     ].filter(Boolean));
     $("#hiddenCount").textContent = state.config?.exclude.length ? `(${state.config.exclude.length})` : "";
   }
@@ -1876,7 +1876,7 @@
     const custom = !preset;
     box.innerHTML = `
       <p class="st-period"><b>${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}</b> <span class="muted small">(${len}일 · 증감은 ${cmpLabel})</span></p>
-      <div class="st-kpis">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${num(v)}</b>${dl}</div>`).join("")}</div>
+      <div class="st-kpis st-kpis--main">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${num(v)}</b>${dl}</div>`).join("")}</div>
       ${custom && len > 1 ? `<p class="muted small">* 직접 고른 기간의 방문자는 날짜별 방문자를 더한 숫자예요. 여러 날 온 사람은 여러 번 세어져요.</p>` : ""}
       <section class="adm-card st-card st-wide"><h3>광고 칸별 성과 <span class="muted small">(이 기간 · 광고 배너 1~3, 띠 배너 1~6)</span></h3>${slotReport(d, from, to, { daily: false })}</section>
       ${adsHtml}
@@ -1912,6 +1912,15 @@
 
   // ───────── 이벤트 ─────────
   $("#logout").addEventListener("click", logout);
+  // 탭 줄을 머리 바로 아래에 고정하기 위한 머리 높이
+  { const h = document.querySelector(".adm-top"); const set = () => document.documentElement.style.setProperty("--adm-hdr", h.offsetHeight + "px"); set(); if ("ResizeObserver" in window) new ResizeObserver(set).observe(h); }
+  // 모바일: '유튜브 채널 추가' 칸은 접어 두고 버튼으로 펼침 (목록을 바로 보이게)
+  {
+    const mq = matchMedia("(max-width:760px)");
+    const set = (open) => { $("#addToggle").setAttribute("aria-expanded", String(open)); $("#addBody").hidden = !open; $("#addCard").classList.toggle("is-folded", !open); };
+    set(!mq.matches);
+    $("#addToggle").addEventListener("click", () => { const open = $("#addBody").hidden; set(open); if (open) setTimeout(() => $("#addUrl").focus(), 50); });
+  }
   // ── 관리자를 휴대폰 홈 화면·즐겨찾기에 추가 ──
   {
     let evt = null;

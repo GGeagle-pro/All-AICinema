@@ -389,3 +389,65 @@
 .adm-pinbox__in{background:var(--bg2,#14141c);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow:auto}
 .adm-pinbox__in h2{font-size:18px;margin:0 0 6px}
 .adm-pinbox__in .btn{margin-top:10px;width:100%}
+
+/* ───── 모바일 최적화 (2026-11-23) ───── */
+.adm-badge{white-space:nowrap}
+.adm-add__h{margin:0}
+.adm-add__toggle{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;width:100%;font:inherit;font-weight:800}
+.adm-add__toggle span{display:none}
+.adm-fold summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.adm-fold summary::-webkit-details-marker{display:none}
+.adm-fold summary h2{margin:0}
+.adm-fold[open] .adm-fold__hint{display:none}
+.adm-fold[open] summary{margin-bottom:10px}
+@media (max-width:760px){
+  .adm .topbar__inner,.adm-top .topbar__inner{gap:8px}
+  .adm-top .brand__name{font-size:17px}
+  .adm-badge{font-size:11px;padding:3px 8px}
+  .adm-head-right{gap:6px}
+  .adm-head-right .btn{min-height:38px;padding:7px 12px;font-size:13px}
+  .adm-status{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:12px;align-items:center;margin:0 0 8px}
+  .adm-status > span{white-space:nowrap}
+  .adm-status > span:first-child{display:none}   /* 저장소 이름은 PC에서만 */
+  .adm-status .adm-refresh{margin-left:auto;min-height:34px;padding:5px 12px;font-size:12.5px}
+  /* 국가·장르 칩: 한 줄씩 옆으로 넘겨 보기 */
+  .adm-chfilter{padding:8px 10px}
+  .adm-chfilter .adm-chipgroup{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .adm-chfilter .adm-chipgroup::-webkit-scrollbar{display:none}
+  .adm-chfilter .adm-chip{flex:none}
+  .adm-tabs{position:sticky;top:calc(var(--adm-hdr,60px) - 1px);z-index:15;background:var(--bg);margin:0 calc(-1 * var(--gutter,16px)) 12px;padding:8px var(--gutter,16px);border-bottom:1px solid var(--line)}
+  .adm-tabs .tab{padding:8px 14px;font-size:14px;min-height:38px}
+  .adm-card{padding:14px;border-radius:14px}
+  .adm-card h2,.adm-h2{font-size:16px}
+  .adm-pane{gap:10px}
+  .adm-add__toggle span{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;background:var(--accent);color:#fff;font-size:18px}
+  .adm-add__toggle[aria-expanded="true"] span{transform:rotate(45deg)}
+  .adm-add.is-folded{padding:12px 14px}
+  .st-kpis{gap:8px}
+  .st-kpi{padding:10px 12px;border-radius:12px}
+  .st-kpi span{font-size:12px}
+  .st-kpi b{font-size:20px}
+  .st-kpis--sum .st-kpi b,.st-kpis--ads .st-kpi b{font-size:18px}
+  input,select,textarea{font-size:16px}   /* 아이폰 입력 시 화면 확대 방지 */
+  .adm-item{gap:10px}
+  .adm-item img{width:96px;height:54px}
+  .adm-actions{flex-wrap:wrap}
+  .adm-pinbox__in{padding:16px}
+  main.adm,#app{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+}
+@media (max-width:760px){
+  #dashKpis,.st-kpis--main{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .st-kpis--main .st-kpi{padding:9px 10px}
+  .st-kpis--main .st-kpi span{font-size:11.5px;line-height:1.3}
+  .st-kpis--main .st-kpi b{font-size:18px}
+  .st-kpis--main .st-d,.st-kpis--main em{font-size:11px}
+  #dashKpis .st-kpi{padding:9px 10px}
+  #dashKpis .st-kpi span{font-size:11.5px;line-height:1.3}
+  #dashKpis .st-kpi b{font-size:18px}
+  #dashKpis .st-kpi b small{display:block;font-size:11px}
+}
+@media (max-width:420px){ .adm-refresh__t{display:none} .adm-status .adm-refresh{padding:5px 11px;font-size:15px} }
+@media (max-width:400px){
+  .adm-top .brand__name{display:none}
+  .adm-tabs .tab{padding:7px 12px;font-size:13.5px}
+}

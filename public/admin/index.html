@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="AI시네마 관리" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="../assets/style.css?v=20261123b" />
-  <link rel="stylesheet" href="admin.css?v=20261123p" />
+  <link rel="stylesheet" href="admin.css?v=20261123t" />
 </head>
 <body>
   <header class="topbar adm-top">
@@ -85,16 +85,6 @@
           <p id="dashPw" class="adm-hint" hidden>방문자·재생 오류·채널 성과는 <b>통계 암호</b>를 한 번 넣으면 보여요. <button id="dashGoStats" class="btn" type="button">통계 암호 넣기</button></p>
         </div>
         <div class="adm-card">
-          <h2>보안 점검</h2>
-          <ul class="adm-checklist">
-            <li id="secToken"></li>
-            <li><b>GitHub 토큰 만료 90일 이하</b> – GitHub → Settings → Developer settings → Fine-grained tokens 에서 이 토큰의 Expires 날짜를 확인하세요. 만료가 없거나 90일보다 길면 새로 만들어(90일) 바꿔 넣어 주세요.</li>
-            <li><b>애드센스 OAuth 클라이언트 보안 비밀</b> – 예전에 캡처로 보였던 값은 바꾸는 걸 권장해요. Google Cloud 콘솔 → API 및 서비스 → 사용자 인증 정보 → OAuth 클라이언트 → <b>보안 비밀 추가</b> → 새 값을 GitHub Secrets 의 <code>ADSENSE_CLIENT_SECRET</code> 에 넣고, 통계 '지금 새로 가져오기'가 되는지 확인한 뒤 옛 보안 비밀을 <b>사용 중지·삭제</b>. 보안 비밀 목록에 생성일이 하나뿐이고 그날이 처음 만든 날이면 아직 안 바꾼 거예요.</li>
-            <li><b>저장소 비공개 전환</b> – 원하실 때 하면 돼요. 순서(Cloudways 배포 키 등록 → 비공개 전환 → 확인)는 프로젝트 문서 "작업 원칙"에 저장돼 있어요. 비공개면 GitHub Actions 무료 사용량이 월 2,000분으로 줄어요.</li>
-            <li><b>받은 JSON 키 파일</b> – 서비스 계정 키(.json)를 내려받은 PC에 남아 있으면 지워 주세요. 값은 GitHub Secrets 에만 있으면 돼요.</li>
-          </ul>
-        </div>
-        <div class="adm-card">
           <h2>재생 오류 <span class="muted small">(최근 7일 · 사이트 플레이어에서 재생이 안 된 영상)</span></h2>
           <p class="muted small">101·150 = 제작자가 다른 사이트 재생을 막음, 100 = 삭제·비공개, 5 = 브라우저 재생 오류, 2 = 잘못된 영상 번호. 같은 영상이 자주 나오면 <b>숨기기</b>를 눌러 주세요.</p>
           <ul id="dashErrors" class="adm-list"></ul>
@@ -106,11 +96,22 @@
             <th data-k="name">채널</th><th class="num" data-k="n">영상</th><th class="num" data-k="plays">사이트 재생 ▼</th><th class="num" data-k="per">영상당 재생</th><th class="num" data-k="yt">유튜브 조회수</th><th class="num" data-k="last">최근 업로드</th>
           </tr></thead><tbody></tbody></table></div>
         </div>
+        <details class="adm-card adm-fold">
+          <summary><h2>보안 점검</h2><span class="adm-fold__hint muted small">펼쳐 보기</span></summary>
+          <ul class="adm-checklist">
+            <li id="secToken"></li>
+            <li><b>GitHub 토큰 만료 90일 이하</b> – GitHub → Settings → Developer settings → Fine-grained tokens 에서 이 토큰의 Expires 날짜를 확인하세요. 만료가 없거나 90일보다 길면 새로 만들어(90일) 바꿔 넣어 주세요.</li>
+            <li><b>애드센스 OAuth 클라이언트 보안 비밀</b> – 예전에 캡처로 보였던 값은 바꾸는 걸 권장해요. Google Cloud 콘솔 → API 및 서비스 → 사용자 인증 정보 → OAuth 클라이언트 → <b>보안 비밀 추가</b> → 새 값을 GitHub Secrets 의 <code>ADSENSE_CLIENT_SECRET</code> 에 넣고, 통계 '지금 새로 가져오기'가 되는지 확인한 뒤 옛 보안 비밀을 <b>사용 중지·삭제</b>. 보안 비밀 목록에 생성일이 하나뿐이고 그날이 처음 만든 날이면 아직 안 바꾼 거예요.</li>
+            <li><b>저장소 비공개 전환</b> – 원하실 때 하면 돼요. 순서(Cloudways 배포 키 등록 → 비공개 전환 → 확인)는 프로젝트 문서 "작업 원칙"에 저장돼 있어요. 비공개면 GitHub Actions 무료 사용량이 월 2,000분으로 줄어요.</li>
+            <li><b>받은 JSON 키 파일</b> – 서비스 계정 키(.json)를 내려받은 PC에 남아 있으면 지워 주세요. 값은 GitHub Secrets 에만 있으면 돼요.</li>
+          </ul>
+        </details>
       </div>
 
       <div id="tab-channels" class="adm-pane" hidden>
-        <div class="adm-card adm-add">
-          <h2>유튜브 채널 추가</h2>
+        <div class="adm-card adm-add" id="addCard">
+          <h2 class="adm-add__h"><button type="button" class="adm-add__toggle" id="addToggle" aria-expanded="true" aria-controls="addBody">유튜브 채널 추가<span aria-hidden="true">＋</span></button></h2>
+          <div id="addBody">
           <p class="muted small">유튜브 앱·사이트에서 채널 주소를 복사해 붙여넣고, 카테고리를 고른 뒤 추가하면 1~3분 안에 사이트에 올라가요. 영상 주소를 넣으면 그 영상 하나만 추가돼요.</p>
           <form id="addForm" novalidate>
             <label for="addUrl">채널 주소</label>
@@ -135,6 +136,7 @@
             <input id="addName" type="text" maxlength="80" placeholder="비워두면 유튜브 채널 이름을 사용해요" />
             <button id="addBtn" class="btn btn--primary adm-big" type="submit" disabled>추가하고 바로 반영</button>
           </form>
+          </div>
         </div>
 
         <div class="adm-row-head">
@@ -342,6 +344,6 @@
   </main>
 
   <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
-  <script src="admin.js?v=20261123p" defer></script>
+  <script src="admin.js?v=20261123t" defer></script>
 </body>
 </html>
