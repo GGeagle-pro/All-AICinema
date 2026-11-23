@@ -751,7 +751,14 @@
       ]
     }
   ],
-  "exclude": [],
+  "exclude": [
+    {
+      "url": "https://www.youtube.com/watch?v=OVNlmDirI8k",
+      "title": "오랜만에 인사드립니다. 중요한 공지사항입니다..",
+      "channel": "임인스ins",
+      "hiddenAt": "2026-11-23T12:08:02.451Z"
+    }
+  ],
   "_예시": {
     "videos": [
       {
