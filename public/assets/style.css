@@ -9,6 +9,8 @@
 html{-webkit-text-size-adjust:100%;scroll-padding-top:var(--hdr)}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.5;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
 body.locked{overflow:hidden}
+/* 플레이어·창이 열렸을 때 뒤 페이지 스크롤 잠금 (html 에 overflow-x:clip 이 있어 body 만으로는 잠기지 않음) */
+html:has(body.locked){overflow:hidden}
 a{color:inherit}
 button,input,select{font:inherit;color:inherit}
 [hidden]{display:none!important}

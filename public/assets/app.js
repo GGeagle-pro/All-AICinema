@@ -1380,6 +1380,16 @@
     // 닫기(✕) 버튼으로만 닫힘 (바깥 어두운 영역을 눌러도 닫히지 않음)
     $("#player").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closePlayer(); });
     $("#pDescMore").onclick = () => fitDesc($("#pDesc").classList.contains("is-clamped"));
+    // PC: 영상 칸·추천 목록 칸 사이 여백이나 바깥에서 휠을 굴려도 가까운 칸이 스크롤되게
+    $("#player").addEventListener("wheel", (e) => {
+      if (e.ctrlKey || e.target.closest(".player__main, .player__side")) return;
+      const panel = $(".player__panel");
+      if (getComputedStyle(panel).overflowY !== "hidden") return;   // 모바일(한 칸)은 창 전체가 스크롤됨
+      const side = $(".player__side"), r = side.getBoundingClientRect();
+      const box = r.width && e.clientX >= r.left - 40 ? side : $(".player__main");
+      box.scrollBy({ top: e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY });
+      e.preventDefault();
+    }, { passive: false });
     $("#upnext").addEventListener("click", (e) => {
       const li = e.target.closest("li[data-id]"); if (!li) return;
       openVideo(state.all.find((x) => x.id === li.dataset.id) || state.queue.find((x) => x.id === li.dataset.id));
