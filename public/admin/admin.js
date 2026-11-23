@@ -1940,6 +1940,20 @@
     $("#pinBox").addEventListener("click", (e) => { if (e.target.id === "pinBox") open(false); });
     addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#pinBox").hidden) open(false); });
     $("#pinInstall").addEventListener("click", async () => { if (!evt) return; evt.prompt(); try { await evt.userChoice; } catch {} evt = null; open(false); });
+    // 앱 설치용 서비스워커 (관리자 범위만, 아무것도 저장 안 함)
+    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => {});
+    // 대시보드 위 '앱처럼 쓰기' 안내 (휴대폰, 아직 설치 안 했을 때, 닫으면 30일 동안 안 보임)
+    const HIDE = "asa-admin:appBannerHide";
+    const showBanner = () => {
+      let until = 0; try { until = Number(localStorage.getItem(HIDE)) || 0; } catch {}
+      const mobile = matchMedia("(max-width:760px)").matches || /Android|iPhone|iPad/i.test(ua);
+      $("#appBanner").hidden = standalone || !mobile || Date.now() < until;
+    };
+    showBanner();
+    addEventListener("beforeinstallprompt", showBanner);
+    addEventListener("appinstalled", () => { $("#appBanner").hidden = true; $("#pinAdmin").hidden = true; });
+    $("#appBannerGo").addEventListener("click", async () => { if (evt) { evt.prompt(); try { await evt.userChoice; } catch {} evt = null; } else open(true); });
+    $("#appBannerNo").addEventListener("click", () => { try { localStorage.setItem(HIDE, String(Date.now() + 30 * 864e5)); } catch {} $("#appBanner").hidden = true; });
   }
   document.querySelector(".adm-tabs").addEventListener("click", (e) => {
     const t = e.target.closest(".tab");

@@ -451,3 +451,11 @@
   .adm-top .brand__name{display:none}
   .adm-tabs .tab{padding:7px 12px;font-size:13.5px}
 }
+
+/* 대시보드 '앱처럼 쓰기' 안내 */
+.adm-appbanner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(255,61,127,.14),rgba(139,92,246,.14));border-color:rgba(139,92,246,.4)}
+.adm-appbanner b{display:block;margin-bottom:2px}
+.adm-appbanner__btns{display:flex;gap:8px}
+.adm-appbanner__btns .btn{min-height:40px}
+/* 앱(설치)으로 열었을 때 위쪽 상태바 여백 */
+@media (display-mode: standalone){ .adm-top{padding-top:env(safe-area-inset-top)} }

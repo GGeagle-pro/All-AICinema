@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src 'self' https://i.ytimg.com https://yt3.ggpht.com https://yt3.googleusercontent.com data: blob:; connect-src 'self' https://api.github.com; manifest-src 'self'; base-uri 'none'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src 'self' https://i.ytimg.com https://yt3.ggpht.com https://yt3.googleusercontent.com data: blob:; connect-src 'self' https://api.github.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'" />
   <meta name="referrer" content="no-referrer" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -11,12 +11,15 @@
   <link rel="icon" href="../favicon-32.png?v=2" sizes="32x32" type="image/png" />
   <link rel="icon" href="../icon-192.png?v=2" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="../apple-touch-icon.png?v=2" />
-  <link rel="manifest" href="manifest.webmanifest?v=1" />
+  <link rel="manifest" href="manifest.webmanifest?v=2" />
   <meta name="theme-color" content="#0b0b10" />
   <meta name="apple-mobile-web-app-title" content="AI시네마 관리" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="../assets/style.css?v=20261123b" />
-  <link rel="stylesheet" href="admin.css?v=20261123t" />
+  <link rel="stylesheet" href="admin.css?v=20261124a" />
 </head>
 <body>
   <header class="topbar adm-top">
@@ -79,6 +82,10 @@
 
       <!-- ───── 채널 관리 ───── -->
       <div id="tab-dash" class="adm-pane">
+        <div id="appBanner" class="adm-card adm-appbanner" hidden>
+          <div><b>관리자를 앱처럼 쓰기</b><span class="muted small">홈 화면 아이콘으로 바로 열리고, 주소창 없이 앱처럼 보여요.</span></div>
+          <div class="adm-appbanner__btns"><button id="appBannerGo" class="btn btn--primary" type="button">설치하기</button><button id="appBannerNo" class="btn" type="button" aria-label="안내 닫기">닫기</button></div>
+        </div>
         <div class="adm-card">
           <div class="adm-row-head"><h2 class="adm-h2">한눈에 보기</h2><span id="dashAt" class="muted small"></span></div>
           <div id="dashKpis" class="st-kpis st-kpis--8"></div>
@@ -344,6 +351,6 @@
   </main>
 
   <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
-  <script src="admin.js?v=20261123u" defer></script>
+  <script src="admin.js?v=20261124a" defer></script>
 </body>
 </html>
