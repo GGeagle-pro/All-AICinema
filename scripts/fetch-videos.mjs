@@ -16,7 +16,7 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
-import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds, embedStatus, channelAvatars } from "./youtube-api.mjs";
+import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds, embedStatus, channelAvatars, videoChannels } from "./youtube-api.mjs";
 import { assignSeries } from "./series.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -269,9 +269,17 @@ async function main() {
   // 공식 API가 있으면 매번 전 채널 사진을 한 번에 확인 (유튜브에서 바꾼 사진이 1시간 안에 반영, 50채널당 1단위)
   let apiAv = new Map();
   if (apiKey()) {
-    try { apiAv = await channelAvatars([...tracked.keys()]); console.log(`✓ 채널 사진 ${apiAv.size}/${tracked.size}개 (공식 API)`); }
+    // 직접 추가한 영상 중 채널 ID 모르는 것 → 찾아서 채널 사진도 나오게
+    const noCid = [...map.values()].filter((v) => !v.cid).map((v) => v.id);
+    if (noCid.length) {
+      try { const m = await videoChannels(noCid); for (const [id, cid] of m) map.get(id).cid = cid; if (m.size) console.log(`✓ 직접 추가한 영상 ${m.size}개의 채널 확인`); }
+      catch (err) { console.warn(`✗ 영상 채널 확인: ${err.message}`); }
+    }
+    const extra = [...new Set([...map.values()].map((v) => v.cid).filter((c) => c && !tracked.has(c)))];
+    try { apiAv = await channelAvatars([...tracked.keys(), ...extra]); console.log(`✓ 채널 사진 ${apiAv.size}/${tracked.size + extra.length}개 (공식 API)`); }
     catch (err) { console.warn(`✗ 채널 사진(공식 API): ${err.message}`); }
   }
+  for (const [cid, u] of apiAv) if (!tracked.has(cid)) avatars[cid] = u;   // 직접 추가한 영상의 채널
   for (const cid of tracked.keys()) {
     const prev = existing.avatars?.[cid];
     if (apiAv.has(cid)) { avatars[cid] = apiAv.get(cid); continue; }

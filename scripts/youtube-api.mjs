@@ -88,6 +88,16 @@ export async function embedStatus(ids) {
   return out;
 }
 
+/** 영상 → 채널 ID (직접 추가한 영상의 채널 사진을 찾기 위해) → Map(영상ID → 채널ID). 50개당 1단위 */
+export async function videoChannels(ids) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 50) {
+    const d = await apiGet("videos", { part: "snippet", id: ids.slice(i, i + 50).join(","), maxResults: 50 });
+    for (const it of d?.items || []) if (VIDEO_ID.test(it?.id || "") && CHANNEL_ID.test(it?.snippet?.channelId || "")) out.set(it.id, it.snippet.channelId);
+  }
+  return out;
+}
+
 /** 채널 프로필 사진 (공식 API, 유튜브 채널에 지금 걸려 있는 사진) → Map(채널ID → yt3 주소). 50개당 1단위 */
 export async function channelAvatars(cids) {
   const out = new Map(), ok = /^https:\/\/yt3\.(?:ggpht|googleusercontent)\.com\/[\w\-./=~%]{10,500}$/;
