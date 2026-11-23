@@ -36,6 +36,9 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - name: 변경 사항 저장
         id: commit
+        env:
+          # 다른 작업과 겹쳐 다시 수집할 때도 공식 API 사용 (채널 사진·외부 재생 확인이 빠지지 않게)
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: >
           bash scripts/commit-and-push.sh
           "영상 목록 업데이트 $(date -u +'%Y-%m-%d %H:%M')"
