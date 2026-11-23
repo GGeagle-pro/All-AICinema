@@ -339,6 +339,9 @@
 .st-cc--x{color:var(--muted)}
 
 /* 등록된 채널 찾기 */
+.adm-chfilter{margin:0 0 10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg2,transparent)}
+.adm-chfilter:empty{display:none}
+.adm-chfilter .adm-chip small{opacity:.65;margin-left:3px;font-size:11px}
 .adm-chsearch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}
 .adm-chsearch input{flex:1 1 280px;min-width:0;min-height:44px}
 

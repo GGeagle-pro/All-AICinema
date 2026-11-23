@@ -452,9 +452,26 @@
     } catch {}
     const hay = (c) => norm([c.name, c.url, c.handle, c.id, cidOfCfg(c), cidName.get(cidOfCfg(c)),
       (() => { try { return decodeURIComponent(c.url || ""); } catch { return ""; } })()].filter(Boolean).join(" "));
-    const shown = q ? chs.filter((c) => hay(c).includes(q)) : chs;
-    $("#chQInfo").textContent = q ? `${chs.length}개 중 ${shown.length}개` : "";
-    if (!shown.length) { list.append(el("li", { class: "adm-empty", text: `'${qRaw}'에 맞는 채널이 없어요. 이름 일부나 @핸들로 다시 찾아보세요.` })); return; }
+    // 국가·장르 걸러 보기 (각각 하나씩 고르고, 둘 다 고르면 둘 다 맞는 채널만)
+    const f = state.chFilter || (state.chFilter = { country: "", genre: "" });
+    const all = [...new Set([...menu, ...chs.flatMap(catsOf)])];
+    if (f.country && !all.includes(f.country)) f.country = "";
+    if (f.genre && !all.includes(f.genre)) f.genre = "";
+    const cnt = (m) => chs.filter((c) => catsOf(c).includes(m)).length;
+    const chipOf = (kind) => (m) => el("button", {
+      type: "button", class: "adm-chip", "aria-pressed": String(f[kind] === m),
+      onclick: () => { f[kind] = f[kind] === m ? "" : m; renderChannels(); },
+    }, m, el("small", { text: String(cnt(m)) }));
+    const allChip = (kind) => el("button", { type: "button", class: "adm-chip", "aria-pressed": String(!f[kind]), onclick: () => { f[kind] = ""; renderChannels(); } }, "전체");
+    const fb = $("#chCatFilter"); fb.textContent = "";
+    const cs = all.filter(isCountry), gs = all.filter((m) => !isCountry(m));
+    if (cs.length) fb.append(el("div", { class: "adm-chipgroup" }, el("span", { class: "adm-chipgroup__t", text: "국가" }), allChip("country"), ...cs.map(chipOf("country"))));
+    if (gs.length) fb.append(el("div", { class: "adm-chipgroup" }, el("span", { class: "adm-chipgroup__t", text: "장르" }), allChip("genre"), ...gs.map(chipOf("genre"))));
+    const byCat = (c) => (!f.country || catsOf(c).includes(f.country)) && (!f.genre || catsOf(c).includes(f.genre));
+    const shown = chs.filter((c) => byCat(c) && (!q || hay(c).includes(q)));
+    const filt = q || f.country || f.genre;
+    $("#chQInfo").textContent = filt ? `${chs.length}개 중 ${shown.length}개` : "";
+    if (!shown.length) { list.append(el("li", { class: "adm-empty", text: q ? `'${qRaw}'에 맞는 채널이 없어요. 이름 일부나 @핸들로 다시 찾아보세요.` : "고른 국가·장르에 해당하는 채널이 없어요." })); return; }
     shown.forEach((c) => {
       const key = JSON.stringify(c);
       const name0 = clean(c.name, 80);
