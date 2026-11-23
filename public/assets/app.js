@@ -1229,15 +1229,22 @@
     } else placeSearch();
     renderSearch();
   }
-  function closeSearch({ fromPop = false } = {}) {
-    if (!search.open) return;
+  // nav: 검색 결과를 눌러 다른 화면(영상·작품·카테고리)으로 갈 때 – 뒤로가기(history.back) 대신 검색 기록을 지금 화면으로 바꿔 씀
+  //  (뒤로가기는 늦게 처리돼서 방금 연 플레이어를 다시 닫아 버리던 문제)
+  function closeSearch({ fromPop = false, nav = false } = {}) {
+    if (!search.open) return false;
     search.open = false;
     $("#sp").hidden = true;
     $("#searchBtn").setAttribute("aria-expanded", "false");
+    let replaced = false;
     if (search.mobile) {
       if ($("#player").hidden) document.body.classList.remove("locked");
-      if (!fromPop && history.state?.search) history.back();
+      if (!fromPop && history.state?.search) {
+        if (nav) { const { search: _s, ...rest } = history.state; history.replaceState(Object.keys(rest).length ? rest : null, "", location.href); replaced = true; }
+        else history.back();
+      }
     }
+    return replaced;
   }
   // 검색어 기록 (GA4 'search' 이벤트 → 관리자 > 통계 '검색어') – 같은 검색어를 연달아 두 번 세지 않음
   let lastTracked = "";
@@ -1276,12 +1283,12 @@
     if (act === "play") {
       const list = search.shown.slice(), k = +el.dataset.k;
       if (q) { addRecent(q); trackSearch(q); }
-      closeSearch();
+      const replaced = closeSearch({ nav: true });
       if (pageMode()) return goToVideo(list[k]);
-      state.queue = list; openPlayer(k);
+      state.queue = list; openPlayer(k, { push: !replaced });   // 검색 기록 자리를 영상 주소로 바꿔 씀 → 뒤로가기 한 번에 원래 화면
       return;
     }
-    if (act === "work") { if (q) { addRecent(q); trackSearch(q); } closeSearch(); openWork(el.dataset.key); return; }
+    if (act === "work") { if (q) { addRecent(q); trackSearch(q); } closeSearch({ nav: true }); openWork(el.dataset.key); return; }
     if (act === "cat" || act === "ch") {
       if (q) { addRecent(q); trackSearch(q); }
       state.backTo = null; state.work = ""; state.q = ""; $("#q").value = "";
