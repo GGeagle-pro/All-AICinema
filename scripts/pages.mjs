@@ -106,7 +106,7 @@ export async function loadAll(PUB) {
 }
 
 // ── 공통 틀 ──
-export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver, head = "" }) {
+export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver, head = "", noTrack = false }) {
   const t = (s, v) => I.t(s, v);
   return `<!doctype html>
 <html lang="${HTML_LANG[lang]}">
@@ -138,9 +138,9 @@ export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver,
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="/assets/style.css?v=${ver}" />
   <link rel="stylesheet" href="/assets/page.css?v=${ver}" />
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5PXH52MY88"></script>
+  ${noTrack ? "<!-- 유튜브 '아동용' 영상: 통계·광고 추적 없음 (YouTube 개발자 정책) -->" : `<script async src="https://www.googletagmanager.com/gtag/js?id=G-5PXH52MY88"></script>
   <script src="/assets/gtag-init.js?v=${ver}"></script>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8096684162493748" crossorigin="anonymous"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8096684162493748" crossorigin="anonymous"></script>`}
   ${ld.map((o) => `<script type="application/ld+json">${jsonLd(o)}</script>`).join("\n  ")}
 </head>
 <body class="sp-page">
@@ -224,7 +224,7 @@ function watchPage(v, ctx, force = "") {
     </article>
     ${w ? `<section class="pg-sec"><h2>${esc(w.name)} · ${esc(t("전체 회차"))}</h2><div class="grid pg-grid">${win.map((x) => miniCard(x, I, { now: x === v, ctx, l: L })).join("")}</div>${win.length < w.list.length ? `<p class="pg-all"><a class="btn" href="${workPath(w, ctx, L)}">${esc(t("전체 회차"))} · ${esc(t("총 {n}편", { n: w.list.length }))} →</a></p>` : ""}</section>` : ""}
     ${more.length ? `<section class="pg-sec"><h2>${esc(t("같은 채널의 다른 영상"))}</h2><div class="grid pg-grid">${more.map((x) => miniCard(x, I, { ctx, l: L })).join("")}</div></section>` : ""}`;
-  return shell({ lang, title: `${cut(v.title, 70)} | ${v.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(v.id) ? thumb(v.id, "maxresdefault") : thumb(v.id, "hqdefault"), ogType: "video.other", ld, body, I, ver, head });
+  return shell({ lang, title: `${cut(v.title, 70)} | ${v.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(v.id) ? thumb(v.id, "maxresdefault") : thumb(v.id, "hqdefault"), ogType: "video.other", ld, body, I, ver, head, noTrack: !!ctx.kids?.has(v.id) });
 }
 
 function workPage(w, ctx, force = "") {
@@ -298,7 +298,9 @@ export async function buildPages({ PUB, SITE, loadI18n, ver, only }) {
   const big = await bigThumbs(PUB, videos.map((v) => v.id));
   // 언어별 사본 대상: 조회수 높은 영상 LOCAL_TOP개 + 모든 작품
   const loc = { watch: new Set([...videos].sort((a, b) => b.views - a.views).slice(0, LOCAL_TOP).map((v) => v.id)), work: new Set(works.map((w) => w.slug)) };
-  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big, loc };
+  let kids = new Set();
+  try { const raw = JSON.parse(await readFile(resolve(PUB, "data/videos.json"), "utf8")); kids = new Set(Array.isArray(raw.kids) ? raw.kids : []); } catch {}
+  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big, loc, kids };
   let changed = 0;
   const pick = only ? new Set(only) : null;
   const keepL = Object.fromEntries(Object.keys(LP).map((l) => [l, { watch: new Set(), work: new Set() }]));

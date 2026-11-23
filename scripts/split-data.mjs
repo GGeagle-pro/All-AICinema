@@ -14,5 +14,5 @@ const videos = d.items.map((x) => ({
   series: Number.isInteger(x[9]) && x[9] >= 0 ? d.series[x[9]] : "",
 }));
 const save = async (file, obj) => { await writeFile(file + ".tmp", JSON.stringify(obj)); await rename(file + ".tmp", file); };
-await writeSplit({ videos, desc, generatedAt: d.generatedAt, avatars: d.avatars, srcs: d.srcs, save });
+await writeSplit({ videos, desc, generatedAt: d.generatedAt, avatars: d.avatars, srcs: d.srcs, save, kids: d.kids || [] });
 console.log(`첫 화면용 ${Math.min(videos.length, 2000)}+편, 설명 조각 저장`);

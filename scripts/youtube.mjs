@@ -73,8 +73,16 @@ export async function resolveChannel(ch) {
   const ref = ch?.handle ? parseLink(ch.handle.startsWith("@") ? ch.handle : "@" + ch.handle) : parseLink(ch?.url);
   if (!ref || ref.type !== "channel") throw new Error("채널 링크 형식이 올바르지 않음");
   if (ref.id) return ref.id;
-  const html = await get("https://www.youtube.com" + ref.path.split("/").map((p) => encodeURIComponent(p).replace(/^%40/, "@")).join("/"));
-  return channelIdFromPage(html);
+  // 유튜브 페이지를 직접 읽지 않고 공식 API로만 찾음 (YouTube 개발자 정책: 스크래핑 금지)
+  const { apiKey, channelIdFor } = await import("./youtube-api.mjs");
+  if (!apiKey()) throw new Error("@핸들 주소는 공식 API 키가 있어야 찾을 수 있어요 (채널 주소 /channel/UC… 를 넣어 주세요)");
+  const [kind, name] = ref.path.slice(1).split("/");
+  let id = "";
+  if (kind.startsWith("@")) id = await channelIdFor({ handle: decodeURIComponent(kind) });
+  else if (kind === "user") id = await channelIdFor({ username: decodeURIComponent(name) });
+  else if (kind === "c") id = await channelIdFor({ handle: "@" + decodeURIComponent(name) });   // 예전 맞춤 주소는 대부분 같은 이름의 @핸들
+  if (!id) throw new Error("채널을 찾지 못함 (@핸들이나 /channel/UC… 주소로 다시 넣어 주세요)");
+  return id;
 }
 
 // 채널 페이지에서 "그 채널 자신의" ID만 찾기.
@@ -98,14 +106,7 @@ export function avatarFromPage(html) {
   return AVATAR_URL.test(url) ? url : "";
 }
 export const isAvatarUrl = (u) => typeof u === "string" && AVATAR_URL.test(u);
-// 채널 고유번호로 채널 페이지를 열어 프로필 사진을 가져옴 (페이지가 그 채널 것인지도 확인)
-export async function fetchChannelAvatar(cid) {
-  if (!CHANNEL_ID.test(cid)) return "";
-  const html = await get(`https://www.youtube.com/channel/${cid}`);
-  let own = "";
-  try { own = channelIdFromPage(html); } catch { /* 확인 불가 → 아래에서 버림 */ }
-  return own === cid ? avatarFromPage(html) : "";
-}
+// (예전) 채널 페이지를 읽어 사진을 가져오던 기능은 개발자 정책(스크래핑 금지) 때문에 없앰 → 공식 API channels.list 사용
 
 export function channelIdFromPage(html) {
   const found = new Set();
@@ -137,42 +138,25 @@ export const decodeXml = (s = "") =>
 const jsonStr = (s) => { try { return JSON.parse(`"${s}"`); } catch { return ""; } };
 
 /**
- * 영상 1개의 정보 조회 (API 키 불필요)
- *  - oEmbed: 제목·채널명 (외부 사이트 재생이 막힌 영상은 여기서 걸러짐)
- *  - 영상 페이지: 업로드 날짜·조회수·설명·채널ID (실패해도 기본값으로 진행)
+ * 영상 1개의 정보 조회
+ *  - 공식 API(키 있을 때): 제목·채널·업로드 날짜·조회수·설명·외부 재생 허용
+ *  - 키가 없으면 oEmbed(공개 임베드 정보)로 제목·채널명만 – 유튜브 페이지는 직접 읽지 않음(정책 준수)
  * 반환: 영상 객체 | { error }
  */
 export async function fetchVideo(id) {
   if (!VIDEO_ID.test(id)) return { error: "영상 ID 형식이 올바르지 않음" };
+  const { apiKey, videoDetails } = await import("./youtube-api.mjs");
+  if (apiKey()) {
+    let d;
+    try { d = (await videoDetails([id])).get(id); } catch (e) { return { error: `영상 정보를 읽지 못함 (${clean(e.message, 80)})` }; }
+    if (!d) return { error: "비공개·삭제된 영상" };
+    if (!d.embeddable) return { error: "다른 사이트에서 재생이 금지된 영상" };
+    return { id, title: d.title || "(제목 없음)", channel: d.channel, description: d.description, published: d.published || new Date().toISOString(), views: d.views, cid: d.cid || null, kids: d.kids };
+  }
   const watch = `https://www.youtube.com/watch?v=${id}`;
   const oe = await get(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(watch)}`, { allow404: true });
   if (!oe) return { error: "비공개·삭제된 영상이거나, 다른 사이트에서 재생이 금지된 영상" };
   let info;
   try { info = JSON.parse(oe); } catch { return { error: "영상 정보를 읽지 못함" }; }
-
-  let published = null, views = 0, description = "", cid = null;
-  try {
-    const html = await get(watch);
-    const d = html.match(/itemprop="(?:datePublished|uploadDate)" content="([^"]+)"/) ||
-              html.match(/"(?:publishDate|uploadDate)":"([^"]+)"/);
-    if (d && Number.isFinite(Date.parse(d[1]))) published = new Date(Date.parse(d[1])).toISOString();
-    const vc = html.match(/"viewCount":"(\d{1,15})"/);
-    if (vc) views = Number(vc[1]);
-    const ds = html.match(/"shortDescription":"((?:[^"\\]|\\.){0,5000})"/);
-    if (ds) description = clean(jsonStr(ds[1]), 400);
-    // 영상 자신의 채널만 (추천 영상의 채널 ID를 잘못 잡지 않도록 videoDetails / 메타 태그 우선)
-    const c = html.match(/<meta itemprop="channelId" content="(UC[\w-]{22})"/) ||
-              html.match(/"videoDetails":\{"videoId":"[\w-]{11}"[^{}]*?"channelId":"(UC[\w-]{22})"/);
-    if (c) cid = c[1];
-  } catch { /* 날짜·조회수는 없어도 추가는 진행 */ }
-
-  return {
-    id,
-    title: clean(info.title, 200) || "(제목 없음)",
-    channel: clean(info.author_name, 80),
-    description,
-    published: published || new Date().toISOString(),
-    views: Number.isSafeInteger(views) ? views : 0,
-    cid,
-  };
+  return { id, title: clean(info.title, 200) || "(제목 없음)", channel: clean(info.author_name, 80), description: "", published: new Date().toISOString(), views: 0, cid: null };
 }

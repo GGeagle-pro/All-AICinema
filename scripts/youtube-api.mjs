@@ -78,6 +78,36 @@ export async function viewCounts(ids) {
   return views;
 }
 
+/**
+ * 영상 정보 (공식 API, 50개당 1단위): 제목·채널·업로드 날짜·조회수·설명·외부 재생 허용·아동용 여부
+ * → Map(영상ID → {...}). 비공개·삭제 영상은 결과에 없음. (유튜브 페이지를 직접 읽지 않음 – 개발자 정책 준수)
+ */
+export async function videoDetails(ids) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 50) {
+    const d = await apiGet("videos", { part: "snippet,statistics,status", id: ids.slice(i, i + 50).join(","), maxResults: 50 });
+    for (const it of d?.items || []) {
+      if (!VIDEO_ID.test(it?.id || "")) continue;
+      const sn = it.snippet || {}, st = it.status || {};
+      out.set(it.id, {
+        title: clean(sn.title, 200), channel: clean(sn.channelTitle, 80), cid: CHANNEL_ID.test(sn.channelId || "") ? sn.channelId : "",
+        published: Number.isFinite(Date.parse(sn.publishedAt)) ? new Date(sn.publishedAt).toISOString() : "",
+        views: Number(it.statistics?.viewCount) || 0, description: clean(sn.description, 400),
+        embeddable: st.embeddable !== false, kids: st.madeForKids === true,
+      });
+    }
+  }
+  return out;
+}
+
+/** @핸들 / 예전 사용자 이름 → 채널 ID (공식 API, 1단위) */
+export async function channelIdFor({ handle = "", username = "" }) {
+  const params = handle ? { part: "id", forHandle: handle.startsWith("@") ? handle : "@" + handle } : { part: "id", forUsername: username };
+  const d = await apiGet("channels", params);
+  const id = d?.items?.[0]?.id || "";
+  return CHANNEL_ID.test(id) ? id : "";
+}
+
 /** 다른 사이트에서 재생 허용 여부 (status.embeddable) → Map(id → true/false). 비공개·삭제 영상은 결과에 없음. 50개당 1단위 */
 export async function embedStatus(ids) {
   const out = new Map();

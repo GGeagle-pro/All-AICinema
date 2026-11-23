@@ -79,7 +79,10 @@
   const I18N = window.AIC_I18N || { t: (s, v) => (v ? s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m) : s), name: (x) => x, views: (n) => (n ? `조회수 ${n}회` : ""), viewsShort: (n) => String(n || ""), ago: () => "", applyStatic() {}, setLang() {}, LANGS: [], lang: "ko", meta: { yt: "ko" } };
   const T = (s, v) => I18N.t(s, v);
   // 통계(구글 애널리틱스) 기록: 실패해도 사이트 동작에는 영향 없음
-  const track = (name, params = {}) => { try { if (typeof window.gtag === "function") window.gtag("event", name, { ...params, ui_lang: I18N.lang }); } catch {} };
+  // 유튜브 '아동용' 영상을 보는 동안은 통계를 보내지 않음 (YouTube 개발자 정책)
+  let kidsIds = new Set();
+  const kidsNow = () => { try { const v = !$("#player").hidden && state.queue[state.current]; return !!(v && kidsIds.has(v.id)); } catch { return false; } };
+  const track = (name, params = {}) => { try { if (kidsNow()) return; if (typeof window.gtag === "function") window.gtag("event", name, { ...params, ui_lang: I18N.lang }); } catch {} };
   const nm = (x) => I18N.name(x);
   const views = (n) => I18N.views(n);         // "조회수 1.2만회" / "12K views" / "1.2万回視聴" / "1.2万次观看"
   const ago = (iso) => I18N.ago(iso);
@@ -300,6 +303,7 @@
     if (state.full) return Promise.resolve();
     return (fullPromise ||= fetchIndex("/data/videos.json").then((data) => {
       const vids = parseIndex(data);
+      if (Array.isArray(data.kids)) kidsIds = new Set(data.kids.filter((x) => /^[\w-]{11}$/.test(x)));
       state.all = mergeVids(vids, state.all);   // 전체 + (혹시 전체에 아직 없는 새 영상)
       state.avatars = { ...state.avatars, ...parseAvatars(data.avatars) };
       state.full = true;
@@ -314,6 +318,7 @@
     try { data = await fetchIndex(state.full ? "/data/videos.json" : "/data/videos-recent.json"); }
     catch { data = await fetchIndex("/data/videos.json"); }   // 예전 배포(나눠진 파일이 없을 때)
     const vids = parseIndex(data);
+    if (Array.isArray(data.kids)) kidsIds = new Set(data.kids.filter((x) => /^[\w-]{11}$/.test(x)));
     state.latest = data.generatedAt;
     state.avatars = { ...state.avatars, ...parseAvatars(data.avatars) };
     $("#meta").textContent = data.generatedAt ? T("업데이트 {t}", { t: ago(data.generatedAt) }) : "";

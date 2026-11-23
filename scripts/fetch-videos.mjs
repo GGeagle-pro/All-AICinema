@@ -15,9 +15,9 @@
 import { readFile, writeFile, mkdir, rename, readdir, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
+import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
 import { applyLangCountry } from "./lang-country.mjs";
-import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds, embedStatus, channelAvatars, videoChannels } from "./youtube-api.mjs";
+import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds, videoDetails, channelAvatars, videoChannels } from "./youtube-api.mjs";
 import { assignSeries } from "./series.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -206,15 +206,32 @@ async function main() {
 
   // 2-2) 다른 사이트에서 재생 못 하게 막힌 영상 빼기 + 대부분 막힌 채널은 자동 수집에서 빼기 (공식 API 키 있을 때만)
   let embedChanged = false, configChanged = false;
+  let kidsIds = null;   // 유튜브 '아동용' 영상 → 사이트에서 통계 추적을 끔 (개발자 정책)
   if (apiKey()) {
     let ec = { at: "", ids: {} };
     try { const j = JSON.parse(await readFile(EMBED_FILE, "utf8")); if (j && typeof j.ids === "object") ec = j; } catch {}
     const full = !(ec.at && (Date.now() - new Date(ec.at)) / 3600e3 < EMBED_REFRESH_HOURS);
     const ids = [...map.keys()].filter((id) => full || !(id in ec.ids));
     try {
-      const st = ids.length ? await embedStatus(ids) : new Map();
-      for (const id of ids) if (st.has(id)) ec.ids[id] = st.get(id) ? 1 : 0;
+      // 공식 API로 영상 정보 확인: 재생 허용·아동용 + 제목·조회수·설명을 최신으로 (하루 1번 전체 = 개발자 정책 '30일 안에 갱신' 지키기)
+      const st = ids.length ? await videoDetails(ids) : new Map();
+      let gone = 0, upd = 0;
+      for (const id of ids) {
+        const d = st.get(id), v = map.get(id);
+        if (!d) { if (full && v && !v.manual) { map.delete(id); gone++; } continue; }   // 비공개·삭제된 영상은 빼기
+        ec.ids[id] = d.embeddable ? 1 : 0;
+        if (d.kids) (ec.kids ||= {})[id] = 1; else if (ec.kids) delete ec.kids[id];
+        if (v) {
+          if (d.views && d.views !== v.views) { v.views = d.views; upd++; }
+          if (d.title && d.title !== v.title) { v.title = d.title; upd++; }
+          if (d.description && !v.description) v.description = d.description;
+        }
+      }
+      if (gone) console.log(`⛔ 비공개·삭제된 영상 ${gone}개 제외`);
+      if (upd) console.log(`✓ 영상 정보 갱신 ${upd}건 (조회수·제목)`);
       for (const id of Object.keys(ec.ids)) if (!map.has(id)) delete ec.ids[id];
+      if (ec.kids) for (const id of Object.keys(ec.kids)) if (!map.has(id)) delete ec.kids[id];
+      kidsIds = Object.keys(ec.kids || {});
       if (full) ec.at = new Date().toISOString();
       embedChanged = true;
       // 채널별로 막힌 비율 계산 → 기준 넘으면 channels.json 에서 빼기
@@ -294,14 +311,7 @@ async function main() {
   for (const cid of tracked.keys()) {
     const prev = existing.avatars?.[cid];
     if (apiAv.has(cid)) { avatars[cid] = apiAv.get(cid); continue; }
-    if (!refreshAll && isAvatarUrl(prev)) { avatars[cid] = prev; continue; }
-    try {
-      const url = await fetchChannelAvatar(cid);
-      if (url) avatars[cid] = url; else if (isAvatarUrl(prev)) avatars[cid] = prev;
-    } catch (err) {
-      if (isAvatarUrl(prev)) avatars[cid] = prev;
-      console.warn(`✗ 프로필 사진 ${tracked.get(cid).name || cid}: ${err.message}`);
-    }
+    if (isAvatarUrl(prev)) avatars[cid] = prev;   // 공식 API로 못 받았으면 이전 사진 유지 (채널 페이지를 직접 읽지 않음)
   }
 
   const sorted = [...map.values()].sort((a, b) => new Date(b.published) - new Date(a.published));
@@ -345,8 +355,9 @@ async function main() {
   // 임시 파일에 쓴 뒤 교체 → 중간에 실패해도 반쯤 쓰인 파일이 공개되지 않음
   const save = async (file, obj) => { await writeFile(file + ".tmp", JSON.stringify(obj)); await rename(file + ".tmp", file); };
   await save(DESC_FILE, desc);
-  await save(OUT_FILE, { v: 2, generatedAt, avatarsCheckedAt, backfilled, ...index });
-  await writeSplit({ videos, desc, generatedAt, avatars, srcs, save });
+  const kids = (kidsIds || existing.kids || []).filter((id) => map.has(id));
+  await save(OUT_FILE, { v: 2, generatedAt, avatarsCheckedAt, backfilled, kids, ...index });
+  await writeSplit({ videos, desc, generatedAt, avatars, srcs, save, kids });
   await save(META_FILE, meta);
   // 검색엔진용 sitemap·RSS·미리 그린 목록 갱신 (실패해도 영상 수집은 성공 처리)
   try { await (await import("./seo.mjs")).buildSeo(); } catch (err) { console.warn("SEO 파일 생성 실패:", err.message); }
@@ -358,13 +369,13 @@ async function main() {
 //  - public/data/videos.json        : 전체 (사이트는 검색·작품·채널을 볼 때나 몇 초 뒤에 받음, 관리자·스크립트는 이 파일 사용)
 //  - public/data/desc/<16진수>.json : 영상 설명 나눔 (플레이어가 그 영상의 조각만 받음). desc.json(전체)은 스크립트용
 const RECENT_N = 2000;
-export async function writeSplit({ videos, desc, generatedAt, avatars, srcs, save }) {
+export async function writeSplit({ videos, desc, generatedAt, avatars, srcs, save, kids = [] }) {
   const recent = [...videos.filter((v) => v.manual), ...videos.filter((v) => !v.manual).slice(0, RECENT_N)]
     .sort((a, b) => new Date(b.published) - new Date(a.published));
   const ids = new Set(recent.map((v) => v.id));
   const usedCids = new Set(recent.map((v) => v.cid).filter(Boolean));
   const av = Object.fromEntries(Object.entries(avatars || {}).filter(([c]) => usedCids.has(c)));
-  await save(resolve(DATA_DIR, "videos-recent.json"), { v: 2, generatedAt, partial: videos.length > ids.size, total: videos.length, ...buildIndex(recent), avatars: av, srcs });
+  await save(resolve(DATA_DIR, "videos-recent.json"), { v: 2, generatedAt, partial: videos.length > ids.size, total: videos.length, kids, ...buildIndex(recent), avatars: av, srcs });
   const shards = {};
   for (const [id, d] of Object.entries(desc)) { const k = id.charCodeAt(0).toString(16); (shards[k] ||= {})[id] = d; }
   const dir = resolve(DATA_DIR, "desc"); await mkdir(dir, { recursive: true });
@@ -419,7 +430,8 @@ async function readExisting() {
   const backfilled = Object.fromEntries(Object.entries(raw.backfilled && typeof raw.backfilled === "object" ? raw.backfilled : {})
     .filter(([k, t]) => CHANNEL_ID.test(k) && Number.isFinite(Date.parse(t))));
   const srcs = Object.fromEntries(Object.entries(raw.srcs && typeof raw.srcs === "object" ? raw.srcs : {}).filter(([k, v]) => typeof k === "string" && k.length <= 200 && CHANNEL_ID.test(v)));
-  return { generatedAt: raw.generatedAt, avatarsCheckedAt: raw.avatarsCheckedAt, backfilled, srcs, avatars, videos, manualIds: new Set(videos.filter((v) => v.manual).map((v) => v.id)) };
+  const kids = (Array.isArray(raw.kids) ? raw.kids : []).filter((id) => VIDEO_ID.test(id));
+  return { generatedAt: raw.generatedAt, avatarsCheckedAt: raw.avatarsCheckedAt, backfilled, srcs, avatars, kids, videos, manualIds: new Set(videos.filter((v) => v.manual).map((v) => v.id)) };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
