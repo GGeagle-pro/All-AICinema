@@ -1768,7 +1768,7 @@
       ["영상 재생", evSum(ev, "video_play"), delta(evSum(ev, "video_play"), evSum(pev, "video_play"))],
       ["광고 배너 클릭", evSum(ev, "banner_click"), delta(evSum(ev, "banner_click"), evSum(pev, "banner_click"))],
       ["띠 배너 클릭", evSum(ev, "strip_click"), delta(evSum(ev, "strip_click"), evSum(pev, "strip_click"))],
-      ["검색", evSum(ev, "search"), delta(evSum(ev, "search"), evSum(pev, "search"))], ["작품 열기", evSum(ev, "work_open"), delta(evSum(ev, "work_open"), evSum(pev, "work_open"))],
+      ["검색", evSum(ev, "search"), delta(evSum(ev, "search"), evSum(pev, "search"))], ["시리즈 화면", evSum(ev, "work_open"), delta(evSum(ev, "work_open"), evSum(pev, "work_open"))],
     ];
     const cmpLabel = len === 1 ? (ST.mode === "today" ? (sameTime ? `어제 같은 시각(${sameTime})까지 대비` : "어제 대비") : "그 전날 대비") : `이전 ${len}일 대비`;
 
