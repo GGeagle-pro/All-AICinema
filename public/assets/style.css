@@ -130,7 +130,11 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .switch{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);cursor:pointer;margin-left:4px;min-height:40px}
 .switch input{accent-color:var(--accent);width:18px;height:18px}
-.player__desc{white-space:pre-line;font-size:14px;color:#c8c8d6;background:var(--bg2);border-radius:12px;padding:14px;margin:0;max-height:160px;overflow:auto}
+.player__desc{white-space:pre-line;font-size:14px;color:#c8c8d6;background:var(--bg2);border-radius:12px;padding:14px;margin:0;overflow-wrap:anywhere}
+/* 설명은 안쪽 스크롤 없이 접어 두고 '더보기'로 펼침 → 손가락이 설명 위에 있어도 화면 전체가 자연스럽게 스크롤됨 */
+.player__desc.is-clamped{max-height:160px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 65%,transparent);mask-image:linear-gradient(#000 65%,transparent)}
+.player__more{display:block;margin:6px 0 0;padding:8px 2px;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.player__more:hover{color:var(--text)}
 .player__side{overflow-y:auto;min-width:0;padding-right:4px;margin-top:40px}
 .player__side h3{margin:0 0 10px;font-size:16px}
 .upnext{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
@@ -260,7 +264,8 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
   .player__actions .switch{justify-content:center;margin:0;min-height:44px;border:1px solid var(--line);border-radius:999px;font-size:14px}
   .player__links{gap:4px 18px;font-size:14px}
   .player__links a{padding:8px 0}
-  .player__desc{font-size:13.5px;max-height:132px}
+  .player__desc{font-size:13.5px}
+  .player__desc.is-clamped{max-height:132px}
 }
 @media (max-width:560px){
   /* 닫기 버튼: 유튜브 플레이어 오른쪽 위 메뉴를 덜 가리도록 작게 */

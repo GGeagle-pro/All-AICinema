@@ -121,6 +121,7 @@
     "인스타그램": ["Instagram", "Instagram", "Instagram", "Instagram"],
     "링크 복사": ["Copy link", "リンクをコピー", "复制链接", "Copiar enlace"],
     "더보기": ["More", "その他", "更多", "Más"],
+    "접기": ["Less", "閉じる", "收起", "Menos"],
     "닫기": ["Close", "閉じる", "关闭", "Cerrar"],
     "링크를 복사했어요. 인스타그램 DM이나 스토리에 붙여 넣어 주세요.": ["Link copied. Paste it into an Instagram DM or story.", "リンクをコピーしました。InstagramのDMやストーリーに貼り付けてください。", "链接已复制，可粘贴到 Instagram 私信或快拍中。", "Enlace copiado. Pégalo en un DM o historia de Instagram."],
     "링크를 복사했어요. 카카오톡 대화창에 붙여 넣어 주세요.": ["Link copied. Paste it into a KakaoTalk chat.", "リンクをコピーしました。カカオトークに貼り付けてください。", "链接已复制，可粘贴到 KakaoTalk 聊天中。", "Enlace copiado. Pégalo en un chat de KakaoTalk."],

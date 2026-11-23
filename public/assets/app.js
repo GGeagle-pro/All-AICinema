@@ -722,9 +722,10 @@
     if (v.cid) chLink.href = `https://www.youtube.com/channel/${v.cid}`;
     $("#pDesc").textContent = v.description || "";
     $("#pDesc").hidden = !v.description;
+    fitDesc();
     if (v.description === undefined) getDesc().then((d) => {
       v.description = typeof d[v.id] === "string" ? clean({ ...v, description: d[v.id] }).description : "";
-      if (state.queue[state.current] === v) { $("#pDesc").textContent = v.description; $("#pDesc").hidden = !v.description; }
+      if (state.queue[state.current] === v) { $("#pDesc").textContent = v.description; $("#pDesc").hidden = !v.description; fitDesc(); }
     });
     // 다음·이전: 같은 시리즈(채널)의 다음 화·이전 화 우선, 없으면 다른 영상
     const plan = state.plan = buildUpNext(v, i);
@@ -757,6 +758,19 @@
     if (!wasOpen) $(".player__close").focus({ preventScroll: true });
   }
 
+  // 영상 설명: 길면 접어 두고 '더보기'로 펼치기 (설명 상자 안쪽 스크롤 없음)
+  function fitDesc(open = false) {
+    const d = $("#pDesc"), m = $("#pDescMore");
+    d.classList.toggle("is-clamped", !open);
+    m.textContent = T(open ? "접기" : "더보기");
+    m.setAttribute("aria-expanded", String(open));
+    if (open) return;
+    requestAnimationFrame(() => {
+      const over = !d.hidden && d.scrollHeight > d.clientHeight + 2;
+      m.hidden = !over;
+      if (!over) d.classList.remove("is-clamped");
+    });
+  }
   function closePlayer({ fromPop = false } = {}) {
     const p = $("#player");
     if (p.hidden) return;
@@ -1356,7 +1370,9 @@
     addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(updateChMore, 150); }, { passive: true });
     $("#sort").addEventListener("change", (e) => { state.sort = e.target.value; apply(); });
 
+    // 닫기(✕) 버튼으로만 닫힘 (바깥 어두운 영역을 눌러도 닫히지 않음)
     $("#player").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closePlayer(); });
+    $("#pDescMore").onclick = () => fitDesc($("#pDesc").classList.contains("is-clamped"));
     $("#upnext").addEventListener("click", (e) => {
       const li = e.target.closest("li[data-id]"); if (!li) return;
       openVideo(state.all.find((x) => x.id === li.dataset.id) || state.queue.find((x) => x.id === li.dataset.id));
