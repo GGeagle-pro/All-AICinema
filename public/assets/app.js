@@ -1137,10 +1137,18 @@
       if (!fromPop && history.state?.search) history.back();
     }
   }
+  // 검색어 기록 (GA4 'search' 이벤트 → 관리자 > 통계 '검색어') – 같은 검색어를 연달아 두 번 세지 않음
+  let lastTracked = "";
+  function trackSearch(q) {
+    q = String(q || "").trim().slice(0, 80);
+    if (!q || q === lastTracked) return;
+    lastTracked = q;
+    track("search", { search_term: q });
+  }
   function runSearch(q) {
     q = String(q || "").trim();
     addRecent(q);
-    if (q) track("search", { search_term: q.slice(0, 80) });
+    trackSearch(q);
     state.backTo = null; state.work = ""; state.q = q;
     $("#q").value = q; $("#spq").value = q;
     closeSearch();
@@ -1165,15 +1173,15 @@
     if (act === "clearrecent") { setRecent([]); renderSearch(); sInput().focus(); return; }
     if (act === "play") {
       const list = search.shown.slice(), k = +el.dataset.k;
-      if (q) addRecent(q);
+      if (q) { addRecent(q); trackSearch(q); }
       closeSearch();
       if (pageMode()) return goToVideo(list[k]);
       state.queue = list; openPlayer(k);
       return;
     }
-    if (act === "work") { if (q) addRecent(q); closeSearch(); openWork(el.dataset.key); return; }
+    if (act === "work") { if (q) { addRecent(q); trackSearch(q); } closeSearch(); openWork(el.dataset.key); return; }
     if (act === "cat" || act === "ch") {
-      if (q) addRecent(q);
+      if (q) { addRecent(q); trackSearch(q); }
       state.backTo = null; state.work = ""; state.q = ""; $("#q").value = "";
       if (act === "cat") { state.cat = el.dataset.key; state.ch = ""; } else { state.cat = "전체"; state.ch = el.dataset.key; }
       closeSearch(); renderMenus(); apply(); scrollTo({ top: 0, behavior: "smooth" });
