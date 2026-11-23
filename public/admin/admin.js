@@ -122,6 +122,7 @@
         ...(opts.body ? { "Content-Type": "application/json" } : {}),
       },
     });
+    { const ex = res.headers.get("github-authentication-token-expiration"); if (ex) state.tokenExp = ex; }   // 브라우저에 보이면 토큰 만료일 표시
     let body = null;
     try { body = await res.json(); } catch {}
     if (!res.ok) {
@@ -572,7 +573,7 @@
         el("div", { class: "adm-chinfo" },
           el("b", { text: label }),
           el("div", { class: "meta" },
-            `${when ? when + " · " : ""}${c.checked ? `영상 ${c.checked}개 중 ${c.blocked}개 외부 재생 막힘` : "외부 재생 막힘"} · `,
+            `${when ? when + " · " : ""}${c.reason === "game" ? "게임 영상 채널이라 제외" : c.reason === "manual" ? "직접 제외" : c.checked ? `영상 ${c.checked}개 중 ${c.blocked}개 외부 재생 막힘` : "외부 재생 막힘"} · `,
             url ? el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: "유튜브에서 보기 ↗" }) : ""),
         ),
         el("div", { class: "adm-actions" }, restore, forget)));
@@ -649,10 +650,80 @@
   }
 
   // 메뉴 편집
+  // ── 영상 언어로 국가 정하기 (scripts/lang-country.mjs 와 같은 규칙) ──
+  const LC_ES = new Set("el la los las que de del y en un una por para con su sus mi es se no al lo como más pero cuando porque mujer hombre esposa esposo hija hijo amor".split(" "));
+  const LC_FR = new Set("les des du est avec dans qui pas sur aux une et pour elle il femme mari fille".split(" "));
+  const LC_ID = new Set("yang dan di ke dari ini itu untuk dengan tidak aku kamu dia istri suami anak".split(" "));
+  const LANG_COUNTRY = { ko: "한국", ja: "일본", zh: "중국", es: "스페인", fr: "프랑스", id: "인도네시아", en: "미국" };
+  function detectLang(text) {
+    const s = String(text || "").replace(/https?:\/\/\S+/g, " ").replace(/#[^\s#]+/g, " ");
+    const n = (re) => (s.match(re) || []).length;
+    const ko = n(/[\uac00-\ud7a3]/g), kana = n(/[\u3040-\u30ff]/g), han = n(/[\u4e00-\u9fff]/g), lat = n(/[a-zA-Z\u00c0-\u00ff]/g);
+    if (ko >= 2 && ko >= kana) return "ko";
+    if (kana >= 2) return "ja";
+    if (han >= 4) return "zh";
+    if (lat >= 8) {
+      const w = s.toLowerCase().match(/[a-z\u00e0-\u00ff]+/g) || [];
+      const es = w.filter((x) => LC_ES.has(x)).length, fr = w.filter((x) => LC_FR.has(x)).length, id = w.filter((x) => LC_ID.has(x)).length;
+      if (/[ñ¿¡]/.test(s) || (es >= 2 && es > fr && es > id)) return "es";
+      if (fr >= 2 && fr > es) return "fr";
+      if (id >= 2) return "id";
+      return "en";
+    }
+    return "";
+  }
+  function renderLangCountry() {
+    const on = state.site?.langCountry === true;
+    for (const r of document.querySelectorAll('input[name="langCountry"]')) r.checked = r.value === (on ? "on" : "off");
+    $("#langCountryNow").textContent = on ? "지금: 켜짐 (영상 언어 기준)" : "지금: 꺼짐 (채널 국가 기준)";
+    const countries = (state.site?.countries?.length ? state.site.countries : ["한국", "미국", "일본", "중국"]);
+    const srcs = state.data?.srcs || {};
+    const cfgCats = new Map();
+    for (const c of state.config?.channels || []) {
+      const cid = c.id && /^UC[\w-]{22}$/.test(c.id) ? c.id : srcs[clean(c.id || c.url || c.handle, 200)];
+      if (cid) cfgCats.set(cid, catsOf(c));
+    }
+    const rows = new Map(); let total = 0, changed = 0;
+    const samples = [];
+    for (const v of state.videos || []) {
+      if (v.manual || !cfgCats.has(v.cid)) continue;
+      total++;
+      const before = cfgCats.get(v.cid).filter((x) => countries.includes(x));
+      const lc = LANG_COUNTRY[detectLang(v.title)];
+      const after = lc && countries.includes(lc) ? [lc] : before;
+      const r = rows.get(v.channel) || { before: before.join("·") || "없음", det: new Map(), ch: 0, n: 0 };
+      r.n++; r.det.set(after.join("·") || "없음", (r.det.get(after.join("·") || "없음") || 0) + 1);
+      if (after.join() !== before.join()) { r.ch++; changed++; if (samples.length < 60) samples.push([v, before.join("·") || "없음", after.join("·")]); }
+      rows.set(v.channel, r);
+    }
+    $("#lcSummary").textContent = `채널로 모은 영상 ${total.toLocaleString()}편 중 ${changed.toLocaleString()}편의 국가가 바뀌어요.`;
+    const tb = $("#lcTable tbody"); tb.textContent = "";
+    for (const [name, r] of [...rows].sort((a, b) => b[1].ch - a[1].ch || b[1].n - a[1].n)) {
+      tb.append(el("tr", { class: r.ch ? "is-diff" : "" },
+        el("td", { text: name }), el("td", { text: r.before }),
+        el("td", { text: [...r.det].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(", ") }),
+        el("td", { text: r.ch ? `${r.ch} / ${r.n}` : "-" })));
+    }
+    const ul = $("#lcSamples"); ul.textContent = "";
+    for (const [v, b, a] of samples) ul.append(el("li", {}, el("span", { class: "muted", text: `${b} → ` }), el("b", { text: a }), " ", el("span", { text: v.title.slice(0, 70) }), el("span", { class: "muted", text: ` · ${v.channel}` })));
+  }
+  function saveLangCountry(e) {
+    e.preventDefault();
+    const on = document.querySelector('input[name="langCountry"]:checked')?.value === "on";
+    run(async () => {
+      const changed = await saveSite(`영상 언어로 국가 정하기 ${on ? "켜기" : "끄기"}`, (s) => { if ((s.langCountry === true) === on) return false; if (on) s.langCountry = true; else delete s.langCountry; return true; });
+      renderLangCountry();
+      if (!changed) return toast("이미 그 상태예요.");
+      toast(on ? "켰어요. 3~5분 뒤 영상 국가가 언어 기준으로 바뀌어요." : "껐어요. 3~5분 뒤 채널 국가 기준으로 돌아가요.");
+      afterSiteSave("국가 설정 반영 중");
+    });
+  }
+
   function renderMenu() {
     if (!state.menuDraft) state.menuDraft = [...(state.site?.menu || [])];
     if (!state.kindDraft) state.kindDraft = new Map();
     const d = state.menuDraft;
+    try { renderLangCountry(); } catch (e) { console.warn(e); }
     const list = $("#menuList");
     list.textContent = "";
     const used = new Map();
@@ -1332,6 +1403,7 @@
     $("#logout").hidden = false;
     $("#who").textContent = state.user ? `@${state.user}` : "";
     renderAll();
+    renderDash().catch(() => {});
   }
   function logout() {
     store.clear();
@@ -1365,7 +1437,7 @@
   });
 
   // ───────── 통계 (구글 애널리틱스 → stats/stats.enc.json, 통계 암호로 풀어서 보여 줌) ─────────
-  const ST = { data: null, mode: "d7", from: "", to: "", loading: false };
+  const ST = { data: null, mode: "today", from: "", to: "", loading: false };
   const PW_KEY = "aic:admin:statspw";
   const escH = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const nf = new Intl.NumberFormat("ko-KR");
@@ -1388,6 +1460,74 @@
         <li>Actions 탭 → <b>방문 통계 모으기</b> → Run workflow 를 누르거나, 위의 <b>지금 새로 가져오기</b>를 누르세요. 1~2분 뒤 이 화면에 숫자가 나와요.</li>
       </ol>`;
   }
+  // ── 대시보드 (첫 화면): 영상·채널 숫자는 바로, 방문자·재생 오류·채널 성과는 통계 암호가 저장돼 있으면 ──
+  const DASH = { sort: "plays", dir: -1 };
+  async function renderDash() {
+    const box = $("#dashKpis"); if (!box) return;
+    { const li = $("#secToken"); const remember = (() => { try { return !!localStorage.getItem(KEY); } catch { return false; } })();
+      const exp = state.tokenExp ? new Date(state.tokenExp.replace(" UTC", "Z").replace(" ", "T")) : null;
+      const days = exp && !isNaN(exp) ? Math.ceil((exp - Date.now()) / 864e5) : null;
+      li.innerHTML = `<b>지금 로그인한 토큰</b> – ${days != null ? `만료까지 <b>${days}일</b> (${exp.toLocaleDateString("ko-KR")})${days > 90 ? " · 90일보다 길어요, 새로 만드는 걸 권장해요" : ""}` : "만료일은 GitHub 화면에서만 확인돼요(아래 참고)"} · 이 기기 로그인 유지: ${remember ? "켜짐 (개인 기기에서만 쓰세요)" : "꺼짐 (브라우저를 닫으면 로그아웃)"}`; }
+    const vids = state.videos || [];
+    const now = Date.now(), day = 864e5;
+    const rm = Array.isArray(state.config?.removedChannels) ? state.config.removedChannels : [];
+    const rm7 = rm.filter((c) => now - new Date(c.removedAt || 0) < 7 * day).length;
+    let sd = ST.data;
+    if (!sd && savedPw()) { try { const f = (await readJson("stats/stats.enc.json")).data; sd = ST.data = await decryptStats(f, savedPw()); } catch {} }
+    $("#dashPw").hidden = !!sd;
+    const ymd = (t) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10).replace(/-/g, "");
+    const today = ymd(now), d7 = ymd(now - 6 * day), d30 = ymd(now - 29 * day);
+    const sumT = (t, from, to, m) => agg(t, from, to, [], [m])[0]?.[m] || 0;
+    const errRows = sd?.errors ? agg(sd.errors, d7, today, ["linkUrl", "linkText"], ["eventCount"]) : [];
+    const k = [
+      ["오늘 방문자", sd ? (sd.totals?.today?.users ?? sumT(sd.daily, today, today, "activeUsers")) : "–"],
+      ["오늘 페이지뷰", sd ? sumT(sd.daily, today, today, "screenPageViews") : "–"],
+      ["24시간 새 영상", vids.filter((v) => now - v.published < day).length],
+      ["7일 새 영상", vids.filter((v) => now - v.published < 7 * day).length],
+      ["사이트 영상", vids.length.toLocaleString()],
+      ["등록 채널", (state.config?.channels || []).length],
+      ["뺀 채널 (7일)", `${rm7} <small class="muted">/ 전체 ${rm.length}</small>`],
+      ["재생 오류 (7일)", sd ? errRows.reduce((t, x) => t + x.eventCount, 0) : "–"],
+    ];
+    box.innerHTML = k.map(([l, v]) => `<div class="st-kpi"><span>${escH(l)}</span><b>${typeof v === "number" ? v.toLocaleString() : v}</b></div>`).join("");
+    $("#dashAt").textContent = sd?.generatedAt ? `통계 ${new Date(sd.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준` : "";
+    // 재생 오류 목록
+    const byId = new Map(vids.map((v) => [v.id, v]));
+    const errs = new Map();
+    for (const x of errRows) {
+      const id = (String(x.linkUrl).match(/youtu\.be\/([\w-]{11})/) || [])[1]; if (!id) continue;
+      const e = errs.get(id) || { id, n: 0, codes: new Set() }; e.n += x.eventCount; if (x.linkText) e.codes.add(x.linkText); errs.set(id, e);
+    }
+    const ul = $("#dashErrors"); ul.textContent = "";
+    const list = [...errs.values()].sort((a, b) => b.n - a.n).slice(0, 30);
+    if (!sd) ul.append(el("li", { class: "adm-empty", text: "통계 암호를 넣으면 보여요." }));
+    else if (!list.length) ul.append(el("li", { class: "adm-empty", text: sd.errors ? "최근 7일 동안 재생 오류가 없어요." : "재생 오류 기록은 다음 통계 수집(최대 6시간 뒤)부터 쌓여요." }));
+    for (const e of list) {
+      const v = byId.get(e.id);
+      ul.append(el("li", { class: "adm-item" },
+        el("img", { src: thumb(e.id), alt: "", loading: "lazy", width: 120, height: 68 }),
+        el("div", {}, el("b", { text: v ? v.title : `(사이트에 없는 영상) ${e.id}` }),
+          el("div", { class: "meta", text: [v?.channel, `오류 ${e.n}회`, [...e.codes].map((c) => `코드 ${c}`).join(", ")].filter(Boolean).join(" · ") })),
+        v && !state.pending.has(e.id) ? el("button", { class: "btn", type: "button", text: "숨기기", onclick: () => { hide([e.id]); setTimeout(renderDash, 800); } }) : el("span", { class: "muted small", text: v ? "숨김 대기" : "" })));
+    }
+    // 채널별 성과
+    const tb = $("#perfTable tbody"); tb.textContent = "";
+    const plays = new Map();
+    if (sd?.videos) for (const x of agg(sd.videos, d30, today, ["pagePath"], ["screenPageViews"])) {
+      const id = (String(x.pagePath).match(/\/watch\/([\w-]{11})/) || [])[1]; const v = id && byId.get(id);
+      if (v) plays.set(v.channel, (plays.get(v.channel) || 0) + x.screenPageViews);
+    }
+    const rows = new Map();
+    for (const v of vids) { const r = rows.get(v.channel) || { name: v.channel, n: 0, yt: 0, last: 0 }; r.n++; r.yt += v.views; r.last = Math.max(r.last, v.published); rows.set(v.channel, r); }
+    const arr = [...rows.values()].map((r) => ({ ...r, plays: plays.get(r.name) || 0, per: r.n ? (plays.get(r.name) || 0) / r.n : 0 }));
+    arr.sort((a, b) => (DASH.sort === "name" ? a.name.localeCompare(b.name, "ko") : (a[DASH.sort] - b[DASH.sort])) * (DASH.sort === "name" ? -DASH.dir : DASH.dir));
+    for (const r of arr) tb.append(el("tr", {},
+      el("td", { text: r.name }), el("td", { class: "num", text: r.n.toLocaleString() }),
+      el("td", { class: "num", text: sd ? r.plays.toLocaleString() : "–" }), el("td", { class: "num", text: sd ? r.per.toFixed(1) : "–" }),
+      el("td", { class: "num", text: fmtViews(r.yt) || "0" }), el("td", { class: "num", text: r.last ? ago(r.last) : "" })));
+    for (const th of document.querySelectorAll("#perfTable th")) th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.k === DASH.sort ? (DASH.dir < 0 ? " ▼" : " ▲") : "");
+  }
+
   async function openStats(force = false) {
     if (ST.loading || (ST.data && !force)) return ST.data && renderStats();
     ST.loading = true;
@@ -1548,14 +1688,29 @@
     const cur = { users: T ? T.users : sumOf(days, "activeUsers"), newUsers: T ? T.newUsers : sumOf(days, "newUsers"), sessions: sumOf(days, "sessions"), views: sumOf(days, "screenPageViews") };
     const prev = { users: sumOf(pdays, "activeUsers"), newUsers: sumOf(pdays, "newUsers"), sessions: sumOf(pdays, "sessions"), views: sumOf(pdays, "screenPageViews") };
     const curU = sumOf(days, "activeUsers");   // 비교는 같은 방식(일별 합)으로
+    // '오늘'은 아직 하루가 안 끝났으니, 시간대별 기록으로 '어제 같은 시각까지'와 비교 (페이지뷰·방문자·이벤트)
+    let sameTime = false;
+    if (ST.mode === "today" && d.hourly?.r?.length) {
+      const hrs = agg(d.hourly, "", "z", ["dateHour"], ["activeUsers", "screenPageViews"]);
+      const tH = hrs.filter((x) => x.dateHour.slice(0, 8) === from);
+      if (tH.length) {
+        const last = tH.reduce((m, x) => (x.dateHour.slice(8) > m ? x.dateHour.slice(8) : m), "00");
+        const yH = hrs.filter((x) => x.dateHour.slice(0, 8) === pFrom && x.dateHour.slice(8) <= last);
+        const evH = agg(d.hourlyEv, "", "z", ["dateHour", "eventName"], ["eventCount"]).filter((x) => x.dateHour.slice(0, 8) === pFrom && x.dateHour.slice(8) <= last);
+        prev.views = yH.reduce((t, x) => t + x.screenPageViews, 0);
+        prev.hUsers = yH.reduce((t, x) => t + x.activeUsers, 0); cur.hUsers = tH.reduce((t, x) => t + x.activeUsers, 0);
+        pev.length = 0; for (const x of evH) pev.push({ eventName: x.eventName, eventCount: x.eventCount });
+        sameTime = `${Number(last)}시 59분`;
+      }
+    }
     const kpi = [
-      ["방문자", cur.users, delta(curU, prev.users)], ["새 방문자", cur.newUsers, delta(sumOf(days, "newUsers"), prev.newUsers)],
-      ["방문 횟수", cur.sessions, delta(cur.sessions, prev.sessions)], ["페이지뷰", cur.views, delta(cur.views, prev.views)],
+      ["방문자", cur.users, sameTime ? delta(cur.hUsers, prev.hUsers) : delta(curU, prev.users)], ["새 방문자", cur.newUsers, sameTime ? "" : delta(sumOf(days, "newUsers"), prev.newUsers)],
+      ["방문 횟수", cur.sessions, sameTime ? "" : delta(cur.sessions, prev.sessions)], ["페이지뷰 (GA·영상 열기 포함)", cur.views, delta(cur.views, prev.views)],
       ["영상 재생", evSum(ev, "video_play"), delta(evSum(ev, "video_play"), evSum(pev, "video_play"))],
       ["배너 클릭", evSum(ev, "banner_click") + evSum(ev, "strip_click"), delta(evSum(ev, "banner_click") + evSum(ev, "strip_click"), evSum(pev, "banner_click") + evSum(pev, "strip_click"))],
       ["검색", evSum(ev, "search"), delta(evSum(ev, "search"), evSum(pev, "search"))], ["작품 열기", evSum(ev, "work_open"), delta(evSum(ev, "work_open"), evSum(pev, "work_open"))],
     ];
-    const cmpLabel = len === 1 ? (ST.mode === "today" ? "어제 대비" : "그 전날 대비") : `이전 ${len}일 대비`;
+    const cmpLabel = len === 1 ? (ST.mode === "today" ? (sameTime ? `어제 같은 시각(${sameTime})까지 대비` : "어제 대비") : "그 전날 대비") : `이전 ${len}일 대비`;
 
     // 애드센스
     let adsHtml = "";
@@ -1607,14 +1762,15 @@
       const e = c.ESTIMATED_EARNINGS || 0, pv = c.PAGE_VIEWS || 0, im = c.IMPRESSIONS || 0, cl = c.CLICKS || 0;
       const pe = pc.ESTIMATED_EARNINGS || 0, ppv = pc.PAGE_VIEWS || 0, pcl = pc.CLICKS || 0;
       const sel = [
-        ["예상 수입", money(e), delta(e, pe)], ["페이지뷰", num(pv), delta(pv, ppv)], ["페이지 RPM", money(pv ? (e / pv) * 1000 : 0), delta(pv ? e / pv : 0, ppv ? pe / ppv : 0)],
+        ["예상 수입", money(e), delta(e, pe)], ["광고 페이지뷰 (애드센스)", num(pv), delta(pv, ppv)], ["페이지 RPM", money(pv ? (e / pv) * 1000 : 0), delta(pv ? e / pv : 0, ppv ? pe / ppv : 0)],
         ["노출수", num(im), delta(im, pc.IMPRESSIONS || 0)], ["클릭수", num(cl), delta(cl, pcl)], ["CPC", money(cl ? e / cl : 0), ""],
         ["페이지 CTR", (pv ? (cl / pv) * 100 : 0).toFixed(2) + "%", ""], ["노출 RPM", money(im ? (e / im) * 1000 : 0), ""],
       ];
       const byCountry = agg(AS.country, from, to, ["country"], ["ESTIMATED_EARNINGS", "PAGE_VIEWS"]).filter((x) => x.ESTIMATED_EARNINGS > 0 || x.PAGE_VIEWS > 0);
       adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수입 <span class="muted small">(애드센스 공식 숫자 · 시간대 ${escH(AS.timeZone || "")})</span></h3>
         <div class="st-kpis st-kpis--sum">${top.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
-        <p class="st-sub">선택한 기간 (${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}) · 증감은 ${cmpLabel}</p>
+        <p class="st-sub">선택한 기간 (${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}) · 증감은 ${len === 1 ? (ST.mode === "today" ? "어제 하루 전체 대비 (애드센스는 시간대별 숫자가 없어요)" : "그 전날 대비") : `이전 ${len}일 대비`}</p>
+        <p class="st-sub muted small">광고 페이지뷰는 애드센스 광고가 실린 페이지가 실제로 열린 횟수예요. 위 방문 통계의 '페이지뷰(GA)'는 영상·작품을 열 때도 1회로 세서 더 커요.</p>
         <div class="st-kpis st-kpis--ads st-kpis--8">${sel.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
         ${byCountry.length ? `<h3 class="st-h4">국가별 예상 수입</h3>${bars(byCountry, (x) => `${flag(x.country)} ${escH(COUNTRY_KO(x.country, x.country))}`, (x) => x.ESTIMATED_EARNINGS, { fmt: money })}` : ""}
       </section>`;
@@ -1664,7 +1820,7 @@
       ${custom && len > 1 ? `<p class="muted small">* 직접 고른 기간의 방문자는 날짜별 방문자를 더한 숫자예요. 여러 날 온 사람은 여러 번 세어져요.</p>` : ""}
       ${adsHtml}
       <section class="adm-card st-card st-wide"><h3>${chartTitle}</h3>${chartHtml}
-        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰</th><th>영상 재생</th><th>배너 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
+        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰(GA)</th><th>영상 재생</th><th>배너 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
         <tbody>${rowsHtml || `<tr><td colspan="8" class="muted">이 기간에는 기록이 없어요.</td></tr>`}</tbody></table></div></section>
       <div class="st-grid">
         <section class="adm-card st-card"><h3>국가별 방문자</h3>${bars(pick("country", ["country", "countryId"], ["activeUsers"]), (x) => `${flag(x.countryId)} ${escH(COUNTRY_KO(x.countryId, x.country))}`, (x) => x.activeUsers)}</section>
@@ -1699,8 +1855,9 @@
     const t = e.target.closest(".tab");
     if (!t) return;
     document.querySelectorAll(".adm-tabs .tab").forEach((b) => b.setAttribute("aria-pressed", String(b === t)));
-    for (const p of ["channels", "stats", "works", "videos", "hidden", "menu", "ads"]) $(`#tab-${p}`).hidden = p !== t.dataset.tab;
+    for (const p of ["dash", "channels", "stats", "works", "videos", "hidden", "menu", "ads"]) $(`#tab-${p}`).hidden = p !== t.dataset.tab;
     if (t.dataset.tab === "stats") openStats();
+    if (t.dataset.tab === "dash") renderDash();
     t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   });
   $("#addUrl").addEventListener("input", updateAddForm);
@@ -1749,6 +1906,9 @@
     $("#chQ").addEventListener("keydown", (e) => { if (e.key === "Escape" && e.target.value) { e.target.value = ""; renderChannels(); } }); }
   $("#worksSwitch").addEventListener("submit", saveWorksSwitch);
   $("#pagesSwitch").addEventListener("submit", savePagesSwitch);
+  $("#langCountrySwitch").addEventListener("submit", saveLangCountry);
+  $("#dashGoStats").addEventListener("click", () => document.querySelector('.adm-tabs [data-tab="stats"]').click());
+  $("#perfTable thead").addEventListener("click", (e) => { const th = e.target.closest("th[data-k]"); if (!th) return; DASH.dir = DASH.sort === th.dataset.k ? -DASH.dir : -1; DASH.sort = th.dataset.k; renderDash(); });
 
   // 시작
   const saved = store.load();

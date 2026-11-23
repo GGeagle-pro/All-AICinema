@@ -350,3 +350,19 @@
 #stripList.is-same > .adm-banner:not(:first-child){opacity:.55}
 #stripList.is-same > .adm-banner:first-child{outline:2px solid var(--accent);outline-offset:-1px}
 .adm-same__note{background:rgba(255,61,127,.18);color:#ffb3cd;font-size:11px}
+
+/* 영상 언어로 국가 정하기 미리보기 */
+.adm-h3{font-size:15px;margin:18px 0 6px}
+.adm-tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;max-height:420px;overflow-y:auto}
+.adm-table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+.adm-table th,.adm-table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.adm-table th{position:sticky;top:0;background:var(--card,#181822);font-weight:800;color:var(--muted);white-space:nowrap}
+.adm-table tr.is-diff td:last-child{color:#ffb020;font-weight:800}
+.adm-table td.num,.adm-table th.num{text-align:right;white-space:nowrap}
+.adm-more{margin-top:10px}
+.adm-more summary{cursor:pointer;font-weight:700;padding:6px 0}
+.adm-lcsamples{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.7;max-height:360px;overflow:auto}
+.adm-lcsamples li{overflow-wrap:anywhere}
+
+.adm-checklist{margin:0;padding-left:20px;line-height:1.7;font-size:14px}
+.adm-checklist li{margin:0 0 8px;overflow-wrap:anywhere}

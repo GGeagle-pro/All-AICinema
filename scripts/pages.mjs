@@ -36,6 +36,16 @@ const langOf = (t) => /[가-힣]/.test(t) ? "ko" : /[぀-ヿ]/.test(t) ? "ja" : 
 export const HTML_LANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es" };
 export const HOME = { ko: "/", en: "/en/", ja: "/ja/", zh: "/zh/", es: "/es/" };
 const LOCALE = { ko: "ko_KR", en: "en_US", ja: "ja_JP", zh: "zh_CN", es: "es_ES" };
+// 언어별 사본 (해외 검색용): /ko|en|ja|zh|es/watch/영상ID/, /…/work/작품/ – 원래 페이지(/watch/…)는 제목 언어 화면 그대로
+const LP = { ko: "/ko", en: "/en", ja: "/ja", zh: "/zh", es: "/es" };
+const LOCAL_TOP = 300;   // 언어별 사본을 만들 영상 수 (조회수 높은 순) – 작품 페이지는 전부
+const WATCH_INTRO = {
+  ko: (v) => `${v.channel} 채널이 AI로 만든 영상이에요. All AI-Cinema에서 유튜브 공식 플레이어로 무료로 볼 수 있어요.`,
+  en: (v) => `An AI-made video by ${v.channel}. Watch it free with the official YouTube player on All AI-Cinema.`,
+  ja: (v) => `${v.channel}がAIで制作した動画です。All AI-CinemaでYouTube公式プレーヤーから無料で視聴できます。`,
+  zh: (v) => `由 ${v.channel} 用AI制作的视频。可在 All AI-Cinema 通过 YouTube 官方播放器免费观看。`,
+  es: (v) => `Un video hecho con IA por ${v.channel}. Míralo gratis con el reproductor oficial de YouTube en All AI-Cinema.`,
+};
 const WORK_INTRO = {
   ko: (w) => `${w.channel} 채널의 AI 드라마 「${w.name}」 전체 ${w.list.length}편을 1화부터 차례로 모았어요.`,
   en: (w) => `All ${w.list.length} episodes of the AI drama "${w.name}" by ${w.channel}, in order from episode 1.`,
@@ -68,7 +78,7 @@ export async function loadAll(PUB) {
   const videos = (d.items || []).map((x) => ({
     id: x[0], title: String(x[1] || "").trim(), channel: String(d.channels?.[x[2]] || ""),
     categories: (Array.isArray(x[3]) ? x[3] : [x[3]]).map((k) => d.cats?.[k]).filter(Boolean),
-    published: new Date((x[4] || 0) * 1000).toISOString(), short: x[6] === 1,
+    published: new Date((x[4] || 0) * 1000).toISOString(), short: x[6] === 1, views: Number(x[5]) || 0,
     cid: CHANNEL_ID.test(d.cids?.[x[7]] || "") ? d.cids[x[7]] : "",
     // app.js 의 str(series, 40) 과 같게 정리 (작품 주소가 사이트와 똑같이 나오도록)
     series: Number.isInteger(x[9]) && x[9] >= 0 ? String(d.series?.[x[9]] || "").replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " ").trim().slice(0, 40) : "",
@@ -142,16 +152,27 @@ export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver,
 ${body}
   </main>
   <footer class="footer"><p class="muted small">${esc(t("AI로 만든 영상입니다. 저작권은 원 채널에 있으며, 유튜브 공식 플레이어로 재생됩니다."))}</p>
-    <p><a href="${lang === "ko" ? "/tools/" : `/${lang}/tools/`}">${esc(t("AI 제작 도구"))}</a> · <a href="/about.html">${esc(t("소개"))}</a> · <a href="/privacy.html">${esc(t("개인정보처리방침"))}</a></p></footer>
+    <p><a href="${lang === "ko" ? "/tools/" : `/${lang}/tools/`}">${esc(t("AI 제작 도구"))}</a> · <a href="${lang === "ko" ? "/about.html" : "/en/about.html"}">${esc(t("소개"))}</a> · <a href="${lang === "ko" ? "/privacy.html" : "/en/privacy.html"}">${esc(t("개인정보처리방침"))}</a></p></footer>
 </body>
 </html>
 `;
 }
 
 const thumb = (id, q) => `https://i.ytimg.com/vi/${id}/${q}.jpg`;
-function miniCard(v, I, { now = false } = {}) {
+// 언어별 사본이 있으면 그 언어 주소로 링크
+const watchPath = (x, ctx, l) => (l && ctx.loc?.watch.has(x.id) && langOf(x.title) !== l ? `${LP[l]}/watch/${x.id}/` : `/watch/${x.id}/`);
+const workPath = (w, ctx, l) => (l && ctx.loc?.work.has(w.slug) && langOf(w.name + " " + w.list[0].title) !== l ? `${LP[l]}/work/${encodeURIComponent(w.slug)}/` : `/work/${encodeURIComponent(w.slug)}/`);
+function altLinks(kind, key, orig, SITE) {
+  const p = (l) => (l === orig ? `/${kind}/${key}/` : `${LP[l]}/${kind}/${key}/`);
+  return [...Object.keys(LP).map((l) => `<link rel="alternate" hreflang="${HTML_LANG[l]}" href="${SITE}${p(l)}" />`), `<link rel="alternate" hreflang="x-default" href="${SITE}/${kind}/${key}/" />`].join("\n  ");
+}
+function altXml(kind, key, orig, SITE) {
+  const p = (l) => (l === orig ? `/${kind}/${key}/` : `${LP[l]}/${kind}/${key}/`);
+  return [...Object.keys(LP).map((l) => `<xhtml:link rel="alternate" hreflang="${HTML_LANG[l]}" href="${SITE}${p(l)}"/>`), `<xhtml:link rel="alternate" hreflang="x-default" href="${SITE}/${kind}/${key}/"/>`].join("");
+}
+function miniCard(v, I, { now = false, ctx = null, l = "" } = {}) {
   const n = epNum(v.title);
-  return `<a class="card pg-card${now ? " is-now" : ""}" href="/watch/${v.id}/"${now ? ' aria-current="page"' : ""}>
+  return `<a class="card pg-card${now ? " is-now" : ""}" href="${ctx ? watchPath(v, ctx, l) : `/watch/${v.id}/`}"${now ? ' aria-current="page"' : ""}>
       <div class="thumb"><img loading="lazy" decoding="async" src="${thumb(v.id, "mqdefault")}" width="320" height="180" alt="" />${n != null && v.work && !isBinge(v) ? `<span class="badge">EP.${n}</span>` : ""}</div>
       <div class="card__body"><div><h3>${esc(v.title)}</h3><p>${esc(v.channel)}</p></div></div></a>`;
 }
@@ -159,12 +180,15 @@ const crumbs = (items) => ({ "@context": "https://schema.org", "@type": "Breadcr
   itemListElement: items.map(([name, item], i) => ({ "@type": "ListItem", position: i + 1, name, item })) });
 const dateText = (iso, lang) => { try { return new Intl.DateTimeFormat(HTML_LANG[lang], { dateStyle: "long", timeZone: "Asia/Seoul" }).format(new Date(iso)); } catch { return iso.slice(0, 10); } };
 
-function watchPage(v, ctx) {
+function watchPage(v, ctx, force = "") {
   const { SITE, I: getI, all, ver } = ctx;
-  const lang = langOf(v.title), I = getI(lang), t = (s, x) => I.t(s, x);
-  const url = `${SITE}/watch/${v.id}/`;
+  const orig = langOf(v.title), lang = force || orig, I = getI(lang), t = (s, x) => I.t(s, x);
+  const url = force ? `${SITE}${LP[force]}/watch/${v.id}/` : `${SITE}/watch/${v.id}/`;
   const ex = excerpt(v.description, 320);
-  const desc = cut(ex || `${v.title} – ${v.channel}`, 155);
+  const intro = force ? WATCH_INTRO[force](v) : "";
+  const desc = cut(force ? `${intro} ${ex}` : ex || `${v.title} – ${v.channel}`, 155);
+  const L = force;   // 링크도 같은 언어 사본으로
+  const head = ctx.loc?.watch.has(v.id) ? altLinks("watch", v.id, orig, SITE) : "";
   const w = v.work;
   const i = w ? w.list.indexOf(v) : -1;
   const prev = w && i > 0 ? w.list[i - 1] : null, next = w && i >= 0 && i < w.list.length - 1 ? w.list[i + 1] : null;
@@ -181,32 +205,34 @@ function watchPage(v, ctx) {
       uploadDate: v.published, embedUrl: `https://www.youtube.com/embed/${v.id}`, url, inLanguage: HTML_LANG[lang],
       ...(v.categories.length ? { genre: v.categories } : {}),
       author: { "@type": "Organization", name: v.channel, ...(v.cid ? { url: `https://www.youtube.com/channel/${v.cid}` } : {}) },
-      ...(w ? { isPartOf: { "@type": "CreativeWorkSeries", name: w.name, url: `${SITE}/work/${encodeURIComponent(w.slug)}/` } } : {}),
+      ...(w ? { isPartOf: { "@type": "CreativeWorkSeries", name: w.name, url: `${SITE}${workPath(w, ctx, L)}` } } : {}),
       potentialAction: { "@type": "WatchAction", target: `https://www.youtube.com/watch?v=${v.id}` } },
-    crumbs([[t("홈"), `${SITE}${HOME[lang]}`], ...(w ? [[w.name, `${SITE}/work/${encodeURIComponent(w.slug)}/`]] : cat ? [[I.name(cat), `${SITE}${HOME[lang]}?c=${encodeURIComponent(cat)}`]] : []), [cut(v.title, 80), url]]),
+    crumbs([[t("홈"), `${SITE}${HOME[lang]}`], ...(w ? [[w.name, `${SITE}${workPath(w, ctx, L)}`]] : cat ? [[I.name(cat), `${SITE}${HOME[lang]}?c=${encodeURIComponent(cat)}`]] : []), [cut(v.title, 80), url]]),
   ];
-  const body = `    <nav class="pg-crumbs" aria-label="breadcrumb"><a href="${HOME[lang]}">${esc(t("홈"))}</a>${w ? ` › <a href="/work/${encodeURIComponent(w.slug)}/">${esc(w.name)}</a>` : cat ? ` › <a href="${HOME[lang]}?c=${encodeURIComponent(cat)}">${esc(I.name(cat))}</a>` : ""}</nav>
+  const body = `    <nav class="pg-crumbs" aria-label="breadcrumb"><a href="${HOME[lang]}">${esc(t("홈"))}</a>${w ? ` › <a href="${workPath(w, ctx, L)}">${esc(w.name)}</a>` : cat ? ` › <a href="${HOME[lang]}?c=${encodeURIComponent(cat)}">${esc(I.name(cat))}</a>` : ""}</nav>
     <article class="pg-watch">
       <div class="pg-player"><iframe src="https://www.youtube.com/embed/${v.id}?rel=0&amp;playsinline=1&amp;hl=${lang === "zh" ? "zh-Hans" : lang}" title="${esc(v.title)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
-      <h1 class="pg-title">${esc(v.title)}</h1>
+      <h1 class="pg-title">${esc(v.title)}</h1>${intro ? `\n      <p class="pg-intro">${esc(intro)}</p>` : ""}
       <p class="pg-meta">${v.cid ? `<a href="https://www.youtube.com/channel/${v.cid}" target="_blank" rel="noopener">${esc(v.channel)}</a>` : esc(v.channel)} · <time datetime="${v.published}">${esc(dateText(v.published, lang))}</time>${v.categories.length ? " · " + v.categories.map((c) => `<a href="${HOME[lang]}?c=${encodeURIComponent(c)}">${esc(I.name(c))}</a>`).join(", ") : ""}</p>
       <div class="pg-btns">
         <a class="btn btn--primary" href="${HOME[lang]}?v=${v.id}">${esc(t("다음 화 자동 재생으로 보기"))}</a>
-        ${w ? `<a class="btn" href="/work/${encodeURIComponent(w.slug)}/">${esc(t("작품 보기"))} · ${esc(t("총 {n}편", { n: w.list.length }))}</a>` : ""}
+        ${w ? `<a class="btn" href="${workPath(w, ctx, L)}">${esc(t("작품 보기"))} · ${esc(t("총 {n}편", { n: w.list.length }))}</a>` : ""}
         <a class="btn" href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener">${esc(t("YouTube에서 보기 ↗"))}</a>
       </div>
-      ${prev || next ? `<div class="pg-epnav">${prev ? `<a class="pg-ep" href="/watch/${prev.id}/"><small>‹ ${esc(t("이전 화"))}</small><span>${esc(prev.title)}</span></a>` : "<span></span>"}${next ? `<a class="pg-ep pg-ep--next" href="/watch/${next.id}/"><small>${esc(t("다음 화"))} ›</small><span>${esc(next.title)}</span></a>` : ""}</div>` : ""}
+      ${prev || next ? `<div class="pg-epnav">${prev ? `<a class="pg-ep" href="${watchPath(prev, ctx, L)}"><small>‹ ${esc(t("이전 화"))}</small><span>${esc(prev.title)}</span></a>` : "<span></span>"}${next ? `<a class="pg-ep pg-ep--next" href="${watchPath(next, ctx, L)}"><small>${esc(t("다음 화"))} ›</small><span>${esc(next.title)}</span></a>` : ""}</div>` : ""}
       ${ex ? `<section class="pg-sec"><h2>${esc(t("영상 소개"))}</h2><p class="pg-desc">${esc(ex)}</p><p class="muted small">— ${esc(v.channel)}, <a href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener">YouTube</a></p></section>` : ""}
     </article>
-    ${w ? `<section class="pg-sec"><h2>${esc(w.name)} · ${esc(t("전체 회차"))}</h2><div class="grid pg-grid">${win.map((x) => miniCard(x, I, { now: x === v })).join("")}</div>${win.length < w.list.length ? `<p class="pg-all"><a class="btn" href="/work/${encodeURIComponent(w.slug)}/">${esc(t("전체 회차"))} · ${esc(t("총 {n}편", { n: w.list.length }))} →</a></p>` : ""}</section>` : ""}
-    ${more.length ? `<section class="pg-sec"><h2>${esc(t("같은 채널의 다른 영상"))}</h2><div class="grid pg-grid">${more.map((x) => miniCard(x, I)).join("")}</div></section>` : ""}`;
-  return shell({ lang, title: `${cut(v.title, 70)} | ${v.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(v.id) ? thumb(v.id, "maxresdefault") : thumb(v.id, "hqdefault"), ogType: "video.other", ld, body, I, ver });
+    ${w ? `<section class="pg-sec"><h2>${esc(w.name)} · ${esc(t("전체 회차"))}</h2><div class="grid pg-grid">${win.map((x) => miniCard(x, I, { now: x === v, ctx, l: L })).join("")}</div>${win.length < w.list.length ? `<p class="pg-all"><a class="btn" href="${workPath(w, ctx, L)}">${esc(t("전체 회차"))} · ${esc(t("총 {n}편", { n: w.list.length }))} →</a></p>` : ""}</section>` : ""}
+    ${more.length ? `<section class="pg-sec"><h2>${esc(t("같은 채널의 다른 영상"))}</h2><div class="grid pg-grid">${more.map((x) => miniCard(x, I, { ctx, l: L })).join("")}</div></section>` : ""}`;
+  return shell({ lang, title: `${cut(v.title, 70)} | ${v.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(v.id) ? thumb(v.id, "maxresdefault") : thumb(v.id, "hqdefault"), ogType: "video.other", ld, body, I, ver, head });
 }
 
-function workPage(w, ctx) {
+function workPage(w, ctx, force = "") {
   const { SITE, I: getI, ver } = ctx;
-  const lang = langOf(w.name + " " + w.list[0].title), I = getI(lang), t = (s, x) => I.t(s, x);
-  const url = `${SITE}/work/${encodeURIComponent(w.slug)}/`;
+  const orig = langOf(w.name + " " + w.list[0].title), lang = force || orig, I = getI(lang), t = (s, x) => I.t(s, x);
+  const L = force;
+  const url = force ? `${SITE}${LP[force]}/work/${encodeURIComponent(w.slug)}/` : `${SITE}/work/${encodeURIComponent(w.slug)}/`;
+  const head = ctx.loc?.work.has(w.slug) ? altLinks("work", encodeURIComponent(w.slug), orig, SITE) : "";
   const first = w.list.find((x) => !isBinge(x)) || w.list[0];
   const cover = w.list.filter((x) => !isBinge(x)).pop() || w.list[w.list.length - 1];
   const intro = WORK_INTRO[lang](w);
@@ -216,7 +242,7 @@ function workPage(w, ctx) {
     { "@context": "https://schema.org", "@type": "CreativeWorkSeries", name: w.name, url, inLanguage: HTML_LANG[lang], description: cut(`${intro} ${ex}`, 500),
       image: thumb(cover.id, "hqdefault"),
       author: { "@type": "Organization", name: w.channel, ...(w.cid ? { url: `https://www.youtube.com/channel/${w.cid}` } : {}) },
-      hasPart: w.list.map((x) => ({ "@type": "VideoObject", name: cut(x.title, 200), url: `${SITE}/watch/${x.id}/`, thumbnailUrl: thumb(x.id, "hqdefault"), uploadDate: x.published, embedUrl: `https://www.youtube.com/embed/${x.id}`, description: cut(excerpt(x.description, 300) || x.title, 300) })) },
+      hasPart: w.list.map((x) => ({ "@type": "VideoObject", name: cut(x.title, 200), url: `${SITE}${watchPath(x, ctx, L)}`, thumbnailUrl: thumb(x.id, "hqdefault"), uploadDate: x.published, embedUrl: `https://www.youtube.com/embed/${x.id}`, description: cut(excerpt(x.description, 300) || x.title, 300) })) },
     crumbs([[t("홈"), `${SITE}${HOME[lang]}`], [w.name, url]]),
   ];
   const body = `    <nav class="pg-crumbs" aria-label="breadcrumb"><a href="${HOME[lang]}">${esc(t("홈"))}</a> › <span>${esc(t("작품"))}</span></nav>
@@ -229,13 +255,13 @@ function workPage(w, ctx) {
           <h1>${esc(w.name)}</h1>
           <p class="whead__ch"><span>${esc(w.channel)}</span></p>
           <p class="whead__meta">${esc(t("총 {n}편", { n: w.list.length }))} · ${esc(dateText(w.latest, lang))}</p>
-          <div class="whead__btns"><a class="btn btn--primary" href="/watch/${first.id}/">${esc(t("▶ 1화부터 보기"))}</a>
-            <a class="btn" href="/watch/${cover.id}/">${esc(t("최신화 보기"))}</a></div>
+          <div class="whead__btns"><a class="btn btn--primary" href="${watchPath(first, ctx, L)}">${esc(t("▶ 1화부터 보기"))}</a>
+            <a class="btn" href="${watchPath(cover, ctx, L)}">${esc(t("최신화 보기"))}</a></div>
         </div></div>
     </section>
     <section class="pg-sec"><h2>${esc(t("작품 소개"))}</h2><p class="pg-desc">${esc(intro)}</p>${ex ? `<p class="pg-desc">${esc(ex)}</p><p class="muted small">— ${esc(w.channel)}, YouTube</p>` : ""}</section>
-    <section class="pg-sec"><h2>${esc(t("전체 회차"))}</h2><div class="grid pg-grid">${w.list.map((x) => miniCard(x, I)).join("")}</div></section>`;
-  return shell({ lang, title: `${w.name} – ${t("전체 회차")} | ${w.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(cover.id) ? thumb(cover.id, "maxresdefault") : thumb(cover.id, "hqdefault"), ogType: "website", ld, body, I, ver });
+    <section class="pg-sec"><h2>${esc(t("전체 회차"))}</h2><div class="grid pg-grid">${w.list.map((x) => miniCard(x, I, { ctx, l: L })).join("")}</div></section>`;
+  return shell({ lang, title: `${w.name} – ${t("전체 회차")} | ${w.channel} – All AI-Cinema`, desc, url, image: ctx.big.has(cover.id) ? thumb(cover.id, "maxresdefault") : thumb(cover.id, "hqdefault"), ogType: "website", ld, body, I, ver, head });
 }
 
 // 공유 미리보기(카카오톡 등)용 큰 썸네일: 유튜브 maxresdefault(1280×720)가 있는 영상만 (없으면 hqdefault)
@@ -270,30 +296,43 @@ export async function buildPages({ PUB, SITE, loadI18n, ver, only }) {
   const cache = {};
   for (const l of ["ko", "en", "ja", "zh", "es"]) cache[l] = await loadI18n(l);
   const big = await bigThumbs(PUB, videos.map((v) => v.id));
-  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big };
+  // 언어별 사본 대상: 조회수 높은 영상 LOCAL_TOP개 + 모든 작품
+  const loc = { watch: new Set([...videos].sort((a, b) => b.views - a.views).slice(0, LOCAL_TOP).map((v) => v.id)), work: new Set(works.map((w) => w.slug)) };
+  const ctx = { SITE, I: (l) => cache[l], all: [...videos].sort((a, b) => (a.published < b.published ? 1 : -1)), ver, big, loc };
   let changed = 0;
   const pick = only ? new Set(only) : null;
+  const keepL = Object.fromEntries(Object.keys(LP).map((l) => [l, { watch: new Set(), work: new Set() }]));
+  const urls = [];
   for (const v of videos) {
+    const orig = langOf(v.title), alts = loc.watch.has(v.id) ? altXml("watch", v.id, orig, SITE) : "";
+    urls.push({ loc: `${SITE}/watch/${v.id}/`, lastmod: v.published, alts });
+    if (loc.watch.has(v.id)) for (const l of Object.keys(LP)) if (l !== orig) { keepL[l].watch.add(v.id); urls.push({ loc: `${SITE}${LP[l]}/watch/${v.id}/`, lastmod: v.published, alts }); }
     if (pick && !pick.has(v.id)) continue;
     if (await writeIfChanged(resolve(PUB, "watch", v.id, "index.html"), watchPage(v, ctx))) changed++;
+    if (loc.watch.has(v.id)) for (const l of Object.keys(LP)) if (l !== orig && await writeIfChanged(resolve(PUB, LP[l].slice(1), "watch", v.id, "index.html"), watchPage(v, ctx, l))) changed++;
   }
   for (const w of works) {
+    const orig = langOf(w.name + " " + w.list[0].title), key = encodeURIComponent(w.slug), alts = altXml("work", key, orig, SITE);
+    urls.unshift({ loc: `${SITE}/work/${key}/`, lastmod: w.latest, alts });
+    for (const l of Object.keys(LP)) if (l !== orig) { keepL[l].work.add(w.slug); urls.push({ loc: `${SITE}${LP[l]}/work/${key}/`, lastmod: w.latest, alts }); }
     if (pick && !w.list.some((x) => pick.has(x.id))) continue;
     if (await writeIfChanged(resolve(PUB, "work", w.slug, "index.html"), workPage(w, ctx))) changed++;
+    for (const l of Object.keys(LP)) if (l !== orig && await writeIfChanged(resolve(PUB, LP[l].slice(1), "work", w.slug, "index.html"), workPage(w, ctx, l))) changed++;
   }
-  if (!pick) {   // 목록에서 빠진 영상·작품 페이지 정리
+  if (!pick) {   // 목록에서 빠진 영상·작품 페이지 정리 (언어별 사본 포함)
     const keep = { watch: new Set(videos.map((v) => v.id)), work: new Set(works.map((w) => w.slug)) };
-    for (const dir of ["watch", "work"]) {
-      let names = []; try { names = await readdir(resolve(PUB, dir)); } catch {}
-      for (const n of names) if (!keep[dir].has(n)) await rm(resolve(PUB, dir, n), { recursive: true, force: true });
-    }
+    const sweep = async (base, k) => {
+      for (const dir of ["watch", "work"]) {
+        let names = []; try { names = await readdir(resolve(PUB, base, dir)); } catch {}
+        for (const n of names) if (!k[dir].has(n)) await rm(resolve(PUB, base, dir, n), { recursive: true, force: true });
+      }
+    };
+    await sweep(".", keep);
+    for (const l of Object.keys(LP)) await sweep(LP[l].slice(1), keepL[l]);
   }
   return {
     changed,
-    urls: [
-      ...works.map((w) => ({ loc: `${SITE}/work/${encodeURIComponent(w.slug)}/`, lastmod: w.latest })),
-      ...videos.map((v) => ({ loc: `${SITE}/watch/${v.id}/`, lastmod: v.published })),
-    ],
+    urls,
     counts: { videos: videos.length, works: works.length },
   };
 }

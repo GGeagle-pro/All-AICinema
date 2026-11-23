@@ -39,6 +39,18 @@
     my.set("aic:fav", [...fav].reverse());
     return fav.has(id);
   }
+  // 시청 위치 (이어보기·몇 화까지 봤는지) {영상ID: [본 초, 길이 초, 저장 시각]} – 이 브라우저에만 저장
+  const POS_KEY = "aic:pos";
+  let pos = {};
+  try { const o = JSON.parse(localStorage.getItem(POS_KEY) || "{}"); if (o && typeof o === "object") for (const [k, v] of Object.entries(o)) if (/^[\w-]{11}$/.test(k) && Array.isArray(v) && v.length === 3 && v.every(Number.isFinite)) pos[k] = v; } catch {}
+  function savePos(id, sec, dur) {
+    if (!/^[\w-]{11}$/.test(id) || !(dur > 0) || !(sec >= 0)) return;
+    pos[id] = [Math.round(sec), Math.round(dur), Date.now()];
+    pos = Object.fromEntries(Object.entries(pos).sort((a, b) => b[1][2] - a[1][2]).slice(0, 150));
+    try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch {}
+  }
+  const progOf = (id) => { const p = pos[id]; return p ? Math.min(1, p[0] / p[1]) : 0; };
+  const resumeAt = (id) => { const p = pos[id]; return p && p[0] >= 15 && p[0] / p[1] < 0.92 ? p[0] : 0; };
   function addHist(id) { hist = [id, ...hist.filter((x) => x !== id)].slice(0, 50); my.set("aic:hist", hist); }
   const byIds = (ids) => { const m = new Map(state.all.map((v) => [v.id, v])); return ids.map((id) => m.get(id)).filter(Boolean); };
   const SPECIAL = { [FAV_KEY]: "찜한 영상", [HIST_KEY]: "최근 본 영상", [SINCE_KEY]: "지난 방문 이후 새 영상" };          // 1줄 메뉴의 NEW 탭 (관리자 카테고리 이름과 겹치지 않는 내부 값)
@@ -439,7 +451,7 @@
       groups.push({ key: "works:" + state.ch, title: T("{ch}의 작품", { ch: state.ch }), sub: T("작품을 누르면 1화부터 볼 수 있어요"), works: ws });
     } else {
       if (state.cat === "전체") {
-        const watched = byIds(hist).filter(inCountry);
+        const watched = byIds(hist).filter(inCountry).sort((a, b) => (resumeAt(b.id) ? 1 : 0) - (resumeAt(a.id) ? 1 : 0));
         if (watched.length) groups.push({ key: "hist", title: T("이어서 보기"), sub: T("최근 본 영상"), list: watched, go: { cat: HIST_KEY } });
         const liked = byIds([...fav].reverse()).filter(inCountry);
         if (liked.length) groups.push({ key: "fav", title: T("♥ 찜한 영상"), sub: T("내가 찜한"), list: liked, go: { cat: FAV_KEY } });
@@ -605,7 +617,17 @@
           <h2>${esc(w.name)}</h2>
           <p class="whead__ch">${avatarHtml(w.channel, "avatar", w.cid)}<span>${esc(w.channel)}</span></p>
           <p class="whead__meta">${T("총 {n}편", { n: w.list.length })}${w.lastEp ? " · " + T("EP.{n}까지", { n: w.lastEp }) : ""}${w.views ? ` · ${views(w.views)}` : ""} · ${T("최근 업데이트 {t}", { t: ago(new Date(w.latest).toISOString()) })}</p>
-          <div class="whead__btns"><button type="button" class="btn btn--primary" data-play="first">${T("▶ 1화부터 보기")}</button>
+          ${(() => {   // 몇 화까지 봤는지 + 이어보기
+            const L = state.list; let k = -1;
+            for (let i = 0; i < L.length; i++) if (progOf(L[i].id) > 0.05 || hist.includes(L[i].id)) k = i;
+            if (k < 0) return `<p class="whead__prog"><small>${T("자동 다음이 켜져 있으면 한 편이 끝날 때 다음 화가 바로 이어져요")}</small></p>`;
+            const doneK = progOf(L[k].id) >= 0.92;
+            const next = doneK ? Math.min(k + 1, L.length - 1) : k;
+            return `<p class="whead__prog">${T("{n}화까지 봤어요", { n: k + 1 })}${doneK && k === L.length - 1 ? " ✓" : ""}<small>${T("자동 다음이 켜져 있으면 한 편이 끝날 때 다음 화가 바로 이어져요")}</small></p>
+              <div class="whead__btns"><button type="button" class="btn btn--primary" data-play="${next}">${doneK ? T("▶ {n}화 보기", { n: next + 1 }) : T("▶ 이어보기 ({n}화)", { n: next + 1 })}</button>
+              <button type="button" class="btn" data-play="first">${T("▶ 1화부터 보기")}</button></div>`;
+          })()}
+          <div class="whead__btns" ${state.list.some((x) => progOf(x.id) > 0.05 || hist.includes(x.id)) ? "hidden" : ""}><button type="button" class="btn btn--primary" data-play="first">${T("▶ 1화부터 보기")}</button>
             <button type="button" class="btn" data-play="last">${T("최신화 보기")}</button></div>
         </div></div>`;
     box.hidden = false;
@@ -633,6 +655,8 @@
         ${isNew(v.published) ? '<span class="badge">NEW</span>' : ""}
         ${v.short ? '<span class="badge badge--short">Shorts</span>' : ""}
         <img loading="lazy" decoding="async" src="${thumb(v.id, "mqdefault")}" width="320" height="180" alt="" />
+        ${progOf(v.id) >= 0.92 ? `<span class="ep-done">✓ ${T("봤어요")}</span>` : ""}
+        ${progOf(v.id) > 0.02 ? `<span class="thumb__prog" aria-hidden="true"><i style="width:${Math.round(progOf(v.id) * 100)}%"></i></span>` : ""}
       </div>
       <div class="card__body">
         ${avatarHtml(v.channel, "avatar", v.cid)}
@@ -679,16 +703,26 @@
 
   async function play(v) {
     await loadYT();
-    if (ytPlayer && ytPlayer.loadVideoById) { ytPlayer.loadVideoById(v.id); return; }
+    const start = resumeAt(v.id);
+    if (ytPlayer && ytPlayer.loadVideoById) { ytPlayer.loadVideoById({ videoId: v.id, startSeconds: start }); return; }
     ytPlayer = new YT.Player("yt", {
       host: "https://www.youtube-nocookie.com",
       videoId: v.id,
       // 고른 언어로 유튜브 화면·자막 (한국어가 아니면 자막 켜기: 자막이 있는 영상에서 그 언어 자막 우선)
-      playerVars: { autoplay: 1, playsinline: 1, rel: 0, hl: I18N.meta.yt, cc_lang_pref: I18N.meta.yt, ...(I18N.lang !== "ko" ? { cc_load_policy: 1 } : {}) },
+      playerVars: { autoplay: 1, playsinline: 1, rel: 0, ...(start ? { start } : {}), hl: I18N.meta.yt, cc_lang_pref: I18N.meta.yt, ...(I18N.lang !== "ko" ? { cc_load_policy: 1 } : {}) },
       events: {
         // 다음 영상 자동 재생은 플레이어가 열려 있을 때만 (닫은 뒤 다시 열리지 않게)
-        onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && $("#pAuto").checked && !$("#player").hidden) step(1); },
-        onError: () => {
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.ENDED) {
+            const cur = state.queue[state.current];
+            if (cur) { const d = ytPlayer.getDuration?.() || 0; if (d) savePos(cur.id, d, d); }
+            if ($("#pAuto").checked && !$("#player").hidden) step(1);
+          }
+        },
+        onError: (e) => {
+          // 재생 오류 기록 (관리자 > 통계 '재생 오류' – 101·150 = 다른 사이트 재생 막힘, 100 = 삭제·비공개)
+          const bad = state.queue[state.current];
+          if (bad) track("video_error", { link_url: `https://youtu.be/${bad.id}`, link_text: String(e?.data ?? "") });
           if (!$("#pAuto").checked || $("#player").hidden) return;
           const cur = state.current;
           setTimeout(() => { if (!$("#player").hidden && state.current === cur) step(1); }, 1500);
@@ -697,6 +731,14 @@
     });
   }
 
+  // 재생 중 5초마다 위치 저장 (이어보기용)
+  setInterval(() => {
+    try {
+      if (!ytPlayer?.getCurrentTime || $("#player").hidden || ytPlayer.getPlayerState?.() !== 1) return;
+      const v = state.queue[state.current]; if (!v) return;
+      savePos(v.id, ytPlayer.getCurrentTime(), ytPlayer.getDuration());
+    } catch {}
+  }, 5000);
   function openPlayer(i, { push = true } = {}) {
     const v = state.queue[i];
     if (!v) return;
@@ -783,7 +825,22 @@
     p.hidden = true;
     closedAt = Date.now();
     document.body.classList.remove("locked");
+    // 닫기 전 위치 저장 + 목록 카드의 진행 막대 갱신
+    try {
+      const v = state.queue[state.current];
+      if (v && ytPlayer?.getCurrentTime) {
+        const t = ytPlayer.getCurrentTime(), d = ytPlayer.getDuration();
+        if (t > 3) savePos(v.id, t, d);
+        const w = Math.round(progOf(v.id) * 100);
+        if (w > 2) for (const th of document.querySelectorAll(`.card[href*="${v.id}"] .thumb`)) {
+          let bar = th.querySelector(".thumb__prog");
+          if (!bar) { bar = document.createElement("span"); bar.className = "thumb__prog"; bar.setAttribute("aria-hidden", "true"); bar.appendChild(document.createElement("i")); th.appendChild(bar); }
+          bar.firstChild.style.width = w + "%";
+        }
+      }
+    } catch {}
     try { ytPlayer?.stopVideo(); } catch {}
+    try { if (env.mobile) showInstallCard(); } catch {}
     document.title = `${siteName()} | ${T("AI 영화·드라마 모아보기")}`;
     if (!fromPop && backToList) { backToList = false; history.back(); return; }
     if (!fromPop) history.state?.v ? history.back() : history.replaceState(null, "", location.pathname);
@@ -936,7 +993,9 @@
     if (env.standalone) return;
     let visits = 0, hideUntil = 0;
     try { visits = +localStorage.getItem("aic:visits") || 0; hideUntil = +localStorage.getItem("aic:installHide") || 0; } catch {}
-    if (visits < 2 || Date.now() < hideUntil || !(installEvt || env.ios)) return;
+    // 휴대폰: 두 번째 방문부터, 또는 첫 방문이라도 영상을 한 편 본 뒤에 안내 (앱 안 브라우저·PC 제외)
+    const engaged = hist.length > 0;
+    if ((visits < 2 && !engaged) || Date.now() < hideUntil || env.inApp || !(installEvt || env.ios || (env.mobile && /Android/i.test(navigator.userAgent)))) return;
     $("#installCard").hidden = false;
   }
   function hideInstallCard(forever) {
@@ -1007,6 +1066,8 @@
       // 주소의 ?lang= 은 지움 (고른 언어는 이 브라우저에 기억)
       const tl = $("#toolsLink"); if (tl) tl.href = code === "ko" ? "/tools/" : `/${code}/tools/`;   // 하단 'AI 제작 도구' 링크도 그 언어로
       const fl = $("#faqLink"); if (fl) fl.href = code === "ko" ? "/faq/" : `/${code}/faq/`;
+      const tp = $("#topLink"); if (tp) tp.href = code === "ko" ? "/top/" : `/${code}/top/`;
+    { const en = code !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; }
       // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
       const u = new URL(location.href); u.searchParams.delete("lang");
       if (/^\/((en|ja|zh|es)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
@@ -1018,7 +1079,8 @@
     }
     paint();
     { const tl = $("#toolsLink"); if (tl) tl.href = I18N.lang === "ko" ? "/tools/" : `/${I18N.lang}/tools/`; }
-    { const fl = $("#faqLink"); if (fl) fl.href = I18N.lang === "ko" ? "/faq/" : `/${I18N.lang}/faq/`; }
+    { const fl = $("#faqLink"); if (fl) fl.href = I18N.lang === "ko" ? "/faq/" : `/${I18N.lang}/faq/`; const tp = $("#topLink"); if (tp) tp.href = I18N.lang === "ko" ? "/top/" : `/${I18N.lang}/top/`; }
+    { const en = I18N.lang !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; }
     if (I18N.onGeo) I18N.onGeo((code) => choose(code, false));   // 접속 국가(IP)로 정한 언어 적용
   }
 
@@ -1337,7 +1399,8 @@
     });
     $("#workHead").addEventListener("click", (e) => {
       const b = e.target.closest("[data-play]"); if (!b || !state.list.length) return;
-      const i = b.dataset.play === "first" ? 0 : state.list.length - 1;
+      const n = Number(b.dataset.play);
+      const i = b.dataset.play === "first" ? 0 : Number.isInteger(n) && n >= 0 && n < state.list.length ? n : state.list.length - 1;
       if (pageMode()) return goToVideo(state.list[i], { ch: state.ch });
       state.queue = state.list.slice(); openPlayer(i);
     });

@@ -7,6 +7,8 @@ AddType application/manifest+json .webmanifest
 
 Options -Indexes -MultiViews
 DirectoryIndex index.html
+# 없는 주소 → 사이트 디자인의 404 페이지 (홈으로 가기 버튼)
+ErrorDocument 404 /404.html
 ServerSignature Off
 
 # 정적 사이트이므로 GET/HEAD 외 요청(POST, PUT, DELETE 등)은 모두 거부

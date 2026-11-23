@@ -43,7 +43,7 @@
         <button class="btn btn--primary" type="submit" id="loginBtn">로그인</button>
         <p id="loginErr" class="adm-err" role="alert" hidden></p>
       </form>
-      <p class="muted small">토큰 만드는 방법은 설치 가이드의 "관리자 페이지 설정"을 보세요.</p>
+      <p class="muted small">토큰 만드는 방법은 설치 가이드의 "관리자 페이지 설정"을 보세요. 보안을 위해 <b>Fine-grained 토큰</b>, 저장소는 이 저장소 하나만, 만료는 <b>90일 이하</b>로 만들어 주세요. 공용 PC에서는 "로그인 유지"를 켜지 마세요.</p>
     </section>
 
     <!-- 관리 화면 -->
@@ -54,7 +54,8 @@
       <div id="pub" class="adm-pub" role="status" aria-live="polite" hidden></div>
 
       <nav class="menu adm-tabs" role="tablist" aria-label="관리 메뉴">
-        <button class="tab" type="button" data-tab="channels" aria-pressed="true">채널 관리</button>
+        <button class="tab" type="button" data-tab="dash" aria-pressed="true">대시보드</button>
+        <button class="tab" type="button" data-tab="channels" aria-pressed="false">채널 관리</button>
         <button class="tab" type="button" data-tab="stats" aria-pressed="false">통계</button>
         <button class="tab" type="button" data-tab="works" aria-pressed="false">작품</button>
         <button class="tab" type="button" data-tab="videos" aria-pressed="false">영상 관리</button>
@@ -64,7 +65,37 @@
       </nav>
 
       <!-- ───── 채널 관리 ───── -->
-      <div id="tab-channels" class="adm-pane">
+      <div id="tab-dash" class="adm-pane">
+        <div class="adm-card">
+          <div class="adm-row-head"><h2 class="adm-h2">한눈에 보기</h2><span id="dashAt" class="muted small"></span></div>
+          <div id="dashKpis" class="st-kpis st-kpis--8"></div>
+          <p id="dashPw" class="adm-hint" hidden>방문자·재생 오류·채널 성과는 <b>통계 암호</b>를 한 번 넣으면 보여요. <button id="dashGoStats" class="btn" type="button">통계 암호 넣기</button></p>
+        </div>
+        <div class="adm-card">
+          <h2>보안 점검</h2>
+          <ul class="adm-checklist">
+            <li id="secToken"></li>
+            <li><b>GitHub 토큰 만료 90일 이하</b> – GitHub → Settings → Developer settings → Fine-grained tokens 에서 이 토큰의 Expires 날짜를 확인하세요. 만료가 없거나 90일보다 길면 새로 만들어(90일) 바꿔 넣어 주세요.</li>
+            <li><b>애드센스 OAuth 클라이언트 보안 비밀</b> – 예전에 캡처로 보였던 값은 바꾸는 걸 권장해요. Google Cloud 콘솔 → API 및 서비스 → 사용자 인증 정보 → OAuth 클라이언트 → <b>보안 비밀 추가</b> → 새 값을 GitHub Secrets 의 <code>ADSENSE_CLIENT_SECRET</code> 에 넣고, 통계 '지금 새로 가져오기'가 되는지 확인한 뒤 옛 보안 비밀을 <b>사용 중지·삭제</b>. 보안 비밀 목록에 생성일이 하나뿐이고 그날이 처음 만든 날이면 아직 안 바꾼 거예요.</li>
+            <li><b>저장소 비공개 전환</b> – 원하실 때 하면 돼요. 순서(Cloudways 배포 키 등록 → 비공개 전환 → 확인)는 프로젝트 문서 "작업 원칙"에 저장돼 있어요. 비공개면 GitHub Actions 무료 사용량이 월 2,000분으로 줄어요.</li>
+            <li><b>받은 JSON 키 파일</b> – 서비스 계정 키(.json)를 내려받은 PC에 남아 있으면 지워 주세요. 값은 GitHub Secrets 에만 있으면 돼요.</li>
+          </ul>
+        </div>
+        <div class="adm-card">
+          <h2>재생 오류 <span class="muted small">(최근 7일 · 사이트 플레이어에서 재생이 안 된 영상)</span></h2>
+          <p class="muted small">101·150 = 제작자가 다른 사이트 재생을 막음, 100 = 삭제·비공개, 5 = 브라우저 재생 오류, 2 = 잘못된 영상 번호. 같은 영상이 자주 나오면 <b>숨기기</b>를 눌러 주세요.</p>
+          <ul id="dashErrors" class="adm-list"></ul>
+        </div>
+        <div class="adm-card">
+          <h2>채널별 성과 <span class="muted small">(최근 30일)</span></h2>
+          <p class="muted small">사이트 재생 = 사이트에서 그 채널 영상을 연 횟수(GA). 유튜브 조회수 = 사이트에 있는 그 채널 영상들의 유튜브 전체 조회수 합. 제목을 누르면 정렬 기준이 바뀌어요.</p>
+          <div class="adm-tablewrap"><table class="adm-table" id="perfTable"><thead><tr>
+            <th data-k="name">채널</th><th class="num" data-k="n">영상</th><th class="num" data-k="plays">사이트 재생 ▼</th><th class="num" data-k="per">영상당 재생</th><th class="num" data-k="yt">유튜브 조회수</th><th class="num" data-k="last">최근 업로드</th>
+          </tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+
+      <div id="tab-channels" class="adm-pane" hidden>
         <div class="adm-card adm-add">
           <h2>유튜브 채널 추가</h2>
           <p class="muted small">유튜브 앱·사이트에서 채널 주소를 복사해 붙여넣고, 카테고리를 고른 뒤 추가하면 1~3분 안에 사이트에 올라가요. 영상 주소를 넣으면 그 영상 하나만 추가돼요.</p>
@@ -103,7 +134,7 @@
         </div>
         <ul id="channelList" class="adm-list"></ul>
         <div id="removedBox" class="adm-card adm-removed" hidden>
-          <h2>자동으로 뺀 채널 <span id="removedCount" class="muted"></span></h2>
+          <h2>뺀 채널 (자동·게임 등) <span id="removedCount" class="muted"></span></h2>
           <p class="muted small">영상 대부분을 <b>다른 사이트에서 재생할 수 없게</b> 막아 둔 채널은 매일 확인해서 자동 수집에서 빼요(영상 3개 이상 중 80% 이상 막힘, 영상이 1~2개면 전부 막힘). 막힌 영상은 채널과 상관없이 사이트에서 빠져요. <b>되살리기</b>를 누르면 다시 수집하고, 그 뒤로는 자동으로 빼지 않아요(막힌 영상만 계속 제외).</p>
           <ul id="removedList" class="adm-list"></ul>
         </div>
@@ -169,6 +200,22 @@
             <button class="btn" type="submit">추가</button>
           </form>
           <button id="menuSave" class="btn btn--primary" type="button" disabled>카테고리 저장</button>
+        </div>
+        <div class="adm-card">
+          <h2>영상 언어로 국가 정하기</h2>
+          <p class="muted small">지금은 영상의 <b>국가</b>가 채널에 지정한 국가를 따라가요. 켜면 영상 <b>제목의 언어</b>를 보고 국가를 정해요(한국어→한국, 일본어→일본, 중국어→중국, 스페인어→스페인, 프랑스어→프랑스, 인도네시아어→인도네시아, 영어→미국). 언어를 알 수 없거나 그 국가가 메뉴에 없으면 채널 국가 그대로예요. 장르는 바뀌지 않아요. <b>끄면 원래대로 돌아가요(원상 복구).</b> 저장 후 3~5분 뒤 사이트에 반영돼요.</p>
+          <form id="langCountrySwitch" class="adm-radios" novalidate>
+            <label class="adm-radio"><input type="radio" name="langCountry" value="on" />
+              <span><b>켜기</b><br /><span class="muted small">영상 제목 언어로 국가 정하기</span></span></label>
+            <label class="adm-radio"><input type="radio" name="langCountry" value="off" />
+              <span><b>끄기 (원상 복구)</b><br /><span class="muted small">채널에 지정한 국가 그대로</span></span></label>
+            <p id="langCountryNow" class="adm-hint"></p>
+            <button class="btn btn--primary" type="submit">저장</button>
+          </form>
+          <h3 class="adm-h3">미리보기: 켜면 이렇게 바뀌어요</h3>
+          <p id="lcSummary" class="muted small"></p>
+          <div class="adm-tablewrap"><table class="adm-table" id="lcTable"><thead><tr><th>채널</th><th>채널 국가</th><th>언어로 본 국가 (편수)</th><th>바뀌는 편수</th></tr></thead><tbody></tbody></table></div>
+          <details class="adm-more"><summary>바뀌는 영상 예시 보기</summary><ul id="lcSamples" class="adm-lcsamples"></ul></details>
         </div>
 
       </div>

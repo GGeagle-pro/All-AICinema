@@ -16,6 +16,7 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
+import { applyLangCountry } from "./lang-country.mjs";
 import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds, embedStatus, channelAvatars, videoChannels } from "./youtube-api.mjs";
 import { assignSeries } from "./series.mjs";
 
@@ -33,7 +34,7 @@ const DATA_DIR = resolve(ROOT, "public/data");   // 웹에 공개되는 폴더�
 const OUT_FILE = resolve(DATA_DIR, "videos.json");
 const DESC_FILE = resolve(DATA_DIR, "desc.json");
 const META_FILE = resolve(DATA_DIR, "meta.json");
-const MAX_VIDEOS = 3000;        // 보관할 최대 영상 수 (직접 추가한 영상은 항상 보관)
+const MAX_VIDEOS = 5000;        // 보관할 최대 영상 수 (직접 추가한 영상은 항상 보관)
 const MAX_CHANNELS = 200;
 const MAX_MANUAL = 1000;
 const AVATAR_REFRESH_HOURS = 24; // 채널 프로필 사진은 하루 1번만 다시 확인
@@ -248,13 +249,23 @@ async function main() {
   }
 
   // 3) 숨기기 · 정리
+  // 관리자 '영상 언어로 국가 정하기' 스위치 (끄면 채널에 지정한 국가 그대로 = 원상 복구)
+  let langCountry = false, countries = ["한국", "미국", "일본", "중국"];
+  try {
+    const st = JSON.parse(await readFile(resolve(ROOT, "public/data/site.json"), "utf8"));
+    langCountry = st.langCountry === true;
+    if (Array.isArray(st.countries) && st.countries.length) countries = st.countries.filter((x) => typeof x === "string");
+  } catch {}
   for (const id of exclude) map.delete(id);
   for (const [id, v] of map) {
     v.manual = manualIds.has(id);
     // 예전에 수집된 쇼츠도 정리 (직접 추가한 영상 제외)
     if (SKIP_SHORTS && v.short && !v.manual) { map.delete(id); continue; }
     const t = v.cid && tracked.get(v.cid);
-    if (t && !v.manual) { v.categories = t.categories; if (t.name) v.channel = t.name; }
+    if (t && !v.manual) {
+      v.categories = langCountry ? applyLangCountry(t.categories, v.title, countries) : t.categories;
+      if (t.name) v.channel = t.name;
+    }
     // channels.json 에서 지운 채널의 영상은 삭제 (이번 실행에 실패한 채널이 있으면 안전하게 보류)
     if (!failed && !v.manual && v.cid && !tracked.has(v.cid)) map.delete(id);
     // videos 목록에서 지운 영상(채널 수집 영상이 아닌 것)도 삭제

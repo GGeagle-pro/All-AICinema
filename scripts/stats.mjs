@@ -15,7 +15,7 @@ import { collectAdsense } from "./adsense.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = resolve(ROOT, "stats/stats.enc.json");
 const ITER = 250000;
-const EVENTS = ["video_play", "banner_click", "strip_click", "search", "work_open"];
+const EVENTS = ["video_play", "banner_click", "strip_click", "search", "work_open", "video_error", "share"];
 const DAYS = 90;   // 날짜별로 쪼갠 기록을 몇 일치 보관할지 (관리자에서 달력으로 아무 기간이나 골라 합산)
 const FROM = `${DAYS - 1}daysAgo`;
 const RANGES = [
@@ -113,6 +113,13 @@ export async function collect(prop, token) {
     { dateRanges: RANGE, dimensions: D("date", "pageReferrer"), metrics: D("sessions"), limit: BIG },
     { dateRanges: RANGE, dimensions: D("date", "sessionSourceMedium", "sessionCampaignName"), metrics: D("sessions"), limit: BIG },
   ]);
+  // 재생 오류 (사이트 플레이어에서 재생이 안 된 영상: link_url = https://youtu.be/영상ID, link_text = 오류 번호)
+  let errors = null;
+  try {
+    [errors] = await batch(prop, token, [
+      { dateRanges: RANGE, dimensions: D("date", "linkUrl", "linkText"), metrics: D("eventCount"), dimensionFilter: { filter: { fieldName: "eventName", stringFilter: { value: "video_error" } } }, limit: BIG },
+    ]);
+  } catch {}
   // 성별·나이대 (GA4 'Google 신호'를 켜야 하고, 사람이 적으면 구글이 숨김 → 실패해도 건너뜀)
   let gender = null, age = null, demoError = "";
   try {
@@ -166,6 +173,7 @@ export async function collect(prop, token) {
     age: age ? table(age, ["date", "userAgeBracket", "activeUsers"]) : null,
     demoError,
     hourlyEv: table(hourlyEv, ["dateHour", "eventName", "eventCount"]),
+    errors: errors ? table(errors, ["date", "linkUrl", "linkText", "eventCount"]) : null,
     ads, adsError,
   };
 }

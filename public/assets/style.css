@@ -120,7 +120,7 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
 .player__main{overflow-y:auto;min-width:0;scrollbar-width:thin;overscroll-behavior:contain}
 .player__video{position:relative;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden}
 .player__video iframe,.player__video #yt{position:absolute;inset:0;width:100%;height:100%;border:0}
-.player__info h1{font-size:20px;line-height:1.35;margin:14px 0 6px;letter-spacing:-.01em;word-break:keep-all;overflow-wrap:anywhere}
+.player__info .player__title{font-size:20px;line-height:1.35;margin:14px 0 6px;letter-spacing:-.01em;word-break:keep-all;overflow-wrap:anywhere}
 .player__sub{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:14px}
 .player__sub #pChannel{font-weight:700}
 .player__actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0}
@@ -184,7 +184,7 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
   .player__video{position:sticky;top:0;z-index:2;border-radius:0;box-shadow:0 0 0 env(safe-area-inset-top) #000}
   .player__close{position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;background:rgba(0,0,0,.55)}
   .player__info,.player__side,.ad--player{padding:0 16px}
-  .player__info h1{font-size:17px}
+  .player__info .player__title{font-size:17px}
   .player__actions .btn{flex:1}
   .upnext li{grid-template-columns:140px 1fr}
 }
@@ -272,7 +272,7 @@ select{background:var(--bg2);border:1px solid var(--line);border-radius:10px;pad
 @media (max-width:560px){
   /* 닫기 버튼: 유튜브 플레이어 오른쪽 위 메뉴를 덜 가리도록 작게 */
   .player__close{width:38px;height:38px;font-size:15px;top:calc(6px + env(safe-area-inset-top));right:6px}
-  .player__info h1{font-size:17px;margin-top:12px}
+  .player__info .player__title{font-size:17px;margin-top:12px}
 }
 
 /* ───────── 메뉴 3줄(나라·장르·채널) 간격·높이·왼쪽 시작점 통일 ───────── */
@@ -564,3 +564,11 @@ html{overflow-x:clip}
   .promo__cell:only-child{flex-basis:100%}
   .promo__cell .promo__item{flex:none}
 }
+
+/* 이어보기: 썸네일 아래 시청 진행 막대 */
+.thumb__prog{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.25);z-index:2}
+.thumb__prog i{display:block;height:100%;background:var(--accent,#ff3d6e)}
+/* 작품: 이어보기·자동 다음 안내 */
+.whead__prog{margin:8px 0 0;font-size:13.5px;color:#e6e6f0;font-weight:700}
+.whead__prog small{display:block;font-weight:500;color:var(--muted);margin-top:3px}
+.ep-done{position:absolute;top:6px;right:6px;z-index:2;background:rgba(0,0,0,.72);color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:2px 6px}

@@ -222,5 +222,6 @@ ${qaEn.map(([q, a]) => `### ${q}\n${a}`).join("\n\n")}
 ${CONTACT} (submissions and takedown requests)
 `;
   if (await writeIfChanged(resolve(PUB, "llms.txt"), llms)) changed++;
-  return { changed, urls: Object.keys(PATH).map((l) => ({ loc: SITE + PATH[l], alts: alternates })) };
+  const altsXml = Object.keys(PATH).map((l) => `<xhtml:link rel="alternate" hreflang="${HREFLANG[l]}" href="${SITE}${PATH[l]}"/>`).join("") + `<xhtml:link rel="alternate" hreflang="x-default" href="${SITE}/en/faq/"/>`;
+  return { changed, urls: Object.keys(PATH).map((l) => ({ loc: SITE + PATH[l], altsXml })) };
 }

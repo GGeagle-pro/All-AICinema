@@ -11,6 +11,7 @@ import vm from "node:vm";
 import { buildPages } from "./pages.mjs";
 import { buildTools } from "./tools.mjs";
 import { buildGeo } from "./geo.mjs";
+import { buildTop } from "./top.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -156,11 +157,13 @@ function sitemap(lastmod, pages = [], tools = []) {
     ...Object.values(LANGS).map((l) => ({ loc: `${SITE}${l.path}`, lastmod, changefreq: "hourly", priority: l.path === "/" ? "1.0" : "0.9", alts })),
     { loc: `${SITE}/about.html`, changefreq: "monthly", priority: "0.5" },
     { loc: `${SITE}/privacy.html`, changefreq: "yearly", priority: "0.2" },
+    { loc: `${SITE}/en/about.html`, changefreq: "monthly", priority: "0.5" },
+    { loc: `${SITE}/en/privacy.html`, changefreq: "yearly", priority: "0.2" },
     // AI 제작 도구 추천 페이지 (5개 언어, scripts/tools.mjs)
     ...tools.map((u) => ({ loc: u.loc, lastmod, changefreq: "weekly", priority: "0.7",
-      alts: ["ko:/tools/", "en:/en/tools/", "ja:/ja/tools/", "zh-Hans:/zh/tools/", "es:/es/tools/", "x-default:/en/tools/"].map((x) => { const [h, p] = [x.slice(0, x.indexOf(":")), x.slice(x.indexOf(":") + 1)]; return `<xhtml:link rel="alternate" hreflang="${h}" href="${SITE}${p}"/>`; }).join("") })),
+      alts: u.altsXml !== undefined ? u.altsXml : ["ko:/tools/", "en:/en/tools/", "ja:/ja/tools/", "zh-Hans:/zh/tools/", "es:/es/tools/", "x-default:/en/tools/"].map((x) => { const [h, p] = [x.slice(0, x.indexOf(":")), x.slice(x.indexOf(":") + 1)]; return `<xhtml:link rel="alternate" hreflang="${h}" href="${SITE}${p}"/>`; }).join("") })),
     // 작품·영상 페이지 (scripts/pages.mjs)
-    ...pages.map((u) => ({ loc: u.loc, lastmod: u.lastmod, changefreq: u.loc.includes("/work/") ? "daily" : "weekly", priority: u.loc.includes("/work/") ? "0.8" : "0.6" })),
+    ...pages.map((u) => ({ loc: u.loc, lastmod: u.lastmod, alts: u.alts || "", changefreq: u.loc.includes("/work/") ? "daily" : "weekly", priority: u.loc.includes("/work/") ? "0.8" : "0.6" })),
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
@@ -214,11 +217,13 @@ export async function buildSeo() {
   try { pagesOn = JSON.parse(await readFile(resolve(PUB, "data/site.json"), "utf8")).pages !== false; } catch {}
   let pages = { urls: [], counts: { works: 0, videos: 0 }, changed: 0 };
   if (pagesOn) pages = await buildPages({ PUB, SITE, loadI18n, ver });
-  else for (const d of ["watch", "work"]) await rm(resolve(PUB, d), { recursive: true, force: true });
+  else for (const base of [".", "ko", "en", "ja", "zh", "es"]) for (const d of ["watch", "work"]) await rm(resolve(PUB, base, d), { recursive: true, force: true });
   const tools = await buildTools({ PUB, SITE, loadI18n, ver });
   // AI 검색용: /faq/ (5개 언어) + /llms.txt
   const geo = await buildGeo({ PUB, SITE, loadI18n, ver, pagesOn });
-  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls]));
+  // 주간 TOP 10 (/top/ 5개 언어 + 주차별 기록)
+  const top = await buildTop({ PUB, SITE, loadI18n, ver, pagesOn });
+  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls, ...top.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" }))]));
   await atomicWrite(resolve(PUB, "rss.xml"), rss(videos, generatedAt));
   const file = resolve(PUB, "index.html");
   const page = await readFile(file, "utf8");

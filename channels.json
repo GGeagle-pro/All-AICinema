@@ -507,26 +507,6 @@
       ]
     },
     {
-      "url": "https://www.youtube.com/@GameMoooVies",
-      "categories": [
-        "액션·히어로",
-        "판타지",
-        "프랑스",
-        "SF"
-      ]
-    },
-    {
-      "url": "https://www.youtube.com/@GameClips4KYTT",
-      "categories": [
-        "미국",
-        "판타지",
-        "SF",
-        "액션·히어로",
-        "공포",
-        "미스터리·스릴러"
-      ]
-    },
-    {
       "url": "https://www.youtube.com/@Hystopick",
       "categories": [
         "판타지",
@@ -784,6 +764,32 @@
     ]
   },
   "removedChannels": [
+    {
+      "url": "https://www.youtube.com/@GameClips4KYTT",
+      "categories": [
+        "미국",
+        "판타지",
+        "SF",
+        "액션·히어로",
+        "공포",
+        "미스터리·스릴러"
+      ],
+      "cid": "UCj4lFy4F5PqXD7d41mCKVYw",
+      "removedAt": "2026-11-23T11:48:01.615Z",
+      "reason": "game"
+    },
+    {
+      "url": "https://www.youtube.com/@GameMoooVies",
+      "categories": [
+        "액션·히어로",
+        "판타지",
+        "프랑스",
+        "SF"
+      ],
+      "cid": "UCZnQRxiTTa9LIec5Lf7adzw",
+      "removedAt": "2026-11-23T11:48:01.608Z",
+      "reason": "game"
+    },
     {
       "url": "https://www.youtube.com/@BeijosDrama",
       "categories": [
