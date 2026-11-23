@@ -499,15 +499,6 @@
       ]
     },
     {
-      "url": "https://www.youtube.com/@BeijosDrama",
-      "categories": [
-        "액션·히어로",
-        "판타지",
-        "스페인",
-        "드라마"
-      ]
-    },
-    {
       "url": "https://www.youtube.com/@ProjectKRoad",
       "categories": [
         "액션·히어로",
@@ -572,5 +563,21 @@
     "exclude": [
       "https://youtu.be/숨길영상ID"
     ]
-  }
+  },
+  "removedChannels": [
+    {
+      "url": "https://www.youtube.com/@BeijosDrama",
+      "categories": [
+        "액션·히어로",
+        "판타지",
+        "스페인",
+        "드라마"
+      ],
+      "cid": "UCT0yP8aIDDoTQOnEg7i5U4g",
+      "removedAt": "2026-11-23T05:33:27.781Z",
+      "reason": "embed",
+      "blocked": 197,
+      "checked": 200
+    }
+  ]
 }
