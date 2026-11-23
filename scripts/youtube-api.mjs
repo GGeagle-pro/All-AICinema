@@ -78,6 +78,16 @@ export async function viewCounts(ids) {
   return views;
 }
 
+/** 다른 사이트에서 재생 허용 여부 (status.embeddable) → Map(id → true/false). 비공개·삭제 영상은 결과에 없음. 50개당 1단위 */
+export async function embedStatus(ids) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 50) {
+    const d = await apiGet("videos", { part: "status", id: ids.slice(i, i + 50).join(","), maxResults: 50 });
+    for (const it of d?.items || []) if (VIDEO_ID.test(it?.id || "") && typeof it?.status?.embeddable === "boolean") out.set(it.id, it.status.embeddable);
+  }
+  return out;
+}
+
 /** 채널의 재생목록 (제작자가 직접 만든 것) */
 export async function listPlaylists(cid, { max = 100 } = {}) {
   if (!CHANNEL_ID.test(cid)) return [];

@@ -431,6 +431,7 @@
     list.textContent = "";
     const chs = state.config?.channels || [];
     $("#chCount").textContent = chs.length ? `(${chs.length})` : "";
+    renderRemoved();
     const counts = new Map(), cidCount = new Map(), cidName = new Map();
     for (const v of state.videos) {
       counts.set(v.channel, (counts.get(v.channel) || 0) + 1);
@@ -512,6 +513,52 @@
         nameIn, chips,
         el("div", { class: "adm-actions" }, save, del),
       ));
+    });
+  }
+
+  // 외부 재생이 막혀 자동으로 뺀 채널 (channels.json 의 removedChannels) → 되살리기 / 기록 지우기
+  function renderRemoved() {
+    const box = $("#removedBox"), list = $("#removedList");
+    const rm = Array.isArray(state.config?.removedChannels) ? state.config.removedChannels : [];
+    box.hidden = !rm.length;
+    $("#removedCount").textContent = rm.length ? `(${rm.length})` : "";
+    list.textContent = "";
+    rm.forEach((c, i) => {
+      const label = clean(c.name || c.url || c.handle || c.id, 80) || "채널";
+      const url = clean(c.url || (c.cid ? `https://www.youtube.com/channel/${c.cid}` : ""), 200);
+      const when = /^\d{4}-\d{2}-\d{2}/.test(c.removedAt || "") ? c.removedAt.slice(0, 10) : "";
+      const key = JSON.stringify(c);
+      const restore = el("button", { class: "btn btn--primary", type: "button", text: "되살리기", onclick: () => run(async () => {
+        await saveConfig(`채널 되살리기: ${label}`, (cfg) => {
+          const j = (cfg.removedChannels || []).findIndex((y) => JSON.stringify(y) === key);
+          if (j < 0) return false;
+          const [{ cid: _c, removedAt: _r, reason: _w, blocked: _b, checked: _k, ...ch }] = cfg.removedChannels.splice(j, 1);
+          cfg.channels.push({ ...ch, keep: true });
+          if (!cfg.removedChannels.length) delete cfg.removedChannels;
+          return true;
+        });
+        renderChannels(); renderStatus();
+        toast(`'${label}' 채널을 다시 수집해요.`);
+        afterConfigSave(`'${label}' 채널 되살리기 반영 중`);
+      }) });
+      const forget = el("button", { class: "btn", type: "button", text: "기록 지우기", onclick: () => run(async () => {
+        await saveConfig(`자동으로 뺀 채널 기록 지우기: ${label}`, (cfg) => {
+          const j = (cfg.removedChannels || []).findIndex((y) => JSON.stringify(y) === key);
+          if (j < 0) return false;
+          cfg.removedChannels.splice(j, 1);
+          if (!cfg.removedChannels.length) delete cfg.removedChannels;
+          return true;
+        });
+        renderChannels();
+      }) });
+      list.append(el("li", { class: "adm-chcard" },
+        el("div", { class: "adm-chinfo" },
+          el("b", { text: label }),
+          el("div", { class: "meta" },
+            `${when ? when + " · " : ""}${c.checked ? `영상 ${c.checked}개 중 ${c.blocked}개 외부 재생 막힘` : "외부 재생 막힘"} · `,
+            url ? el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: "유튜브에서 보기 ↗" }) : ""),
+        ),
+        el("div", { class: "adm-actions" }, restore, forget)));
     });
   }
 

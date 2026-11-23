@@ -16,13 +16,19 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { get, clean, decodeXml, parseLink, resolveChannel, fetchVideo, fetchChannelAvatar, isAvatarUrl, VIDEO_ID, CHANNEL_ID } from "./youtube.mjs";
-import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds } from "./youtube-api.mjs";
+import { apiKey, listUploads, viewCounts, listPlaylists, playlistVideoIds, embedStatus } from "./youtube-api.mjs";
 import { assignSeries } from "./series.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CHANNELS_FILE = resolve(ROOT, "channels.json");
 // 채널 재생목록 저장 (작품 묶기용, 하루 1번 갱신) – 사이트에는 올리지 않는 내부 파일
 const PLAYLISTS_FILE = resolve(ROOT, "cache/playlists.json");
+// 다른 사이트 재생 허용 여부 기록 (영상ID → 1 허용 / 0 막힘) – 하루 1번 전체 다시 확인, 새 영상은 매번 확인
+const EMBED_FILE = resolve(ROOT, "cache/embed.json");
+const EMBED_REFRESH_HOURS = 24;
+// 채널 자동 빼기 기준: 확인한 영상이 BLOCK_MIN개 이상이고 그중 BLOCK_RATIO 이상이 외부 재생 막힘
+//   (영상이 1~2개뿐인 새 채널은 전부 막혔을 때만) → channels.json 의 channels 에서 빼고 removedChannels 에 기록(관리자에서 되살리기 가능)
+const BLOCK_MIN = 3, BLOCK_RATIO = 0.8;
 const DATA_DIR = resolve(ROOT, "public/data");   // 웹에 공개되는 폴더는 public/ 뿐
 const OUT_FILE = resolve(DATA_DIR, "videos.json");
 const DESC_FILE = resolve(DATA_DIR, "desc.json");
@@ -195,6 +201,50 @@ async function main() {
     } catch (err) {
       console.warn(`✗ 영상 ${ref.id}: ${err.message}`);
     }
+  }
+
+  // 2-2) 다른 사이트에서 재생 못 하게 막힌 영상 빼기 + 대부분 막힌 채널은 자동 수집에서 빼기 (공식 API 키 있을 때만)
+  let embedChanged = false, configChanged = false;
+  if (apiKey()) {
+    let ec = { at: "", ids: {} };
+    try { const j = JSON.parse(await readFile(EMBED_FILE, "utf8")); if (j && typeof j.ids === "object") ec = j; } catch {}
+    const full = !(ec.at && (Date.now() - new Date(ec.at)) / 3600e3 < EMBED_REFRESH_HOURS);
+    const ids = [...map.keys()].filter((id) => full || !(id in ec.ids));
+    try {
+      const st = ids.length ? await embedStatus(ids) : new Map();
+      for (const id of ids) if (st.has(id)) ec.ids[id] = st.get(id) ? 1 : 0;
+      for (const id of Object.keys(ec.ids)) if (!map.has(id)) delete ec.ids[id];
+      if (full) ec.at = new Date().toISOString();
+      embedChanged = true;
+      // 채널별로 막힌 비율 계산 → 기준 넘으면 channels.json 에서 빼기
+      const byCid = new Map();
+      for (const [id, v] of map) if (v.cid && !v.manual && id in ec.ids) { const x = byCid.get(v.cid) || { n: 0, b: 0 }; x.n++; if (!ec.ids[id]) x.b++; byCid.set(v.cid, x); }
+      const cidOfSrc = (ch) => srcs[clean(ch?.id || ch?.url || ch?.handle, 200)] || "";
+      const removed = Array.isArray(config.removedChannels) ? config.removedChannels : [];
+      const isBlocked = (x) => x.b && ((x.n >= BLOCK_MIN && x.b / x.n >= BLOCK_RATIO) || (x.n < BLOCK_MIN && x.b === x.n));
+      // 안전장치: 한 번에 채널의 30% 넘게 빠지게 되면 뭔가 잘못된 것으로 보고 채널은 빼지 않음 (영상만 제외)
+      const many = [...byCid.values()].filter(isBlocked).length > Math.max(3, tracked.size * 0.3);
+      if (many) console.warn("✗ 외부 재생 막힘 채널이 너무 많아 이번에는 채널 자동 빼기를 건너뜀");
+      if (!failed && !many) for (const [cid, x] of byCid) {
+        if (!isBlocked(x)) continue;
+        const i = config.channels.findIndex((ch) => cidOfSrc(ch) === cid);
+        if (i < 0 || config.channels[i].keep === true) continue;   // 관리자가 '되살리기'한 채널은 다시 빼지 않음(막힌 영상만 제외)
+        const [ch] = config.channels.splice(i, 1);
+        removed.unshift({ ...ch, cid, removedAt: new Date().toISOString(), reason: "embed", blocked: x.b, checked: x.n });
+        tracked.delete(cid);
+        configChanged = true;
+        console.log(`⛔ 채널 자동 빼기 ${ch.name || ch.url || cid}: 영상 ${x.n}개 중 ${x.b}개가 다른 사이트 재생 막힘`);
+      }
+      if (configChanged) config.removedChannels = removed.slice(0, 200);
+      // 막힌 영상은 사이트에서 빼기 (직접 추가한 영상 포함 – 어차피 재생이 안 됨)
+      let n = 0;
+      for (const [id, v] of map) if (ec.ids[id] === 0) { map.delete(id); n++; }
+      // 자동 수집에서 뺀 채널의 나머지 영상도 정리
+      for (const [id, v] of map) if (configChanged && v.cid && !v.manual && !tracked.has(v.cid) && byCid.has(v.cid)) { map.delete(id); n++; }
+      if (n) console.log(`⛔ 다른 사이트 재생이 막힌 영상 ${n}개 제외`);
+    } catch (err) { console.warn(`✗ 재생 허용 확인: ${err.message}`); }
+    if (embedChanged) { await mkdir(dirname(EMBED_FILE), { recursive: true }); await writeFile(EMBED_FILE, JSON.stringify(ec)); }
+    if (configChanged) await writeFile(CHANNELS_FILE, JSON.stringify(config, null, 2) + "\n");
   }
 
   // 3) 숨기기 · 정리
