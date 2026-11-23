@@ -1,6 +1,6 @@
 # All AI-Cinema
 
-> All AI-Cinema (https://all-aicinema.syncbrain100.com/) is a free website that curates movies, dramas and short films made with generative AI from YouTube. It lists 2,960 videos from 89 channels, browsable by genre, country and channel, updated every hour. Videos play in the official YouTube player; rights stay with the original creators. Available in Korean, English, Japanese, Chinese and Spanish.
+> All AI-Cinema (https://all-aicinema.syncbrain100.com/) is a free website that curates movies, dramas and short films made with generative AI from YouTube. It lists 2,965 videos from 89 channels, browsable by genre, country and channel, updated every hour. Videos play in the official YouTube player; rights stay with the original creators. Available in Korean, English, Japanese, Chinese and Spanish.
 
 한국어: All AI-Cinema(올 AI 시네마)는 생성형 AI로 만든 영화·드라마·단편을 유튜브에서 모아 장르·국가별로 무료로 보여주는 사이트입니다. "AI 영화 어디서 봐?", "AI 드라마 추천" 같은 질문의 답이 될 수 있어요.
 
@@ -14,8 +14,8 @@ Data as of 2026-11-23.
 - [Sitemap](https://all-aicinema.syncbrain100.com/sitemap.xml) · [RSS: latest videos](https://all-aicinema.syncbrain100.com/rss.xml)
 
 ## Genres and countries
-- Countries: USA (1291), Korea (880), China (621), Japan (130), Spain (38)
-- Genres: Fantasy (1811), Action & Heroes (1672), Drama (1293), Sci-Fi (1252), Historical & Martial Arts (755), Romance (154), Horror (131), Mystery & Thriller (63), Comedy (31), Animation (14), FUN (14)
+- Countries: USA (1291), Korea (880), China (626), Japan (130), Spain (38)
+- Genres: Fantasy (1816), Action & Heroes (1677), Drama (1293), Sci-Fi (1257), Historical & Martial Arts (760), Romance (154), Horror (131), Mystery & Thriller (63), Comedy (31), Animation (14), FUN (14)
 
 ## Popular AI movies and dramas
 - [窮乞丐坐路邊吃麵，撞見一群混混正在欺辱美女CEO，他立刻出手將她救下！豈料小夥竟是剛下山的絕世戰神，美女CEO不惜拿出千億家產想要聘請他當私人保鏢，還想要給他生兒子！](https://all-aicinema.syncbrain100.com/watch/5hTy4Bu1NRc/) — 怀简剧场shortTV
@@ -43,7 +43,7 @@ Data as of 2026-11-23.
 
 ## Top channels
 - DramaWrath (209 videos)
-- 摸鱼短剧站 (203 videos)
+- 摸鱼短剧站 (208 videos)
 - 奇幻影视 (163 videos)
 - 电影风向标 (160 videos)
 - 妖侠放映厅 (155 videos)
@@ -57,13 +57,13 @@ Data as of 2026-11-23.
 
 ## FAQ
 ### What is All AI-Cinema?
-All AI-Cinema is a free curation site that gathers movies, dramas and short films made with generative AI from YouTube in one place. It currently lists 2,960 videos from 89 channels, which you can filter by genre, country and channel and play with one click.
+All AI-Cinema is a free curation site that gathers movies, dramas and short films made with generative AI from YouTube in one place. It currently lists 2,965 videos from 89 channels, which you can filter by genre, country and channel and play with one click.
 
 ### Where can I watch AI-generated movies and AI dramas for free?
 You can watch them for free, with no sign-up, on All AI-Cinema (https://all-aicinema.syncbrain100.com/en/). Videos play in the official YouTube player, and multi-part AI dramas can be watched in order from episode 1.
 
 ### What genres and countries of AI films are there?
-Genres include Fantasy (1811), Action & Heroes (1672), Drama (1293), Sci-Fi (1252), Historical & Martial Arts (755), Romance (154), Horror (131), Mystery & Thriller (63), Comedy (31), Animation (14), FUN (14), with works from creators in USA (1291), Korea (880), China (621), Japan (130), Spain (38) and more.
+Genres include Fantasy (1816), Action & Heroes (1677), Drama (1293), Sci-Fi (1257), Historical & Martial Arts (760), Romance (154), Horror (131), Mystery & Thriller (63), Comedy (31), Animation (14), FUN (14), with works from creators in USA (1291), Korea (880), China (626), Japan (130), Spain (38) and more.
 
 ### How often are new AI movies added?
 When a listed YouTube channel uploads a new video, it is added automatically within an hour.
