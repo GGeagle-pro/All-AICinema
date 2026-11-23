@@ -686,8 +686,13 @@
       // 고른 언어로 유튜브 화면·자막 (한국어가 아니면 자막 켜기: 자막이 있는 영상에서 그 언어 자막 우선)
       playerVars: { autoplay: 1, playsinline: 1, rel: 0, hl: I18N.meta.yt, cc_lang_pref: I18N.meta.yt, ...(I18N.lang !== "ko" ? { cc_load_policy: 1 } : {}) },
       events: {
-        onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && $("#pAuto").checked) step(1); },
-        onError: () => { if ($("#pAuto").checked) setTimeout(() => step(1), 1500); },
+        // 다음 영상 자동 재생은 플레이어가 열려 있을 때만 (닫은 뒤 다시 열리지 않게)
+        onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && $("#pAuto").checked && !$("#player").hidden) step(1); },
+        onError: () => {
+          if (!$("#pAuto").checked || $("#player").hidden) return;
+          const cur = state.current;
+          setTimeout(() => { if (!$("#player").hidden && state.current === cur) step(1); }, 1500);
+        },
       },
     });
   }
@@ -771,10 +776,12 @@
       if (!over) d.classList.remove("is-clamped");
     });
   }
+  let closedAt = 0;   // 방금 닫았으면 뒤로가기 이벤트로 영상이 다시 열리지 않게
   function closePlayer({ fromPop = false } = {}) {
     const p = $("#player");
     if (p.hidden) return;
     p.hidden = true;
+    closedAt = Date.now();
     document.body.classList.remove("locked");
     try { ytPlayer?.stopVideo(); } catch {}
     document.title = `${siteName()} | ${T("AI 영화·드라마 모아보기")}`;
@@ -1404,7 +1411,11 @@
     addEventListener("popstate", () => {
       if (search.open && !history.state?.search) { closeSearch({ fromPop: true }); return; }
       const id = new URLSearchParams(location.search).get("v");
-      if (id && VALID_ID.test(id)) return openById(id, false);
+      if (id && VALID_ID.test(id)) {
+        // 닫기(✕) 직후 이전 기록이 영상 주소면 다시 열지 않고 홈 화면으로
+        if (Date.now() - closedAt < 1500) { history.replaceState(null, "", location.pathname); return; }
+        return openById(id, false);
+      }
       if (!$("#player").hidden) closePlayer({ fromPop: true });
       if (state.backTo && !history.state?.list) restoreBack();   // "전체 보기" 전 화면으로
     });
