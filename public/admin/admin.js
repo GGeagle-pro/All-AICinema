@@ -1548,11 +1548,19 @@
       const kind = k.split("-")[0], v = get(kind + "_view", k), c = get(kind + "_click", k);
       return `<tr><td class="slot"><b>${label}</b><small>${escH(slotInfo(k))}</small></td><td class="num">${v.toLocaleString()}</td><td class="num">${c.toLocaleString()}</td><td class="num">${pct(c, v)}</td></tr>`;
     });
-    // 합계는 위 칸들을 더한 값 (칸 기록이 생기기 전 클릭은 통계 '광고 배너 클릭·띠 배너 클릭'에만 들어가요)
-    const sum = (kind) => { const ks = SLOT_LIST.filter(([k]) => k.startsWith(kind)).map(([k]) => k); const v = ks.reduce((t, k) => t + get(kind + "_view", k), 0), c = ks.reduce((t, k) => t + get(kind + "_click", k), 0); return `<td class="num">${v.toLocaleString()}</td><td class="num">${c.toLocaleString()}</td><td class="num">${pct(c, v)}</td>`; };
+    // 합계 = 위 통계의 '광고 배너 클릭'·'띠 배너 클릭'과 같은 숫자 (전체 이벤트 기준).
+    // 칸 구분 기록이 생기기 전(2026-11-23 밤 이전) 클릭은 어느 칸인지 몰라서 '칸 구분 전 기록' 줄로 따로 보여 줌 → 칸들 + 그 줄 = 합계
+    const sumRows = (kind, label) => {
+      const ks = SLOT_LIST.filter(([k]) => k.startsWith(kind)).map(([k]) => k);
+      const sv = ks.reduce((t, k) => t + get(kind + "_view", k), 0), sc = ks.reduce((t, k) => t + get(kind + "_click", k), 0);
+      const v = Math.max(sv, evN(kind + "_view")), c = Math.max(sc, evN(kind + "_click"));
+      const uv = v - sv, uc = c - sc;
+      return `${uv || uc ? `<tr class="unk"><td class="slot"><b>칸 구분 전 기록</b><small>어느 칸인지 기록하기 전 숫자</small></td><td class="num">${uv.toLocaleString()}</td><td class="num">${uc.toLocaleString()}</td><td class="num">–</td></tr>` : ""}<tr class="sum"><td>${label}</td><td class="num">${v.toLocaleString()}</td><td class="num">${c.toLocaleString()}</td><td class="num">${pct(sc, sv)}</td></tr>`;
+    };
     let html = `<div class="adm-tablewrap adm-tablewrap--free"><table class="adm-table adm-table--compact"><thead><tr><th>광고 칸</th><th class="num">노출</th><th class="num">클릭</th><th class="num">클릭률</th></tr></thead><tbody>
-      ${tr.slice(0, 3).join("")}<tr class="sum"><td>광고 배너 합계</td>${sum("banner")}</tr>
-      ${tr.slice(3).join("")}<tr class="sum"><td>띠 배너 합계</td>${sum("strip")}</tr></tbody></table></div>`;
+      ${tr.slice(0, 3).join("")}${sumRows("banner", "광고 배너 합계")}
+      ${tr.slice(3).join("")}${sumRows("strip", "띠 배너 합계")}</tbody></table></div>
+      <p class="muted small">합계는 위쪽 '광고 배너 클릭'·'띠 배너 클릭'과 같은 숫자예요. 클릭률은 칸이 기록된 노출·클릭으로만 계산해요.</p>`;
     if (daily) {
       const days = []; for (let t = to; t >= from && days.length < 31; t = addDays(t, -1)) days.push(t);
       const dRows = days.slice(0, 31).map((d) => {

@@ -379,3 +379,4 @@
 .adm-table--compact{min-width:0}
 .adm-table--compact th,.adm-table--compact td{padding:8px 8px}
 @media (max-width:520px){.adm-table--compact{font-size:12.5px}.adm-table--compact td.slot small{max-width:130px}.adm-table--compact th{white-space:normal}}
+.adm-table tr.unk td{color:var(--muted)}
