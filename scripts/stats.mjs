@@ -253,7 +253,7 @@ async function main() {
   await mkdir(dirname(OUT), { recursive: true });
   await writeFile(OUT + ".tmp", JSON.stringify(encrypt(data, password)) + "\n");
   await rename(OUT + ".tmp", OUT);
-  console.log(`통계 저장 (GA 시간대 ${data.timeZone || "?"}): 오늘 방문자 ${data.totals.today?.users ?? 0}명·페이지뷰 ${data.totals.today?.views ?? 0}, 어제 방문자 ${data.totals.yesterday?.users ?? 0}명, 최근 30분 ${data.realtime ? data.realtime.users + "명" : "-"}, 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
+  console.log(`통계 저장 (GA 시간대 ${data.timeZone || "?"}): 오늘 방문자 ${data.totals.today?.users ?? 0}명·페이지뷰 ${data.totals.today?.views ?? 0}, 어제 방문자 ${data.totals.yesterday?.users ?? 0}명(같은 시각까지 ${data.totals.ySame ? data.totals.ySame.users + "명" : "-"}), 최근 30분 ${data.realtime ? data.realtime.users + "명" : "-"}, 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
