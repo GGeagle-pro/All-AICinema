@@ -1511,10 +1511,29 @@
     const today = ymd(now), d7 = ymd(now - 6 * day), d30 = ymd(now - 29 * day);
     const sumT = (t, from, to, m) => agg(t, from, to, [], [m])[0]?.[m] || 0;
     const errRows = sd?.errors ? agg(sd.errors, d7, today, ["linkUrl", "linkText"], ["eventCount"]) : [];
+    // 오늘 숫자는 통계 탭 '오늘'과 똑같은 계산 (같은 날짜·같은 구간 0:00~H:59·같은 비교)
+    const tk = (() => {
+      if (!sd) return null;
+      const tz = sd.timeZone || "Asia/Seoul";
+      const fmt = (t) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(t).replace(/-/g, "");
+      const sday = fmt(new Date(sd.generatedAt || now)), isToday = sday === fmt(new Date());
+      const TS = sd.totals?.tSame, YS = sd.totals?.ySame, H = TS && YS ? TS.hour : null;
+      const base = H != null ? TS : sd.totals?.today || { users: sumT(sd.daily, sday, sday, "activeUsers"), views: sumT(sd.daily, sday, sday, "screenPageViews") };
+      const md = (x) => `${Number(x.slice(4, 6))}/${Number(x.slice(6, 8))}`;
+      const prevDay = fmt(new Date(Date.parse(`${sday.slice(0, 4)}-${sday.slice(4, 6)}-${sday.slice(6)}T12:00:00Z`) - day));
+      const badge = (c, p) => {
+        if (H == null) return "";
+        const pc = p ? Math.round(((c - p) / p) * 100) : null;
+        const b = pc == null ? (c ? `<em class="st-d st-d--up">새로 생김</em>` : `<em class="st-d">변화 없음</em>`) : `<em class="st-d ${pc > 0 ? "st-d--up" : pc < 0 ? "st-d--down" : ""}">${pc > 0 ? "▲" : pc < 0 ? "▼" : "−"}${pc ? Math.abs(pc) + "%" : " 같음"}</em>`;
+        return b + `<small class="st-vs">${md(prevDay)} ~${H}시 ${Number(p || 0).toLocaleString()}</small>`;
+      };
+      const name = isToday ? "오늘" : md(sday);
+      const span = H != null ? ` <small class="muted">0:00~${H}:59</small>` : "";
+      return { u: [`${name} 방문자${span}`, base.users || 0, badge(TS?.users, YS?.users)], v: [`${name} 페이지뷰${span}`, base.views || 0, badge(TS?.views, YS?.views)] };
+    })();
     const k = [
-      // 통계를 어제 가져왔으면 그 파일의 '오늘'은 어제라서, 날짜가 같을 때만 GA '오늘' 합계를 씀
-      ["오늘 방문자", sd ? (sd.generatedAt && ymd(Date.parse(sd.generatedAt)) === today && sd.totals?.today ? sd.totals.today.users : sumT(sd.daily, today, today, "activeUsers")) : "–"],
-      ["오늘 페이지뷰", sd ? sumT(sd.daily, today, today, "screenPageViews") : "–"],
+      tk ? tk.u : ["오늘 방문자", "–"],
+      tk ? tk.v : ["오늘 페이지뷰", "–"],
       ["24시간 새 영상", vids.filter((v) => now - v.published < day).length],
       ["7일 새 영상", vids.filter((v) => now - v.published < 7 * day).length],
       ["사이트 영상", vids.length.toLocaleString()],
@@ -1522,7 +1541,7 @@
       ["뺀 채널 (7일)", `${rm7} <small class="muted">/ 전체 ${rm.length}</small>`],
       ["재생 오류 (7일)", sd ? errRows.reduce((t, x) => t + x.eventCount, 0) : "–"],
     ];
-    box.innerHTML = k.map(([l, v]) => `<div class="st-kpi"><span>${escH(l)}</span><b>${typeof v === "number" ? v.toLocaleString() : v}</b></div>`).join("");
+    box.innerHTML = k.map(([l, v, sub]) => `<div class="st-kpi"><span>${/<small/.test(l) ? l : escH(l)}</span><b>${typeof v === "number" ? v.toLocaleString() : v}</b>${sub || ""}</div>`).join("");
     $("#dashAt").textContent = sd?.generatedAt ? `통계 ${new Date(sd.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준${sd.realtime ? ` · 그때 최근 30분 접속 ${sd.realtime.users}명` : ""}` : "";
     // 재생 오류 목록
     const byId = new Map(vids.map((v) => [v.id, v]));
