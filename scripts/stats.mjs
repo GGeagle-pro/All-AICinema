@@ -198,6 +198,12 @@ export async function collect(prop, token) {
     if (res.ok) { const m = j.rows?.[0]?.metricValues || []; realtime = { users: Number(m[0]?.value || 0), views: Number(m[1]?.value || 0), at: new Date().toISOString() }; }
   } catch {}
 
+  // 점검용: 어제 숫자를 여러 기준으로 (GA 화면 숫자와 맞춰 보기) – 로그에만 출력
+  try {
+    const [chk] = await batch(prop, token, [{ dateRanges: [{ startDate: "yesterday", endDate: "yesterday" }], metrics: D("activeUsers", "totalUsers", "newUsers", "sessions", "screenPageViews") }]);
+    const r = rows(chk)[0] || {};
+    console.log(`점검 어제: activeUsers ${r.activeUsers}, totalUsers ${r.totalUsers}, newUsers ${r.newUsers}, sessions ${r.sessions}, views ${r.screenPageViews}, 임계값 ${chk.metadata?.subjectToThresholding ? "적용" : "없음"}, 시간대 ${chk.metadata?.timeZone}`);
+  } catch (e) { console.log("점검 실패", e.message); }
   const tot = {};
   for (const r of rows(totals)) tot[r.dateRange || "d30"] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
   // 비교용 '중복 없는 방문자' (바로 전 기간): 어제의 전날, 이전 7일, 이전 30일 – 관리자 증감 숫자가 위 숫자와 같은 기준이 되게
