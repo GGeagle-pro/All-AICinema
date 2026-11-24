@@ -1701,7 +1701,7 @@
     list = [...list].sort((a, b) => value(b) - value(a));
     const top = list.slice(0, max), m = Math.max(1, ...top.map(value)), sum = list.reduce((t, x) => t + value(x), 0) || 1;
     if (!top.length || !sum) return `<p class="muted small">이 기간에는 기록이 없어요.</p>`;
-    return `<ol class="st-bars">${top.map((x) => `<li><span class="st-bars__l">${label(x)}</span><span class="st-bars__v">${fmt(value(x))} <small>${Math.round((value(x) / sum) * 100)}%</small></span><span class="st-bars__b"><i style="width:${(value(x) / m) * 100}%"></i></span></li>`).join("")}</ol>`;
+    return `<ol class="st-bars">${top.map((x) => `<li><span class="st-bars__l">${label(x)}</span><span class="st-bars__v">${fmt(value(x))} <small>${Math.round((value(x) / sum) * 100)}%</small></span><span class="st-bars__b"><i data-w="${Math.max(0, Math.min(100, (value(x) / m) * 100)).toFixed(1)}"></i></span></li>`).join("")}</ol>`;
   }
   // 막대(방문자) + 선(영상 재생) 그래프. pts: [{label, bar, line, tip}]
   function chart(pts, { barName = "방문자", lineName = "영상 재생" } = {}) {
@@ -1829,7 +1829,7 @@
       adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수익 <span class="muted small">(구글 애널리틱스에 연결된 애드센스 기준)</span></h3>
         ${anyAds ? "" : `<p class="st-note">아직 애드센스 숫자가 없어요. 구글 애널리틱스 <b>관리 → 제품 링크 → AdSense 링크</b>에서 애드센스를 연결하면 다음 수집부터 보여요.</p>`}
         <div class="st-kpis st-kpis--sum">${sumTiles.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
-        <p class="st-sub">선택한 기간 (애드센스 날짜 ${toIso(aFrom)}${aFrom === aTo ? "" : ` ~ ${toIso(aTo)}`})</p>
+        <p class="st-sub">선택한 기간 (${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`})</p>
         <div class="st-kpis st-kpis--ads">${ak.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div></section>`;
     }
     // 애드센스 공식 숫자 (AdSense API) – 있으면 GA 기준 칸 대신 이걸 보여 줌
@@ -1934,7 +1934,9 @@
         <section class="adm-card st-card"><h3>많이 본 작품</h3>${bars(wks, (x) => `<a href="..${escH(x.pagePath)}" target="_blank" rel="noopener">${escH(short(x.pageTitle.replace(/\s*\|[^|]*$/, "") || decodeURIComponent(x.pagePath)))}</a>`, (x) => x.screenPageViews)}</section>
         <section class="adm-card st-card"><h3>검색어</h3>${bars(pick("search", ["searchTerm"], ["eventCount"]).filter((x) => x.searchTerm && x.searchTerm !== "(not set)"), (x) => escH(short(x.searchTerm, 40)), (x) => x.eventCount)}</section>
       </div>
-      <p class="muted small">숫자는 구글 애널리틱스 기준이에요(최근 ${d.days || 90}일 보관). 6시간마다 새로 가져오고, 구글 쪽 집계가 몇 시간 늦을 수 있어요. 광고 차단기를 쓰는 방문자는 빠질 수 있어요.</p>`;
+      <p class="muted small">숫자는 구글 애널리틱스 기준이에요(최근 ${d.days || 90}일 보관). 방문 통계는 6시간마다, 애드센스는 2시간마다 새로 가져오고, 구글 쪽 집계가 몇 시간 늦을 수 있어요. 광고 차단기를 쓰는 방문자는 빠질 수 있어요.</p>`;
+    // 막대 길이: 보안 설정(CSP)이 HTML 안의 style 속성을 막으므로 스크립트로 넣음
+    box.querySelectorAll("[data-w]").forEach((el) => { el.style.width = el.dataset.w + "%"; });
   }
   $("#stLogin").addEventListener("submit", loginStats);
   $("#stRefresh").addEventListener("click", refreshStats);
