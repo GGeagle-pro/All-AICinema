@@ -1,6 +1,6 @@
 name: 영상 자동 업데이트
 
-# 한 작업(job) 안에서: 영상 수집 → 저장 → (바뀐 게 있으면) Cloudways 배포 → 검색엔진 알림 → 애드센스 숫자 새로 고침
+# 한 작업(job) 안에서: 영상 수집 → 저장 → (바뀐 게 있으면) Cloudways 배포 → 검색엔진 알림 → 방문 통계·애드센스 새로 고침
 # 작업을 하나로 합쳐서 실행마다 서버 준비 시간이 한 번만 듦 (GitHub Actions 사용 시간 절약)
 on:
   schedule:
@@ -70,15 +70,17 @@ jobs:
           node scripts/indexnow.mjs
           bash scripts/commit-and-push.sh "검색엔진 알림 기록 $(date -u +'%Y-%m-%d %H:%M')" "INDEXNOW=1 node scripts/indexnow.mjs" cache/indexnow.json
 
-      # 관리자 > 통계의 애드센스 숫자를 실행마다 새로 (GA 방문 통계는 stats.yml 이 6시간마다)
-      - name: 애드센스 숫자 새로 고침
+      # 관리자 > 통계 (GA 방문 통계 + 애드센스)를 실행마다 새로 – 따로 6시간마다 돌던 작업을 여기로 합침
+      - name: 방문 통계·애드센스 새로 고침
         continue-on-error: true
         env:
+          GA_PROPERTY_ID: ${{ secrets.GA_PROPERTY_ID }}
+          GA_SA_KEY: ${{ secrets.GA_SA_KEY }}
           STATS_PASSWORD: ${{ secrets.STATS_PASSWORD }}
           ADSENSE_CLIENT_ID: ${{ secrets.ADSENSE_CLIENT_ID }}
           ADSENSE_CLIENT_SECRET: ${{ secrets.ADSENSE_CLIENT_SECRET }}
           ADSENSE_REFRESH_TOKEN: ${{ secrets.ADSENSE_REFRESH_TOKEN }}
         run: |
           git pull -q --rebase origin main || true
-          node scripts/stats.mjs --ads-only
-          bash scripts/commit-and-push.sh "애드센스 숫자 업데이트 $(date -u +'%Y-%m-%d %H:%M')" "node scripts/stats.mjs --ads-only" stats/stats.enc.json
+          node scripts/stats.mjs
+          bash scripts/commit-and-push.sh "방문 통계 업데이트 $(date -u +'%Y-%m-%d %H:%M')" "node scripts/stats.mjs" stats/stats.enc.json

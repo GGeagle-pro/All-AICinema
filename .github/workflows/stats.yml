@@ -2,9 +2,8 @@ name: 방문 통계 모으기
 
 # 구글 애널리틱스 4 숫자를 가져와 암호화해서 stats/stats.enc.json 에 저장 → 관리자 > 통계 탭
 # 필요한 Secrets: GA_PROPERTY_ID, GA_SA_KEY, STATS_PASSWORD (없으면 아무것도 안 하고 끝남)
+# 정기 수집은 영상 자동 업데이트(update.yml)가 2시간마다 같이 함 – 이 작업은 '지금 새로 가져오기'용
 on:
-  schedule:
-    - cron: "17 */6 * * *"   # 6시간마다
   workflow_dispatch:          # 관리자 통계 탭의 '지금 새로 가져오기' 또는 Actions 탭에서 수동 실행
 
 permissions:

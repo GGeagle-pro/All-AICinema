@@ -1512,7 +1512,8 @@
     const sumT = (t, from, to, m) => agg(t, from, to, [], [m])[0]?.[m] || 0;
     const errRows = sd?.errors ? agg(sd.errors, d7, today, ["linkUrl", "linkText"], ["eventCount"]) : [];
     const k = [
-      ["오늘 방문자", sd ? (sd.totals?.today?.users ?? sumT(sd.daily, today, today, "activeUsers")) : "–"],
+      // 통계를 어제 가져왔으면 그 파일의 '오늘'은 어제라서, 날짜가 같을 때만 GA '오늘' 합계를 씀
+      ["오늘 방문자", sd ? (sd.generatedAt && ymd(Date.parse(sd.generatedAt)) === today && sd.totals?.today ? sd.totals.today.users : sumT(sd.daily, today, today, "activeUsers")) : "–"],
       ["오늘 페이지뷰", sd ? sumT(sd.daily, today, today, "screenPageViews") : "–"],
       ["24시간 새 영상", vids.filter((v) => now - v.published < day).length],
       ["7일 새 영상", vids.filter((v) => now - v.published < 7 * day).length],
@@ -1522,7 +1523,7 @@
       ["재생 오류 (7일)", sd ? errRows.reduce((t, x) => t + x.eventCount, 0) : "–"],
     ];
     box.innerHTML = k.map(([l, v]) => `<div class="st-kpi"><span>${escH(l)}</span><b>${typeof v === "number" ? v.toLocaleString() : v}</b></div>`).join("");
-    $("#dashAt").textContent = sd?.generatedAt ? `통계 ${new Date(sd.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준` : "";
+    $("#dashAt").textContent = sd?.generatedAt ? `통계 ${new Date(sd.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준${sd.realtime ? ` · 그때 최근 30분 접속 ${sd.realtime.users}명` : ""}` : "";
     // 재생 오류 목록
     const byId = new Map(vids.map((v) => [v.id, v]));
     const errs = new Map();
@@ -1533,7 +1534,7 @@
     const ul = $("#dashErrors"); ul.textContent = "";
     const list = [...errs.values()].sort((a, b) => b.n - a.n).slice(0, 30);
     if (!sd) ul.append(el("li", { class: "adm-empty", text: "통계 암호를 넣으면 보여요." }));
-    else if (!list.length) ul.append(el("li", { class: "adm-empty", text: sd.errors ? "최근 7일 동안 재생 오류가 없어요." : "재생 오류 기록은 다음 통계 수집(최대 6시간 뒤)부터 쌓여요." }));
+    else if (!list.length) ul.append(el("li", { class: "adm-empty", text: sd.errors ? "최근 7일 동안 재생 오류가 없어요." : "재생 오류 기록은 다음 통계 수집(최대 2시간 뒤)부터 쌓여요." }));
     for (const e of list) {
       const v = byId.get(e.id);
       ul.append(el("li", { class: "adm-item" },
@@ -1767,7 +1768,7 @@
     const today = ymd(new Date(d.generatedAt || Date.now()), d.timeZone);
     const minD = allDates[0] || addDays(today, -(d.days || 90) + 1);
     for (const [id, v] of [["#stFrom", from], ["#stTo", to]]) { const i = $(id); i.min = toIso(minD); i.max = toIso(today); i.value = toIso(v); }
-    $("#stWhen").textContent = d.generatedAt ? `· ${new Date(d.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준` : "";
+    $("#stWhen").textContent = d.generatedAt ? `· ${new Date(d.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준${d.realtime ? ` · 그때 최근 30분 접속 ${d.realtime.users}명` : ""}` : "";
 
     const days = agg(d.daily, from, to, ["date"], ["activeUsers", "newUsers", "sessions", "screenPageViews"]);
     const pdays = agg(d.daily, pFrom, pTo, ["date"], ["activeUsers", "newUsers", "sessions", "screenPageViews"]);
@@ -1934,7 +1935,7 @@
         <section class="adm-card st-card"><h3>많이 본 작품</h3>${bars(wks, (x) => `<a href="..${escH(x.pagePath)}" target="_blank" rel="noopener">${escH(short(x.pageTitle.replace(/\s*\|[^|]*$/, "") || decodeURIComponent(x.pagePath)))}</a>`, (x) => x.screenPageViews)}</section>
         <section class="adm-card st-card"><h3>검색어</h3>${bars(pick("search", ["searchTerm"], ["eventCount"]).filter((x) => x.searchTerm && x.searchTerm !== "(not set)"), (x) => escH(short(x.searchTerm, 40)), (x) => x.eventCount)}</section>
       </div>
-      <p class="muted small">숫자는 구글 애널리틱스 기준이에요(최근 ${d.days || 90}일 보관). 방문 통계는 6시간마다, 애드센스는 2시간마다 새로 가져오고, 구글 쪽 집계가 몇 시간 늦을 수 있어요. 광고 차단기를 쓰는 방문자는 빠질 수 있어요.</p>`;
+      <p class="muted small">숫자는 구글 애널리틱스 기준이에요(최근 ${d.days || 90}일 보관). 2시간마다 새로 가져오고, 구글 쪽 집계가 몇 시간 늦을 수 있어요. 광고 차단기를 쓰는 방문자는 빠질 수 있어요.</p>`;
     // 막대 길이: 보안 설정(CSP)이 HTML 안의 style 속성을 막으므로 스크립트로 넣음
     box.querySelectorAll("[data-w]").forEach((el) => { el.style.width = el.dataset.w + "%"; });
   }
