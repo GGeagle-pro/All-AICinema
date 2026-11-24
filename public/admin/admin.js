@@ -1817,24 +1817,37 @@
     const TS = ST.mode === "today" ? d.totals?.tSame : null, YS = ST.mode === "today" ? d.totals?.ySame : null;
     const H = TS && YS ? TS.hour : null;
     const hl = H != null ? `~${H}:59` : "";
+    // 통계 기록을 시작한 날(그날은 중간부터 기록돼 하루가 덜 찼음) – 그날과 비교하면 %가 부풀어서 비교 안 함
+    const trackStart = allDates.length && allDates.length < (d.days || 90) - 1 ? allDates[0] : "";
+    const prevPartial = !!trackStart && pFrom <= trackStart;
+    const firstNote = (lab, v) => `<small class="st-vs">${escH(`${lab} ${v}`.trim())} · 기록 시작일이라 비교 안 함</small>`;
     let kpi;
     if (ST.mode === "today") {
       const evH = (date) => agg(d.hourlyEv, "", "z", ["dateHour", "eventName"], ["eventCount"]).filter((x) => x.dateHour.slice(0, 8) === date && Number(x.dateHour.slice(8)) <= H);
       const tE = H != null ? evH(from) : [], yE = H != null ? evH(pFrom) : [];
       // 이미지처럼 깔끔하게: 큰 숫자도 비교와 같은 구간(오늘 0:00~H:59)으로 → ▲▼% 아래엔 "11/23 21" 한 줄
-      const C = (c, p) => (H == null ? noCmpHtml("비교는 새벽 1시 이후 (다음 수집부터)") : delta(c, p, [md(pFrom), num(p)]));
+      // 오늘은 0시~H시 59분까지만 세서 어제 같은 시간과 비교. 어제 하루 전체 숫자도 같이 보여 줘서 '어제' 화면 숫자와 헷갈리지 않게
+      //  예) ▲43%  11/23 ~21시 21 · 하루 28
+      const yAll = d.totals?.yesterday || {};
+      const yEv = agg(d.events, pFrom, pFrom, ["eventName"], ["eventCount"]);
+      const C = (c, p, full) => {
+        if (H == null) return noCmpHtml("비교는 새벽 1시 이후 (다음 수집부터)");
+        const lab = `${md(pFrom)} ~${H}시 ${num(p)}${full != null ? ` · 하루 ${num(full)}` : ""}`;
+        if (prevPartial) return firstNote(lab, "");
+        return deltaBase(c, p) + `<small class="st-vs">${escH(lab)}</small>`;
+      };
       const V = (all, part) => (H == null ? all : part || 0);
-      const EV = (n) => [V(evSum(ev, n), evSum(tE, n)), C(evSum(tE, n), evSum(yE, n))];
+      const EV = (n) => [V(evSum(ev, n), evSum(tE, n)), C(evSum(tE, n), evSum(yE, n), evSum(yEv, n))];
       kpi = [
-        ["방문자", V(cur.users, TS?.users), C(TS?.users, YS?.users)], ["새 방문자", V(cur.newUsers, TS?.newUsers), C(TS?.newUsers, YS?.newUsers)],
-        ["방문 횟수", V(cur.sessions, TS?.sessions), C(TS?.sessions, YS?.sessions)], ["페이지뷰 (GA·영상 열기 포함)", V(cur.views, TS?.views), C(TS?.views, YS?.views)],
+        ["방문자", V(cur.users, TS?.users), C(TS?.users, YS?.users, yAll.users)], ["새 방문자", V(cur.newUsers, TS?.newUsers), C(TS?.newUsers, YS?.newUsers, yAll.newUsers)],
+        ["방문 횟수", V(cur.sessions, TS?.sessions), C(TS?.sessions, YS?.sessions, yAll.sessions)], ["페이지뷰 (GA·영상 열기 포함)", V(cur.views, TS?.views), C(TS?.views, YS?.views, yAll.views)],
         ["영상 재생", ...EV("video_play")], ["광고 배너 클릭", ...EV("banner_click")],
         ["띠 배너 클릭", ...EV("strip_click")], ["검색", ...EV("search")], ["시리즈 화면", ...EV("work_open")],
       ];
     } else {
       // 어제 → 그 전날 하루 / 7일·30일(어제까지) → 바로 전 같은 길이 / 직접 고른 기간 → 바로 전 같은 길이 (오늘 포함이면 비교 안 함)
       const vs = len === 1 ? md(pFrom) : mdr(pFrom, pTo);
-      const D2 = (c, pv) => (noCmp ? "" : delta(c, pv, [vs, num(pv)]));
+      const D2 = (c, pv) => (noCmp ? "" : prevPartial ? firstNote(vs, num(pv)) : delta(c, pv, [vs, num(pv)]));
       const E = (n) => D2(evSum(ev, n), evSum(pev, n));
       kpi = [
         // 방문자·새 방문자는 '중복 없는 수': 정해진 기간은 GA가 같은 방식으로 센 이전 기간(PT), 직접 고른 기간은 일별 합끼리
@@ -1846,7 +1859,7 @@
       ];
     }
     const vsName = ST.mode === "today" ? (H != null ? `${md(pFrom)} 같은 시간` : "") : len === 1 ? md(pFrom) : mdr(pFrom, pTo);
-    const cmpLabel = noCmp ? "오늘이 들어 있어 증감 비교 안 함" : ST.mode === "today" ? (H != null ? `0:00${hl} · 증감은 ${vsName} 대비` : "증감은 새벽 1시 이후부터") : `증감은 ${vsName} 대비`;
+    const cmpLabel = prevPartial ? `${md(trackStart)}은 통계 기록을 시작한 날(하루가 다 안 찼음)이라 증감 비교 안 함` : noCmp ? "오늘이 들어 있어 증감 비교 안 함" : ST.mode === "today" ? (H != null ? `0:00${hl} · 증감은 ${vsName} 대비` : "증감은 새벽 1시 이후부터") : `증감은 ${vsName} 대비`;
 
     // 애드센스
     let adsHtml = "";
