@@ -87,7 +87,7 @@ export async function collectAdsense(env = process.env) {
   } catch {}
   const currency = (tdy.headers || []).find((h) => h.name === "ESTIMATED_EARNINGS")?.currencyCode || "USD";
   return {
-    account: A.replace(/^accounts\//, ""), timeZone: tz, currency, today,
+    at: new Date().toISOString(), account: A.replace(/^accounts\//, ""), timeZone: tz, currency, today,
     sums: { today: totalsOf(tdy), yesterday: totalsOf(yday), d7: totalsOf(d7), month: totalsOf(month), lastMonth: totalsOf(last), all: totalsOf(life) },
     allSince: since, balance, lastPayment,
     daily: { c: ["date", ...METRICS], r: rowsOf(daily, ["DATE"]).map((r) => [r[0].replace(/-/g, ""), ...r.slice(1)]) },

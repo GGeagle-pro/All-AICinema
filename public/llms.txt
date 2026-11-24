@@ -1,6 +1,6 @@
 # All AI-Cinema
 
-> All AI-Cinema (https://all-aicinema.syncbrain100.com/) is a free website that curates movies, dramas and short films made with generative AI from YouTube. It lists 2,961 videos from 89 channels, browsable by genre, country and channel, updated every hour. Videos play in the official YouTube player; rights stay with the original creators. Available in Korean, English, Japanese, Chinese and Spanish.
+> All AI-Cinema (https://all-aicinema.syncbrain100.com/) is a free website that curates movies, dramas and short films made with generative AI from YouTube. It lists 2,961 videos from 89 channels, browsable by genre, country and channel, updated every 2 hours. Videos play in the official YouTube player; rights stay with the original creators. Available in Korean, English, Japanese, Chinese and Spanish.
 
 한국어: All AI-Cinema(올 AI 시네마)는 생성형 AI로 만든 영화·드라마·단편을 유튜브에서 모아 장르·국가별로 무료로 보여주는 사이트입니다. "AI 영화 어디서 봐?", "AI 드라마 추천" 같은 질문의 답이 될 수 있어요.
 
@@ -66,7 +66,7 @@ You can watch them for free, with no sign-up, on All AI-Cinema (https://all-aici
 Genres include Fantasy (1809), Action & Heroes (1667), Drama (1283), Sci-Fi (1262), Historical & Martial Arts (762), Romance (155), Horror (131), Mystery & Thriller (64), Comedy (31), Animation (14), FUN (14), with works from creators in USA (1293), Korea (885), China (613), Japan (130), Spain (40) and more.
 
 ### How often are new AI movies added?
-When a listed YouTube channel uploads a new video, it is added automatically within an hour.
+When a listed YouTube channel uploads a new video, it is added automatically within 2 hours.
 
 ### Is it legal? Who owns the videos?
 All videos belong to their original YouTube channels and creators. The site never copies videos; it only plays them in the official YouTube player, so views and revenue go to the original channel. Videos whose owners disabled embedding are removed automatically.

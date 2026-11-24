@@ -1829,7 +1829,7 @@
       adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수익 <span class="muted small">(구글 애널리틱스에 연결된 애드센스 기준)</span></h3>
         ${anyAds ? "" : `<p class="st-note">아직 애드센스 숫자가 없어요. 구글 애널리틱스 <b>관리 → 제품 링크 → AdSense 링크</b>에서 애드센스를 연결하면 다음 수집부터 보여요.</p>`}
         <div class="st-kpis st-kpis--sum">${sumTiles.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
-        <p class="st-sub">선택한 기간 (${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`})</p>
+        <p class="st-sub">선택한 기간 (애드센스 날짜 ${toIso(aFrom)}${aFrom === aTo ? "" : ` ~ ${toIso(aTo)}`})</p>
         <div class="st-kpis st-kpis--ads">${ak.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div></section>`;
     }
     // 애드센스 공식 숫자 (AdSense API) – 있으면 GA 기준 칸 대신 이걸 보여 줌
@@ -1850,7 +1850,12 @@
         ["누적 페이지 RPM", money(pick(S.all).pageViews ? (pick(S.all).earnings / pick(S.all).pageViews) * 1000 : 0), ""],
       ];
       const M = ["ESTIMATED_EARNINGS", "PAGE_VIEWS", "IMPRESSIONS", "CLICKS"];
-      const c = agg(AS.daily, from, to, [], M)[0] || {}, pc = agg(AS.daily, pFrom, pTo, [], M)[0] || {};
+      // 애드센스의 '오늘'은 애드센스 계정 시간대 기준 (예: 미국 태평양 시간이면 한국보다 하루 늦을 수 있음)
+      // → 오늘·어제·7일·30일 버튼은 애드센스 날짜로 맞춰 애드센스 화면과 같은 숫자가 나오게
+      const asToday = (AS.today || "").replace(/-/g, "");
+      const shift = asToday && ["today", "yesterday", "d7", "d30"].includes(ST.mode) ? daysBetween(today, asToday) - 1 : 0;
+      const aFrom = addDays(from, shift), aTo = addDays(to, shift), aPFrom = addDays(pFrom, shift), aPTo = addDays(pTo, shift);
+      const c = agg(AS.daily, aFrom, aTo, [], M)[0] || {}, pc = agg(AS.daily, aPFrom, aPTo, [], M)[0] || {};
       const e = c.ESTIMATED_EARNINGS || 0, pv = c.PAGE_VIEWS || 0, im = c.IMPRESSIONS || 0, cl = c.CLICKS || 0;
       const pe = pc.ESTIMATED_EARNINGS || 0, ppv = pc.PAGE_VIEWS || 0, pcl = pc.CLICKS || 0;
       const sel = [
@@ -1858,10 +1863,10 @@
         ["노출수", num(im), delta(im, pc.IMPRESSIONS || 0)], ["클릭수", num(cl), delta(cl, pcl)], ["CPC", money(cl ? e / cl : 0), ""],
         ["페이지 CTR", (pv ? (cl / pv) * 100 : 0).toFixed(2) + "%", ""], ["노출 RPM", money(im ? (e / im) * 1000 : 0), ""],
       ];
-      const byCountry = agg(AS.country, from, to, ["country"], ["ESTIMATED_EARNINGS", "PAGE_VIEWS"]).filter((x) => x.ESTIMATED_EARNINGS > 0 || x.PAGE_VIEWS > 0);
-      adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수입 <span class="muted small">(애드센스 공식 숫자 · 시간대 ${escH(AS.timeZone || "")})</span></h3>
+      const byCountry = agg(AS.country, aFrom, aTo, ["country"], ["ESTIMATED_EARNINGS", "PAGE_VIEWS"]).filter((x) => x.ESTIMATED_EARNINGS > 0 || x.PAGE_VIEWS > 0);
+      adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수입 <span class="muted small">(애드센스 공식 숫자 · 시간대 ${escH(AS.timeZone || "")}${AS.at ? ` · ${escH(new Date(AS.at).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" }))} 기준` : ""})</span></h3>
         <div class="st-kpis st-kpis--sum">${top.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
-        <p class="st-sub">선택한 기간 (${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}) · 증감은 ${len === 1 ? (ST.mode === "today" ? "어제 하루 전체 대비 (애드센스는 시간대별 숫자가 없어요)" : "그 전날 대비") : `이전 ${len}일 대비`}</p>
+        <p class="st-sub">선택한 기간 (애드센스 날짜 ${toIso(aFrom)}${aFrom === aTo ? "" : ` ~ ${toIso(aTo)}`}) · 증감은 ${len === 1 ? (ST.mode === "today" ? "어제 하루 전체 대비 (애드센스는 시간대별 숫자가 없어요)" : "그 전날 대비") : `이전 ${len}일 대비`}</p>
         <p class="st-sub muted small">광고 페이지뷰는 애드센스 광고가 실린 페이지가 실제로 열린 횟수예요. 위 방문 통계의 '페이지뷰(GA)'는 영상·작품을 열 때도 1회로 세서 더 커요.</p>
         <div class="st-kpis st-kpis--ads st-kpis--8">${sel.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
         ${byCountry.length ? `<h3 class="st-h4">국가별 예상 수입</h3>${bars(byCountry, (x) => `${flag(x.country)} ${escH(COUNTRY_KO(x.country, x.country))}`, (x) => x.ESTIMATED_EARNINGS, { fmt: money })}` : ""}

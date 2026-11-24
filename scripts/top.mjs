@@ -10,11 +10,11 @@ const LANGS = ["ko", "en", "ja", "zh", "es"];
 const P = { ko: "/top/", en: "/en/top/", ja: "/ja/top/", zh: "/zh/top/", es: "/es/top/" };
 const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es" };
 const TXT = {
-  ko: { t: (w) => `주간 AI 영화·드라마 TOP 10 (${w})`, h: "이번 주 AI 영화·드라마 TOP 10", d: (r) => `${r} 사이 유튜브에 올라온 AI 영화·드라마·단편 중 조회수가 가장 높은 10편이에요. 매시간 자동으로 갱신돼요.`, views: "조회수", arch: "지난주 순위", watch: "보기", home: "홈", crumb: "주간 TOP 10" },
-  en: { t: (w) => `Weekly Top 10 AI Movies & Dramas (${w})`, h: "Top 10 AI movies and dramas this week", d: (r) => `The 10 most-viewed AI movies, dramas and short films uploaded to YouTube ${r}. Updated every hour.`, views: "views", arch: "Past weeks", watch: "Watch", home: "Home", crumb: "Weekly Top 10" },
-  ja: { t: (w) => `週間AI映画・ドラマTOP10（${w}）`, h: "今週のAI映画・ドラマTOP10", d: (r) => `${r}にYouTubeに公開されたAI映画・ドラマ・短編のうち、再生回数が多い10本です。1時間ごとに自動更新されます。`, views: "回視聴", arch: "過去の週", watch: "見る", home: "ホーム", crumb: "週間TOP10" },
-  zh: { t: (w) => `每周AI电影与短剧TOP 10（${w}）`, h: "本周AI电影与短剧TOP 10", d: (r) => `${r}期间上传到YouTube的AI电影、短剧和短片中播放量最高的10部，每小时自动更新。`, views: "次观看", arch: "往期排行", watch: "观看", home: "首页", crumb: "每周TOP 10" },
-  es: { t: (w) => `Top 10 semanal de películas y series con IA (${w})`, h: "Top 10 de películas y series con IA de esta semana", d: (r) => `Las 10 películas, series y cortos con IA más vistos subidos a YouTube ${r}. Se actualiza cada hora.`, views: "vistas", arch: "Semanas anteriores", watch: "Ver", home: "Inicio", crumb: "Top 10 semanal" },
+  ko: { t: (w) => `주간 AI 영화·드라마 TOP 10 (${w})`, h: "이번 주 AI 영화·드라마 TOP 10", d: (r) => `${r} 사이 유튜브에 올라온 AI 영화·드라마·단편 중 조회수가 가장 높은 10편이에요. 2시간마다 자동으로 갱신돼요.`, views: "조회수", arch: "지난주 순위", watch: "보기", home: "홈", crumb: "주간 TOP 10" },
+  en: { t: (w) => `Weekly Top 10 AI Movies & Dramas (${w})`, h: "Top 10 AI movies and dramas this week", d: (r) => `The 10 most-viewed AI movies, dramas and short films uploaded to YouTube ${r}. Updated every 2 hours.`, views: "views", arch: "Past weeks", watch: "Watch", home: "Home", crumb: "Weekly Top 10" },
+  ja: { t: (w) => `週間AI映画・ドラマTOP10（${w}）`, h: "今週のAI映画・ドラマTOP10", d: (r) => `${r}にYouTubeに公開されたAI映画・ドラマ・短編のうち、再生回数が多い10本です。2時間ごとに自動更新されます。`, views: "回視聴", arch: "過去の週", watch: "見る", home: "ホーム", crumb: "週間TOP10" },
+  zh: { t: (w) => `每周AI电影与短剧TOP 10（${w}）`, h: "本周AI电影与短剧TOP 10", d: (r) => `${r}期间上传到YouTube的AI电影、短剧和短片中播放量最高的10部，每2小时自动更新。`, views: "次观看", arch: "往期排行", watch: "观看", home: "首页", crumb: "每周TOP 10" },
+  es: { t: (w) => `Top 10 semanal de películas y series con IA (${w})`, h: "Top 10 de películas y series con IA de esta semana", d: (r) => `Las 10 películas, series y cortos con IA más vistos subidos a YouTube ${r}. Se actualiza cada 2 horas.`, views: "vistas", arch: "Semanas anteriores", watch: "Ver", home: "Inicio", crumb: "Top 10 semanal" },
 };
 const fmt = (n, l) => new Intl.NumberFormat(HTML_LANG[l], { notation: "compact", maximumFractionDigits: 1 }).format(n);
 const day = (d, l) => new Intl.DateTimeFormat(HTML_LANG[l], { month: "short", day: "numeric", timeZone: "Asia/Seoul" }).format(d);

@@ -6,8 +6,8 @@
 //      STATS_PASSWORD : 통계 암호 – 저장소가 공개라서 파일을 이 암호로 잠금. 관리자 통계 탭에서 같은 암호를 넣어 봄
 //  - 외부 패키지 없이 Node 기본 기능만 사용 (서명·암호화 모두 node:crypto)
 
-import { createSign, pbkdf2Sync, randomBytes, createCipheriv } from "node:crypto";
-import { writeFile, mkdir, rename } from "node:fs/promises";
+import { createSign, pbkdf2Sync, randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectAdsense } from "./adsense.mjs";
@@ -76,6 +76,30 @@ function encrypt(obj, password) {
   const c = createCipheriv("aes-256-gcm", key, iv);
   const enc = Buffer.concat([c.update(JSON.stringify(obj), "utf8"), c.final(), c.getAuthTag()]);   // 웹 브라우저(WebCrypto) 형식: 암호문+태그
   return { v: 1, alg: "PBKDF2-SHA256/AES-256-GCM", iter: ITER, salt: salt.toString("base64"), iv: iv.toString("base64"), data: enc.toString("base64") };
+}
+
+function decrypt(box, password) {
+  const key = pbkdf2Sync(password, Buffer.from(box.salt, "base64"), box.iter || ITER, 32, "sha256");
+  const raw = Buffer.from(box.data, "base64"), tag = raw.subarray(raw.length - 16);
+  const d = createDecipheriv("aes-256-gcm", key, Buffer.from(box.iv, "base64")); d.setAuthTag(tag);
+  return JSON.parse(Buffer.concat([d.update(raw.subarray(0, raw.length - 16)), d.final()]).toString("utf8"));
+}
+
+// 애드센스 숫자만 새로 고침 (영상 수집 때마다 – GA 통계는 6시간마다 그대로)
+//  node scripts/stats.mjs --ads-only
+async function adsOnly() {
+  const password = process.env.STATS_PASSWORD || "";
+  if (!password || !process.env.ADSENSE_REFRESH_TOKEN) { console.log("애드센스: 시크릿이 없어 건너뜀"); return; }
+  let data;
+  try { data = decrypt(JSON.parse(await readFile(OUT, "utf8")), password); }
+  catch { console.log("애드센스: 기존 통계 파일을 열 수 없어 건너뜀 (통계 작업이 먼저 한 번 돌아야 해요)"); return; }
+  try { data.adsense = await collectAdsense(); delete data.adsenseError; }
+  catch (e) { console.log("애드센스:", String(e.message || e).slice(0, 300)); return; }   // 실패하면 예전 숫자 그대로 둠
+  if (!data.adsense) return;
+  await writeFile(OUT + ".tmp", JSON.stringify(encrypt(data, password)) + "\n");
+  await rename(OUT + ".tmp", OUT);
+  const S = data.adsense.sums;
+  console.log(`애드센스 새로 고침: 오늘 ${S.today.earnings}, 어제 ${S.yesterday.earnings}, 이번 달 ${S.month.earnings}, 잔고 ${data.adsense.balance || "-"} (${data.adsense.timeZone})`);
 }
 
 // 표 압축: { c: [열 이름], r: [[값...]] } – 날짜는 YYYYMMDD 그대로
@@ -205,6 +229,6 @@ async function main() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((e) => { console.error("통계 실패:", e.message); process.exit(1); });
+  (process.argv.includes("--ads-only") ? adsOnly() : main()).catch((e) => { console.error("통계 실패:", e.message); process.exit(1); });
 }
-export { encrypt };
+export { encrypt, decrypt };

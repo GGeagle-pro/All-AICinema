@@ -1,14 +1,16 @@
 name: 영상 자동 업데이트
 
+# 한 작업(job) 안에서: 영상 수집 → 저장 → (바뀐 게 있으면) Cloudways 배포 → 검색엔진 알림 → 애드센스 숫자 새로 고침
+# 작업을 하나로 합쳐서 실행마다 서버 준비 시간이 한 번만 듦 (GitHub Actions 사용 시간 절약)
 on:
   schedule:
-    - cron: "7 * * * *"   # 1시간마다(매시 7분) 새 영상 확인 – 정각은 GitHub 이 붐벼서 늦어지므로 피함
-  workflow_dispatch:          # Actions 탭에서 수동 실행 가능
+    - cron: "7 */2 * * *"   # 2시간마다(짝수 시 7분) – 정각은 GitHub 이 붐벼서 늦어지므로 피함
+  workflow_dispatch:          # Actions 탭에서 수동 실행 가능 (항상 배포까지)
   push:
     branches: [main]
-    paths: ["channels.json", "public/data/site.json"]  # 채널 목록·사이트 설정(관리자 저장)을 바꾸면 즉시 실행
+    paths: ["channels.json", "public/data/site.json"]  # 채널 목록·사이트 설정(관리자 저장)을 바꾸면 즉시 실행 (항상 배포까지)
 
-# 기본은 읽기 전용, 커밋이 필요한 작업에만 쓰기 권한 부여 (최소 권한 원칙)
+# 기본은 읽기 전용, 이 작업에만 쓰기 권한 부여 (최소 권한 원칙)
 permissions:
   contents: read
 
@@ -19,11 +21,9 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: write
-    outputs:
-      changed: ${{ steps.commit.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,37 +45,40 @@ jobs:
           "node scripts/fetch-videos.mjs"
           channels.json public/data/videos.json public/data/desc.json public/data/videos-recent.json public/data/guides.json public/data/desc public/data/meta.json public/sitemap.xml public/rss.xml public/index.html public/ko public/en public/ja public/zh public/es public/watch public/work public/tools public/faq public/top public/llms.txt cache/playlists.json cache/thumbs.json cache/embed.json
 
-  # 새 영상이 저장되면 Cloudways 서버에도 반영
-  deploy:
-    needs: update
-    if: needs.update.outputs.changed == 'true'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/deploy.yml
-    secrets: inherit   # Cloudways 이메일·API 키·서버·앱 ID 를 그대로 넘김
+      # 새 영상·바뀐 페이지가 저장됐거나, 관리자 저장·수동 실행이면 Cloudways 서버에 반영
+      # (자동 실행에서 바뀐 게 없으면 건너뜀 → 시간 절약)
+      - name: Cloudways 배포
+        id: deploy
+        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        env:
+          CW_EMAIL: ${{ secrets.CLOUDWAYS_EMAIL }}
+          CW_KEY: ${{ secrets.CLOUDWAYS_API_KEY }}
+          CW_OLD: ${{ secrets.CLOUDWAYS_API_TOKEN }}
+          CW_SERVER: ${{ secrets.CLOUDWAYS_SERVER_ID }}
+          CW_APP: ${{ secrets.CLOUDWAYS_APP_ID }}
+          GIT_URL: git@github.com:${{ github.repository }}.git
+        run: bash scripts/cloudways-deploy.sh
 
-  # 배포가 끝난 뒤 새·바뀐·삭제된 페이지를 Bing·네이버에 바로 알림 (IndexNow, 키는 공개용)
-  indexnow:
-    needs: [update, deploy]
-    if: always() && needs.update.result == 'success' && (needs.deploy.result == 'success' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
+      # 배포가 끝난 뒤 새·바뀐·삭제된 페이지를 Bing·네이버에 바로 알림 (IndexNow, 키는 공개용)
       - name: 검색엔진에 알리기
-        run: node scripts/indexnow.mjs
+        if: steps.deploy.outcome == 'success'
+        continue-on-error: true
         env:
           INDEXNOW: "1"
-      - name: 보낸 기록 저장
-        run: >
-          bash scripts/commit-and-push.sh
-          "검색엔진 알림 기록 $(date -u +'%Y-%m-%d %H:%M')"
-          "INDEXNOW=1 node scripts/indexnow.mjs"
-          cache/indexnow.json
+        run: |
+          git pull -q --rebase origin main || true
+          node scripts/indexnow.mjs
+          bash scripts/commit-and-push.sh "검색엔진 알림 기록 $(date -u +'%Y-%m-%d %H:%M')" "INDEXNOW=1 node scripts/indexnow.mjs" cache/indexnow.json
+
+      # 관리자 > 통계의 애드센스 숫자를 실행마다 새로 (GA 방문 통계는 stats.yml 이 6시간마다)
+      - name: 애드센스 숫자 새로 고침
+        continue-on-error: true
+        env:
+          STATS_PASSWORD: ${{ secrets.STATS_PASSWORD }}
+          ADSENSE_CLIENT_ID: ${{ secrets.ADSENSE_CLIENT_ID }}
+          ADSENSE_CLIENT_SECRET: ${{ secrets.ADSENSE_CLIENT_SECRET }}
+          ADSENSE_REFRESH_TOKEN: ${{ secrets.ADSENSE_REFRESH_TOKEN }}
+        run: |
+          git pull -q --rebase origin main || true
+          node scripts/stats.mjs --ads-only
+          bash scripts/commit-and-push.sh "애드센스 숫자 업데이트 $(date -u +'%Y-%m-%d %H:%M')" "node scripts/stats.mjs --ads-only" stats/stats.enc.json

@@ -294,7 +294,7 @@ async function main() {
   const avAge = existing.avatarsCheckedAt ? (Date.now() - new Date(existing.avatarsCheckedAt)) / 3600e3 : Infinity;
   const refreshAll = !(avAge < AVATAR_REFRESH_HOURS);
   let avatarsCheckedAt = refreshAll ? new Date().toISOString() : existing.avatarsCheckedAt;
-  // 공식 API가 있으면 매번 전 채널 사진을 한 번에 확인 (유튜브에서 바꾼 사진이 1시간 안에 반영, 50채널당 1단위)
+  // 공식 API가 있으면 매번 전 채널 사진을 한 번에 확인 (유튜브에서 바꾼 사진이 2시간 안에 반영, 50채널당 1단위)
   let apiAv = new Map();
   if (apiKey()) {
     // 직접 추가한 영상 중 채널 ID 모르는 것 → 찾아서 채널 사진도 나오게
