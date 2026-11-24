@@ -469,3 +469,5 @@
 .adm-devsum td small{white-space:nowrap}
 .adm-devseg{margin:10px 0 8px}
 .adm-devseg button{white-space:nowrap}
+/* 증감 아래 비교 기준 + 그때 숫자 */
+.st-kpi .st-vs{display:block;font-size:11.5px;color:var(--muted);line-height:1.35;overflow-wrap:anywhere}

@@ -1738,11 +1738,17 @@
     return `<div class="st-legend"><span><i class="st-k st-k--bar"></i>${barName}</span><span><i class="st-k st-k--line"></i>${lineName}</span></div>
       <svg class="st-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${barName}와 ${lineName}">${ticks}${bar}<path d="${line}" class="st-c-line"/>${pts.length <= 45 ? pts.map((d, i) => `<circle cx="${cx(i)}" cy="${y(d.line)}" r="2.5" class="st-c-dot"/>`).join("") : ""}${xl}</svg>`;
   }
-  const delta = (cur, prev) => {
-    if (!prev) return cur ? `<em class="st-d st-d--up">새로 생김</em>` : "";
+  // 증감 표시: ▲12% + 그 아래 "비교 기준 · 그때 숫자" (vs = [기준 이름, 그때 숫자 글자])
+  const delta = (cur, prev, vs) => {
+    const sub = vs ? `<small class="st-vs">${escH(vs[0])} ${vs[1]}</small>` : "";
+    if (!prev) return (cur ? `<em class="st-d st-d--up">새로 생김</em>` : `<em class="st-d">변화 없음</em>`) + sub;
     const p = Math.round(((cur - prev) / prev) * 100);
-    return `<em class="st-d ${p > 0 ? "st-d--up" : p < 0 ? "st-d--down" : ""}">${p > 0 ? "▲" : p < 0 ? "▼" : ""}${Math.abs(p)}%</em>`;
+    return `<em class="st-d ${p > 0 ? "st-d--up" : p < 0 ? "st-d--down" : ""}">${p > 0 ? "▲" : p < 0 ? "▼" : "−"}${p ? Math.abs(p) + "%" : " 같음"}</em>` + sub;
   };
+  const md = (x) => `${Number(x.slice(4, 6))}/${Number(x.slice(6, 8))}`;   // 20261124 → 11/24
+  const mdr = (a, b) => (a.slice(0, 6) === b.slice(0, 6) ? `${md(a)}~${Number(b.slice(6, 8))}` : `${md(a)}~${md(b)}`);   // 11/11~17
+  // 비교만 보여 줄 때 (%는 없이 기준 숫자만)
+  const vsOnly = (vs) => `<small class="st-vs">${escH(vs[0])} ${vs[1]}</small>`;
 
   function renderStats() {
     const dd = ST.data;
@@ -1795,6 +1801,7 @@
     const evSum = (list, name) => list.filter((x) => x.eventName === name).reduce((t, x) => t + x.eventCount, 0);
     const preset = { today: "today", yesterday: "yesterday", d7: "d7", d30: "d30" }[ST.mode];
     const T = preset && d.totals?.[preset];   // 미리 정한 기간은 GA4 가 센 '중복 없는 방문자' 그대로
+    const PT = T && d.totals?.[{ today: "yesterday", yesterday: "d2", d7: "p7", d30: "p30" }[preset]];   // 바로 전 기간 (같은 기준)
     const cur = { users: T ? T.users : sumOf(days, "activeUsers"), newUsers: T ? T.newUsers : sumOf(days, "newUsers"), sessions: sumOf(days, "sessions"), views: sumOf(days, "screenPageViews") };
     const prev = { users: sumOf(pdays, "activeUsers"), newUsers: sumOf(pdays, "newUsers"), sessions: sumOf(pdays, "sessions"), views: sumOf(pdays, "screenPageViews") };
     const curU = sumOf(days, "activeUsers");   // 비교는 같은 방식(일별 합)으로
@@ -1813,15 +1820,24 @@
         sameTime = `${Number(last)}시 59분`;
       }
     }
+    // 비교 기준 이름: 오늘 → 어제 같은 시각까지 / 하루 → 그 전날 / 여러 날 → 바로 전 같은 길이 기간
+    const vsName = len === 1 ? (ST.mode === "today" ? (sameTime ? `어제(${md(pFrom)}) ${sameTime}까지` : `어제(${md(pFrom)})`) : `전날(${md(pFrom)})`) : `이전 ${len}일(${mdr(pFrom, pTo)})`;
+    const dayName = `${ST.mode === "today" ? "어제" : "전날"}(${md(pFrom)}) 하루`;   // 시간대별 기록이 없는 지표
+    const D2 = (c, pv) => delta(c, pv, [vsName, num(pv)]);
+    const E = (n) => D2(evSum(ev, n), evSum(pev, n));
     const kpi = [
-      ["방문자", cur.users, sameTime ? delta(cur.hUsers, prev.hUsers) : delta(curU, prev.users)], ["새 방문자", cur.newUsers, sameTime ? "" : delta(sumOf(days, "newUsers"), prev.newUsers)],
-      ["방문 횟수", cur.sessions, sameTime ? "" : delta(cur.sessions, prev.sessions)], ["페이지뷰 (GA·영상 열기 포함)", cur.views, delta(cur.views, prev.views)],
-      ["영상 재생", evSum(ev, "video_play"), delta(evSum(ev, "video_play"), evSum(pev, "video_play"))],
-      ["광고 배너 클릭", evSum(ev, "banner_click"), delta(evSum(ev, "banner_click"), evSum(pev, "banner_click"))],
-      ["띠 배너 클릭", evSum(ev, "strip_click"), delta(evSum(ev, "strip_click"), evSum(pev, "strip_click"))],
-      ["검색", evSum(ev, "search"), delta(evSum(ev, "search"), evSum(pev, "search"))], ["시리즈 화면", evSum(ev, "work_open"), delta(evSum(ev, "work_open"), evSum(pev, "work_open"))],
+      // 방문자·새 방문자는 '중복 없는 수'라 같은 기준끼리만 비교:
+      //  오늘 → 어제 하루 전체 숫자만 참고로 / 어제·7일·30일 → GA가 센 바로 전 기간 숫자(PT) / 직접 고른 기간 → 일별 합끼리
+      ["방문자", cur.users, ST.mode === "today" ? vsOnly([dayName, num(PT ? PT.users : prev.users)]) : PT ? D2(cur.users, PT.users) : D2(curU, prev.users)],
+      ["새 방문자", cur.newUsers, ST.mode === "today" ? vsOnly([dayName, num(PT ? PT.newUsers : prev.newUsers)]) : PT ? D2(cur.newUsers, PT.newUsers) : D2(sumOf(days, "newUsers"), prev.newUsers)],
+      ["방문 횟수", cur.sessions, sameTime ? vsOnly([dayName, num(prev.sessions)]) : D2(cur.sessions, prev.sessions)],
+      ["페이지뷰 (GA·영상 열기 포함)", cur.views, D2(cur.views, prev.views)],
+      ["영상 재생", evSum(ev, "video_play"), E("video_play")],
+      ["광고 배너 클릭", evSum(ev, "banner_click"), E("banner_click")],
+      ["띠 배너 클릭", evSum(ev, "strip_click"), E("strip_click")],
+      ["검색", evSum(ev, "search"), E("search")], ["시리즈 화면", evSum(ev, "work_open"), E("work_open")],
     ];
-    const cmpLabel = len === 1 ? (ST.mode === "today" ? (sameTime ? `어제 같은 시각(${sameTime})까지 대비` : "어제 대비") : "그 전날 대비") : `이전 ${len}일 대비`;
+    const cmpLabel = `${vsName} 대비`;
 
     // 애드센스
     let adsHtml = "";
@@ -1834,14 +1850,15 @@
       const rpm = cur.views ? (rev / cur.views) * 1000 : 0, prpm = prev.views ? ((pa.totalAdRevenue || 0) / prev.views) * 1000 : 0;
       const ctr = imp ? (clk / imp) * 100 : 0, pctr = pa.publisherAdImpressions ? (pa.publisherAdClicks / pa.publisherAdImpressions) * 100 : 0;
       const anyAds = (d.ads.r || []).some((r) => r[1] || r[2]);
-      const ak = [["예상 수익", money(rev), delta(rev, pa.totalAdRevenue)], ["페이지 RPM", money(rpm), delta(rpm, prpm)], ["노출 RPM", money(imp ? (rev / imp) * 1000 : 0), ""],
-        ["광고 노출", num(imp), delta(imp, pa.publisherAdImpressions)], ["광고 클릭", num(clk), delta(clk, pa.publisherAdClicks)], ["CTR", ctr.toFixed(2) + "%", delta(ctr, pctr)]];
+      const gvs = len === 1 ? `${ST.mode === "today" ? "어제" : "전날"}(${md(pFrom)}) 하루` : `이전 ${len}일(${mdr(pFrom, pTo)})`;
+      const ak = [["예상 수익", money(rev), delta(rev, pa.totalAdRevenue, [gvs, money(pa.totalAdRevenue)])], ["페이지 RPM", money(rpm), delta(rpm, prpm, [gvs, money(prpm)])], ["노출 RPM", money(imp ? (rev / imp) * 1000 : 0), ""],
+        ["광고 노출", num(imp), delta(imp, pa.publisherAdImpressions, [gvs, num(pa.publisherAdImpressions)])], ["광고 클릭", num(clk), delta(clk, pa.publisherAdClicks, [gvs, num(pa.publisherAdClicks)])], ["CTR", ctr.toFixed(2) + "%", delta(ctr, pctr, [gvs, pctr.toFixed(2) + "%"])]];
       // 누적 · 이번 달 · 지난달 (고른 기간과 상관없이 항상 표시)
       const S = d.ads.sums || {};
       const all = S.all || { revenue: (d.ads.r || []).reduce((t, r) => t + (r[1] || 0), 0) };
       const sumTiles = [
         ["누적 예상 수익", money(all.revenue), d.ads.firstDay ? `<em class="st-d">${toIso(d.ads.firstDay)}부터</em>` : ""],
-        ["이번 달 예상 수익", money(S.month?.revenue), S.lastMonth ? delta(S.month?.revenue || 0, S.lastMonth.revenue) : ""],
+        ["이번 달 예상 수익", money(S.month?.revenue), S.lastMonth ? delta(S.month?.revenue || 0, S.lastMonth.revenue, ["지난달 전체", money(S.lastMonth.revenue)]) : ""],
         ["지난달 예상 수익", money(S.lastMonth?.revenue), ""],
         ["누적 페이지 RPM", money(all.views ? (all.revenue / all.views) * 1000 : 0), ""],
       ];
@@ -1858,11 +1875,20 @@
       const money = (n) => { try { return new Intl.NumberFormat("ko-KR", { style: "currency", currency: cur$, maximumFractionDigits: cur$ === "KRW" ? 0 : 2 }).format(n || 0); } catch { return num(n); } };
       const S = AS.sums || {};
       const pick = (o) => o || { earnings: 0, pageViews: 0, impressions: 0, clicks: 0 };
+      // 위 요약 칸의 비교 (애드센스 일별 기록 90일로 계산, 애드센스 날짜 기준)
+      const asT = (AS.today || "").replace(/-/g, "") || today;
+      const ern = (f, t) => (agg(AS.daily, f, t, [], ["ESTIMATED_EARNINGS"])[0] || {}).ESTIMATED_EARNINGS || 0;
+      const y1 = addDays(asT, -1), y2 = addDays(asT, -2);
+      const w1 = addDays(asT, -14), w2 = addDays(asT, -8);   // 지난 7일(어제까지) 바로 전 7일
+      const mStart = asT.slice(0, 6) + "01";
+      const lmStart = addDays(mStart, -1).slice(0, 6) + "01", lmEnd = addDays(mStart, -1);
+      const lmSame = (lmStart.slice(0, 6) + asT.slice(6)) > lmEnd ? lmEnd : lmStart.slice(0, 6) + asT.slice(6);   // 지난달 같은 날까지
+      const lmPart = ern(lmStart, lmSame);
       const top = [
-        ["오늘 현재까지", money(pick(S.today).earnings), ""],
-        ["어제", money(pick(S.yesterday).earnings), ""],
-        ["지난 7일", money(pick(S.d7).earnings), ""],
-        ["이번 달", money(pick(S.month).earnings), S.lastMonth ? delta(pick(S.month).earnings, S.lastMonth.earnings) : ""],
+        ["오늘 현재까지", money(pick(S.today).earnings), vsOnly([`어제(${md(y1)}) 하루`, money(pick(S.yesterday).earnings)])],
+        ["어제", money(pick(S.yesterday).earnings), delta(pick(S.yesterday).earnings, ern(y2, y2), [`그저께(${md(y2)})`, money(ern(y2, y2))])],
+        ["지난 7일", money(pick(S.d7).earnings), delta(pick(S.d7).earnings, ern(w1, w2), [`그 전 7일(${mdr(w1, w2)})`, money(ern(w1, w2))])],
+        ["이번 달", money(pick(S.month).earnings), delta(pick(S.month).earnings, lmPart, [`지난달 같은 기간(${mdr(lmStart, lmSame)})`, money(lmPart)])],
         ["지난달", money(pick(S.lastMonth).earnings), ""],
         ["잔고 (지급 전)", escH(AS.balance || "-"), AS.lastPayment ? `<em class="st-d">최근 지급 ${escH(AS.lastPayment.amount)} · ${escH(AS.lastPayment.date)}</em>` : ""],
         ["누적 (최근 3년)", money(pick(S.all).earnings), `<em class="st-d">${escH(AS.allSince || "")}부터</em>`],
@@ -1877,15 +1903,18 @@
       const c = agg(AS.daily, aFrom, aTo, [], M)[0] || {}, pc = agg(AS.daily, aPFrom, aPTo, [], M)[0] || {};
       const e = c.ESTIMATED_EARNINGS || 0, pv = c.PAGE_VIEWS || 0, im = c.IMPRESSIONS || 0, cl = c.CLICKS || 0;
       const pe = pc.ESTIMATED_EARNINGS || 0, ppv = pc.PAGE_VIEWS || 0, pcl = pc.CLICKS || 0;
+      // 아래 선택 기간 칸의 비교: 애드센스는 시간대별 숫자가 없어서 '오늘'도 어제 하루 전체와 비교
+      const avs = len === 1 ? `${ST.mode === "today" ? "어제" : "전날"}(${md(aPFrom)}) 하루` : `이전 ${len}일(${mdr(aPFrom, aPTo)})`;
       const sel = [
-        ["예상 수입", money(e), delta(e, pe)], ["광고 페이지뷰 (애드센스)", num(pv), delta(pv, ppv)], ["페이지 RPM", money(pv ? (e / pv) * 1000 : 0), delta(pv ? e / pv : 0, ppv ? pe / ppv : 0)],
-        ["노출수", num(im), delta(im, pc.IMPRESSIONS || 0)], ["클릭수", num(cl), delta(cl, pcl)], ["CPC", money(cl ? e / cl : 0), ""],
-        ["페이지 CTR", (pv ? (cl / pv) * 100 : 0).toFixed(2) + "%", ""], ["노출 RPM", money(im ? (e / im) * 1000 : 0), ""],
+        ["예상 수입", money(e), delta(e, pe, [avs, money(pe)])], ["광고 페이지뷰 (애드센스)", num(pv), delta(pv, ppv, [avs, num(ppv)])],
+        ["페이지 RPM", money(pv ? (e / pv) * 1000 : 0), delta(pv ? e / pv : 0, ppv ? pe / ppv : 0, [avs, money(ppv ? (pe / ppv) * 1000 : 0)])],
+        ["노출수", num(im), delta(im, pc.IMPRESSIONS || 0, [avs, num(pc.IMPRESSIONS || 0)])], ["클릭수", num(cl), delta(cl, pcl, [avs, num(pcl)])], ["CPC", money(cl ? e / cl : 0), vsOnly([avs, money(pcl ? pe / pcl : 0)])],
+        ["페이지 CTR", (pv ? (cl / pv) * 100 : 0).toFixed(2) + "%", vsOnly([avs, (ppv ? (pcl / ppv) * 100 : 0).toFixed(2) + "%"])], ["노출 RPM", money(im ? (e / im) * 1000 : 0), vsOnly([avs, money(pc.IMPRESSIONS ? (pe / pc.IMPRESSIONS) * 1000 : 0)])],
       ];
       const byCountry = agg(AS.country, aFrom, aTo, ["country"], ["ESTIMATED_EARNINGS", "PAGE_VIEWS"]).filter((x) => x.ESTIMATED_EARNINGS > 0 || x.PAGE_VIEWS > 0);
       adsHtml = `<section class="adm-card st-card st-wide"><h3>애드센스 수입 <span class="muted small">(애드센스 공식 숫자 · 시간대 ${escH(AS.timeZone || "")}${AS.at ? ` · ${escH(new Date(AS.at).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" }))} 기준` : ""})</span></h3>
         <div class="st-kpis st-kpis--sum">${top.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
-        <p class="st-sub">선택한 기간 (애드센스 날짜 ${toIso(aFrom)}${aFrom === aTo ? "" : ` ~ ${toIso(aTo)}`}) · 증감은 ${len === 1 ? (ST.mode === "today" ? "어제 하루 전체 대비 (애드센스는 시간대별 숫자가 없어요)" : "그 전날 대비") : `이전 ${len}일 대비`}</p>
+        <p class="st-sub">선택한 기간 (애드센스 날짜 ${toIso(aFrom)}${aFrom === aTo ? "" : ` ~ ${toIso(aTo)}`}) · 증감은 ${escH(avs)} 대비${len === 1 && ST.mode === "today" ? " (애드센스는 시간대별 숫자가 없어요)" : ""}</p>
         <p class="st-sub muted small">광고 페이지뷰는 애드센스 광고가 실린 페이지가 실제로 열린 횟수예요. 위 방문 통계의 '페이지뷰(GA)'는 영상·작품을 열 때도 1회로 세서 더 커요.</p>
         <div class="st-kpis st-kpis--ads st-kpis--8">${sel.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
         ${byCountry.length ? `<h3 class="st-h4">국가별 예상 수입</h3>${bars(byCountry, (x) => `${flag(x.country)} ${escH(COUNTRY_KO(x.country, x.country))}`, (x) => x.ESTIMATED_EARNINGS, { fmt: money })}` : ""}

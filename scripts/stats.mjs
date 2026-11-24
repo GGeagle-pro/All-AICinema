@@ -23,6 +23,10 @@ const RANGES = [
   { startDate: "today", endDate: "today", name: "today" }, { startDate: "yesterday", endDate: "yesterday", name: "yesterday" },
   { startDate: "6daysAgo", endDate: "today", name: "d7" }, { startDate: "29daysAgo", endDate: "today", name: "d30" },
 ];
+const PREV_RANGES = [
+  { startDate: "2daysAgo", endDate: "2daysAgo", name: "d2" },
+  { startDate: "13daysAgo", endDate: "7daysAgo", name: "p7" }, { startDate: "59daysAgo", endDate: "30daysAgo", name: "p30" },
+];
 
 const b64url = (b) => Buffer.from(b).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
 
@@ -195,6 +199,11 @@ export async function collect(prop, token) {
 
   const tot = {};
   for (const r of rows(totals)) tot[r.dateRange || "d30"] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
+  // 비교용 '중복 없는 방문자' (바로 전 기간): 어제의 전날, 이전 7일, 이전 30일 – 관리자 증감 숫자가 위 숫자와 같은 기준이 되게
+  try {
+    const [prevTot] = await batch(prop, token, [{ dateRanges: PREV_RANGES, metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews") }]);
+    for (const r of rows(prevTot)) if (r.dateRange) tot[r.dateRange] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
+  } catch {}
   return {
     v: 2, generatedAt: new Date().toISOString(), days: DAYS,
     timeZone: daily?.metadata?.timeZone || "",
