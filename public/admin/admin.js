@@ -1821,8 +1821,8 @@
       }
     }
     // 비교 기준 이름: 오늘 → 어제 같은 시각까지 / 하루 → 그 전날 / 여러 날 → 바로 전 같은 길이 기간
-    const vsName = len === 1 ? (ST.mode === "today" ? (sameTime ? `어제(${md(pFrom)}) ${sameTime}까지` : `어제(${md(pFrom)})`) : `전날(${md(pFrom)})`) : `이전 ${len}일(${mdr(pFrom, pTo)})`;
-    const dayName = `${ST.mode === "today" ? "어제" : "전날"}(${md(pFrom)}) 하루`;   // 시간대별 기록이 없는 지표
+    const vsName = len === 1 ? (sameTime ? `${md(pFrom)} ${sameTime}까지` : md(pFrom)) : mdr(pFrom, pTo);   // 비교 날짜만 (예: 11/23, 11/11~17)
+    const dayName = md(pFrom);   // 시간대별 기록이 없는 지표
     const D2 = (c, pv) => delta(c, pv, [vsName, num(pv)]);
     const E = (n) => D2(evSum(ev, n), evSum(pev, n));
     const kpi = [
@@ -1850,7 +1850,7 @@
       const rpm = cur.views ? (rev / cur.views) * 1000 : 0, prpm = prev.views ? ((pa.totalAdRevenue || 0) / prev.views) * 1000 : 0;
       const ctr = imp ? (clk / imp) * 100 : 0, pctr = pa.publisherAdImpressions ? (pa.publisherAdClicks / pa.publisherAdImpressions) * 100 : 0;
       const anyAds = (d.ads.r || []).some((r) => r[1] || r[2]);
-      const gvs = len === 1 ? `${ST.mode === "today" ? "어제" : "전날"}(${md(pFrom)}) 하루` : `이전 ${len}일(${mdr(pFrom, pTo)})`;
+      const gvs = len === 1 ? md(pFrom) : mdr(pFrom, pTo);
       const ak = [["예상 수익", money(rev), delta(rev, pa.totalAdRevenue, [gvs, money(pa.totalAdRevenue)])], ["페이지 RPM", money(rpm), delta(rpm, prpm, [gvs, money(prpm)])], ["노출 RPM", money(imp ? (rev / imp) * 1000 : 0), ""],
         ["광고 노출", num(imp), delta(imp, pa.publisherAdImpressions, [gvs, num(pa.publisherAdImpressions)])], ["광고 클릭", num(clk), delta(clk, pa.publisherAdClicks, [gvs, num(pa.publisherAdClicks)])], ["CTR", ctr.toFixed(2) + "%", delta(ctr, pctr, [gvs, pctr.toFixed(2) + "%"])]];
       // 누적 · 이번 달 · 지난달 (고른 기간과 상관없이 항상 표시)
@@ -1858,7 +1858,7 @@
       const all = S.all || { revenue: (d.ads.r || []).reduce((t, r) => t + (r[1] || 0), 0) };
       const sumTiles = [
         ["누적 예상 수익", money(all.revenue), d.ads.firstDay ? `<em class="st-d">${toIso(d.ads.firstDay)}부터</em>` : ""],
-        ["이번 달 예상 수익", money(S.month?.revenue), S.lastMonth ? delta(S.month?.revenue || 0, S.lastMonth.revenue, ["지난달 전체", money(S.lastMonth.revenue)]) : ""],
+        ["이번 달 예상 수익", money(S.month?.revenue), S.lastMonth ? delta(S.month?.revenue || 0, S.lastMonth.revenue, [mdr(addDays(today.slice(0, 6) + "01", -1).slice(0, 6) + "01", addDays(today.slice(0, 6) + "01", -1)), money(S.lastMonth.revenue)]) : ""],
         ["지난달 예상 수익", money(S.lastMonth?.revenue), ""],
         ["누적 페이지 RPM", money(all.views ? (all.revenue / all.views) * 1000 : 0), ""],
       ];
@@ -1885,10 +1885,10 @@
       const lmSame = (lmStart.slice(0, 6) + asT.slice(6)) > lmEnd ? lmEnd : lmStart.slice(0, 6) + asT.slice(6);   // 지난달 같은 날까지
       const lmPart = ern(lmStart, lmSame);
       const top = [
-        ["오늘 현재까지", money(pick(S.today).earnings), vsOnly([`어제(${md(y1)}) 하루`, money(pick(S.yesterday).earnings)])],
-        ["어제", money(pick(S.yesterday).earnings), delta(pick(S.yesterday).earnings, ern(y2, y2), [`그저께(${md(y2)})`, money(ern(y2, y2))])],
-        ["지난 7일", money(pick(S.d7).earnings), delta(pick(S.d7).earnings, ern(w1, w2), [`그 전 7일(${mdr(w1, w2)})`, money(ern(w1, w2))])],
-        ["이번 달", money(pick(S.month).earnings), delta(pick(S.month).earnings, lmPart, [`지난달 같은 기간(${mdr(lmStart, lmSame)})`, money(lmPart)])],
+        ["오늘 현재까지", money(pick(S.today).earnings), vsOnly([md(y1), money(pick(S.yesterday).earnings)])],
+        ["어제", money(pick(S.yesterday).earnings), delta(pick(S.yesterday).earnings, ern(y2, y2), [md(y2), money(ern(y2, y2))])],
+        ["지난 7일", money(pick(S.d7).earnings), delta(pick(S.d7).earnings, ern(w1, w2), [mdr(w1, w2), money(ern(w1, w2))])],
+        ["이번 달", money(pick(S.month).earnings), delta(pick(S.month).earnings, lmPart, [mdr(lmStart, lmSame), money(lmPart)])],
         ["지난달", money(pick(S.lastMonth).earnings), ""],
         ["잔고 (지급 전)", escH(AS.balance || "-"), AS.lastPayment ? `<em class="st-d">최근 지급 ${escH(AS.lastPayment.amount)} · ${escH(AS.lastPayment.date)}</em>` : ""],
         ["누적 (최근 3년)", money(pick(S.all).earnings), `<em class="st-d">${escH(AS.allSince || "")}부터</em>`],
@@ -1904,7 +1904,7 @@
       const e = c.ESTIMATED_EARNINGS || 0, pv = c.PAGE_VIEWS || 0, im = c.IMPRESSIONS || 0, cl = c.CLICKS || 0;
       const pe = pc.ESTIMATED_EARNINGS || 0, ppv = pc.PAGE_VIEWS || 0, pcl = pc.CLICKS || 0;
       // 아래 선택 기간 칸의 비교: 애드센스는 시간대별 숫자가 없어서 '오늘'도 어제 하루 전체와 비교
-      const avs = len === 1 ? `${ST.mode === "today" ? "어제" : "전날"}(${md(aPFrom)}) 하루` : `이전 ${len}일(${mdr(aPFrom, aPTo)})`;
+      const avs = len === 1 ? md(aPFrom) : mdr(aPFrom, aPTo);
       const sel = [
         ["예상 수입", money(e), delta(e, pe, [avs, money(pe)])], ["광고 페이지뷰 (애드센스)", num(pv), delta(pv, ppv, [avs, num(ppv)])],
         ["페이지 RPM", money(pv ? (e / pv) * 1000 : 0), delta(pv ? e / pv : 0, ppv ? pe / ppv : 0, [avs, money(ppv ? (pe / ppv) * 1000 : 0)])],
