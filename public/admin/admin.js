@@ -1821,13 +1821,15 @@
     if (ST.mode === "today") {
       const evH = (date) => agg(d.hourlyEv, "", "z", ["dateHour", "eventName"], ["eventCount"]).filter((x) => x.dateHour.slice(0, 8) === date && Number(x.dateHour.slice(8)) <= H);
       const tE = H != null ? evH(from) : [], yE = H != null ? evH(pFrom) : [];
-      const C = (c, p) => (H == null ? noCmpHtml("비교는 새벽 1시 이후 (다음 수집부터)") : delta2(c, p, `오늘 ${hl}`, `${md(pFrom)} ${hl}`));
-      const CE = (n) => C(evSum(tE, n), evSum(yE, n));
+      // 이미지처럼 깔끔하게: 큰 숫자도 비교와 같은 구간(오늘 0:00~H:59)으로 → ▲▼% 아래엔 "11/23 21" 한 줄
+      const C = (c, p) => (H == null ? noCmpHtml("비교는 새벽 1시 이후 (다음 수집부터)") : delta(c, p, [md(pFrom), num(p)]));
+      const V = (all, part) => (H == null ? all : part || 0);
+      const EV = (n) => [V(evSum(ev, n), evSum(tE, n)), C(evSum(tE, n), evSum(yE, n))];
       kpi = [
-        ["방문자", cur.users, C(TS?.users, YS?.users)], ["새 방문자", cur.newUsers, C(TS?.newUsers, YS?.newUsers)],
-        ["방문 횟수", cur.sessions, C(TS?.sessions, YS?.sessions)], ["페이지뷰 (GA·영상 열기 포함)", cur.views, C(TS?.views, YS?.views)],
-        ["영상 재생", evSum(ev, "video_play"), CE("video_play")], ["광고 배너 클릭", evSum(ev, "banner_click"), CE("banner_click")],
-        ["띠 배너 클릭", evSum(ev, "strip_click"), CE("strip_click")], ["검색", evSum(ev, "search"), CE("search")], ["시리즈 화면", evSum(ev, "work_open"), CE("work_open")],
+        ["방문자", V(cur.users, TS?.users), C(TS?.users, YS?.users)], ["새 방문자", V(cur.newUsers, TS?.newUsers), C(TS?.newUsers, YS?.newUsers)],
+        ["방문 횟수", V(cur.sessions, TS?.sessions), C(TS?.sessions, YS?.sessions)], ["페이지뷰 (GA·영상 열기 포함)", V(cur.views, TS?.views), C(TS?.views, YS?.views)],
+        ["영상 재생", ...EV("video_play")], ["광고 배너 클릭", ...EV("banner_click")],
+        ["띠 배너 클릭", ...EV("strip_click")], ["검색", ...EV("search")], ["시리즈 화면", ...EV("work_open")],
       ];
     } else {
       // 어제 → 그 전날 하루 / 7일·30일(어제까지) → 바로 전 같은 길이 / 직접 고른 기간 → 바로 전 같은 길이 (오늘 포함이면 비교 안 함)
@@ -1843,8 +1845,8 @@
         ["띠 배너 클릭", evSum(ev, "strip_click"), E("strip_click")], ["검색", evSum(ev, "search"), E("search")], ["시리즈 화면", evSum(ev, "work_open"), E("work_open")],
       ];
     }
-    const vsName = ST.mode === "today" ? (H != null ? `오늘·${md(pFrom)} 둘 다 0:00${hl}` : "") : len === 1 ? md(pFrom) : mdr(pFrom, pTo);
-    const cmpLabel = noCmp ? "오늘이 들어 있어 증감 비교 안 함" : ST.mode === "today" ? (H != null ? `증감은 ${vsName} 기준` : "증감은 새벽 1시 이후부터") : `증감은 ${vsName} 대비`;
+    const vsName = ST.mode === "today" ? (H != null ? `${md(pFrom)} 같은 시간` : "") : len === 1 ? md(pFrom) : mdr(pFrom, pTo);
+    const cmpLabel = noCmp ? "오늘이 들어 있어 증감 비교 안 함" : ST.mode === "today" ? (H != null ? `0:00${hl} · 증감은 ${vsName} 대비` : "증감은 새벽 1시 이후부터") : `증감은 ${vsName} 대비`;
 
     // 애드센스
     let adsHtml = "";
