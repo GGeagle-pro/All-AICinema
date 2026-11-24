@@ -200,9 +200,17 @@ export async function collect(prop, token) {
   const tot = {};
   for (const r of rows(totals)) tot[r.dateRange || "d30"] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
   // 비교용 '중복 없는 방문자' (바로 전 기간): 어제의 전날, 이전 7일, 이전 30일 – 관리자 증감 숫자가 위 숫자와 같은 기준이 되게
+  //  + 어제 같은 시각까지(ySame): 오늘 기록이 있는 마지막 시까지 어제 숫자를 '중복 없이' 셈 → 오늘 방문자·새 방문자·방문 횟수도 ▲▼% 가능
+  const hrs = rows(hourly).map((r) => r.dateHour).filter(Boolean).sort();
+  const lastDH = hrs[hrs.length - 1] || "", lastH = Number(lastDH.slice(8, 10));
   try {
-    const [prevTot] = await batch(prop, token, [{ dateRanges: PREV_RANGES, metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews") }]);
+    const M4 = D("activeUsers", "newUsers", "sessions", "screenPageViews");
+    const reqs = [{ dateRanges: PREV_RANGES, metrics: M4 }];
+    if (lastDH) reqs.push({ dateRanges: [{ startDate: "yesterday", endDate: "yesterday" }], metrics: M4,
+      dimensionFilter: filterIn("hour", Array.from({ length: lastH + 1 }, (_, i) => String(i).padStart(2, "0"))) });
+    const [prevTot, same] = await batch(prop, token, reqs);
     for (const r of rows(prevTot)) if (r.dateRange) tot[r.dateRange] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
+    if (same) { const r = rows(same)[0] || {}; tot.ySame = { users: r.activeUsers || 0, newUsers: r.newUsers || 0, sessions: r.sessions || 0, views: r.screenPageViews || 0, hour: lastH }; }
   } catch {}
   return {
     v: 2, generatedAt: new Date().toISOString(), days: DAYS,

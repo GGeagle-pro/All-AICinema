@@ -1802,6 +1802,7 @@
     const preset = { today: "today", yesterday: "yesterday", d7: "d7", d30: "d30" }[ST.mode];
     const T = preset && d.totals?.[preset];   // 미리 정한 기간은 GA4 가 센 '중복 없는 방문자' 그대로
     const PT = T && d.totals?.[{ today: "yesterday", yesterday: "d2", d7: "p7", d30: "p30" }[preset]];   // 바로 전 기간 (같은 기준)
+    const YS = ST.mode === "today" && T ? d.totals?.ySame : null;   // 어제 같은 시각까지 (중복 없는 수)
     const cur = { users: T ? T.users : sumOf(days, "activeUsers"), newUsers: T ? T.newUsers : sumOf(days, "newUsers"), sessions: sumOf(days, "sessions"), views: sumOf(days, "screenPageViews") };
     const prev = { users: sumOf(pdays, "activeUsers"), newUsers: sumOf(pdays, "newUsers"), sessions: sumOf(pdays, "sessions"), views: sumOf(pdays, "screenPageViews") };
     const curU = sumOf(days, "activeUsers");   // 비교는 같은 방식(일별 합)으로
@@ -1821,6 +1822,7 @@
       }
     }
     // 비교 기준 이름: 오늘 → 어제 같은 시각까지 / 하루 → 그 전날 / 여러 날 → 바로 전 같은 길이 기간
+    if (YS && !sameTime && YS.hour != null) sameTime = `${YS.hour}시 59분`;
     const vsName = len === 1 ? (sameTime ? `${md(pFrom)} ${sameTime}까지` : md(pFrom)) : mdr(pFrom, pTo);   // 비교 날짜만 (예: 11/23, 11/11~17)
     const dayName = md(pFrom);   // 시간대별 기록이 없는 지표
     const D2 = (c, pv) => delta(c, pv, [vsName, num(pv)]);
@@ -1828,9 +1830,10 @@
     const kpi = [
       // 방문자·새 방문자는 '중복 없는 수'라 같은 기준끼리만 비교:
       //  오늘 → 어제 하루 전체 숫자만 참고로 / 어제·7일·30일 → GA가 센 바로 전 기간 숫자(PT) / 직접 고른 기간 → 일별 합끼리
-      ["방문자", cur.users, ST.mode === "today" ? vsOnly([dayName, num(PT ? PT.users : prev.users)]) : PT ? D2(cur.users, PT.users) : D2(curU, prev.users)],
-      ["새 방문자", cur.newUsers, ST.mode === "today" ? vsOnly([dayName, num(PT ? PT.newUsers : prev.newUsers)]) : PT ? D2(cur.newUsers, PT.newUsers) : D2(sumOf(days, "newUsers"), prev.newUsers)],
-      ["방문 횟수", cur.sessions, sameTime ? vsOnly([dayName, num(prev.sessions)]) : D2(cur.sessions, prev.sessions)],
+      // 오늘: 어제 같은 시각까지 중복 없이 센 숫자(YS)와 ▲▼% (예전 통계 파일이면 어제 하루 숫자만 참고로)
+      ["방문자", cur.users, ST.mode === "today" ? (YS ? D2(cur.users, YS.users) : vsOnly([dayName, num(PT ? PT.users : prev.users)])) : PT ? D2(cur.users, PT.users) : D2(curU, prev.users)],
+      ["새 방문자", cur.newUsers, ST.mode === "today" ? (YS ? D2(cur.newUsers, YS.newUsers) : vsOnly([dayName, num(PT ? PT.newUsers : prev.newUsers)])) : PT ? D2(cur.newUsers, PT.newUsers) : D2(sumOf(days, "newUsers"), prev.newUsers)],
+      ["방문 횟수", cur.sessions, ST.mode === "today" ? (YS ? D2(cur.sessions, YS.sessions) : vsOnly([dayName, num(prev.sessions)])) : D2(cur.sessions, prev.sessions)],
       ["페이지뷰 (GA·영상 열기 포함)", cur.views, D2(cur.views, prev.views)],
       ["영상 재생", evSum(ev, "video_play"), E("video_play")],
       ["광고 배너 클릭", evSum(ev, "banner_click"), E("banner_click")],
