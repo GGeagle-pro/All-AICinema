@@ -182,12 +182,23 @@ export async function collect(prop, token) {
     ads = { currency: a?.metadata?.currencyCode || "", sums: sumOf, firstDay, ...table(a, ["date", "totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"]) };
   } catch (e) { adsError = String(e.message || e).slice(0, 200); }
 
+  // 실시간 (최근 30분) – 오늘 숫자는 구글 집계가 몇 시간 늦으므로 '지금 접속 중' 확인용
+  let realtime = null;
+  try {
+    const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${prop}:runRealtimeReport`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ metrics: D("activeUsers", "screenPageViews"), minuteRanges: [{ startMinutesAgo: 29, endMinutesAgo: 0 }] }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) { const m = j.rows?.[0]?.metricValues || []; realtime = { users: Number(m[0]?.value || 0), views: Number(m[1]?.value || 0), at: new Date().toISOString() }; }
+  } catch {}
+
   const tot = {};
   for (const r of rows(totals)) tot[r.dateRange || "d30"] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
   return {
     v: 2, generatedAt: new Date().toISOString(), days: DAYS,
     timeZone: daily?.metadata?.timeZone || "",
-    totals: tot,
+    totals: tot, realtime,
     daily: table(daily, ["date", "activeUsers", "newUsers", "sessions", "screenPageViews"]),
     events: table(events, ["date", "eventName", "eventCount"]),
     country: table(country, ["date", "country", "countryId", "activeUsers", "sessions"]),
@@ -225,7 +236,7 @@ async function main() {
   await mkdir(dirname(OUT), { recursive: true });
   await writeFile(OUT + ".tmp", JSON.stringify(encrypt(data, password)) + "\n");
   await rename(OUT + ".tmp", OUT);
-  console.log(`통계 저장: 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
+  console.log(`통계 저장 (GA 시간대 ${data.timeZone || "?"}): 오늘 방문자 ${data.totals.today?.users ?? 0}명·페이지뷰 ${data.totals.today?.views ?? 0}, 어제 방문자 ${data.totals.yesterday?.users ?? 0}명, 최근 30분 ${data.realtime ? data.realtime.users + "명" : "-"}, 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
