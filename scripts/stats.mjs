@@ -149,7 +149,7 @@ export async function collect(prop, token) {
   let slots = null;
   try {
     [slots] = await batch(prop, token, [
-      { dateRanges: RANGE, dimensions: D("date", "eventName", "linkText"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", SLOT_EVENTS), limit: BIG },
+      { dateRanges: RANGE, dimensions: D("date", "eventName", "linkText", "deviceCategory"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", SLOT_EVENTS), limit: BIG },
     ]);
   } catch {}
   // 성별·나이대 (GA4 'Google 신호'를 켜야 하고, 사람이 적으면 구글이 숨김 → 실패해도 건너뜀)
@@ -217,7 +217,7 @@ export async function collect(prop, token) {
     demoError,
     hourlyEv: table(hourlyEv, ["dateHour", "eventName", "eventCount"]),
     errors: errors ? table(errors, ["date", "linkUrl", "linkText", "eventCount"]) : null,
-    slots: slots ? table(slots, ["date", "eventName", "linkText", "eventCount"]) : null,
+    slots: slots ? table(slots, ["date", "eventName", "linkText", "deviceCategory", "eventCount"]) : null,
     ads, adsError,
   };
 }

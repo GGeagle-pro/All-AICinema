@@ -1570,9 +1570,15 @@
     let host = ""; try { host = new URL(b.link).hostname.replace(/^www\./, ""); } catch {}
     return [b.alt, host].filter(Boolean).join(" · ") || "이미지만";
   }
+  // 기기 구분: 전체 / 모바일 / PC / 태블릿 (GA deviceCategory: mobile, desktop, tablet)
+  const SLOT_DEVS = [["all", "전체"], ["mobile", "모바일"], ["desktop", "PC"], ["tablet", "태블릿"]];
+  let slotDev = "all";
   function slotReport(sd, from, to, { daily = true } = {}) {
     if (!sd) return `<p class="adm-hint">통계 암호를 넣으면 보여요. <button class="btn" type="button" data-go-stats>통계 암호 넣기</button></p>`;
-    const rows = sd.slots ? agg(sd.slots, from, to, ["eventName", "linkText"], ["eventCount"]) : [];
+    const hasDev = !!sd.slots?.c?.includes("deviceCategory");
+    const dev = hasDev ? slotDev : "all";
+    const all = sd.slots ? agg(sd.slots, from, to, hasDev ? ["eventName", "linkText", "deviceCategory"] : ["eventName", "linkText"], ["eventCount"]) : [];
+    const rows = dev === "all" ? all : all.filter((x) => x.deviceCategory === dev);
     const get = (ev, key) => rows.filter((x) => x.eventName === ev && x.linkText === key).reduce((t, x) => t + x.eventCount, 0);
     const pct = (c, v) => (v ? ((c / v) * 100).toFixed(2) + "%" : "–");
     const evs = sd.events ? agg(sd.events, from, to, ["eventName"], ["eventCount"]) : [];
@@ -1586,18 +1592,30 @@
     const sumRows = (kind, label) => {
       const ks = SLOT_LIST.filter(([k]) => k.startsWith(kind)).map(([k]) => k);
       const sv = ks.reduce((t, k) => t + get(kind + "_view", k), 0), sc = ks.reduce((t, k) => t + get(kind + "_click", k), 0);
-      const v = Math.max(sv, evN(kind + "_view")), c = Math.max(sc, evN(kind + "_click"));
+      // 기기를 고르면 칸이 기록된 숫자만 (전체 이벤트는 기기 구분이 없어서)
+      const v = dev === "all" ? Math.max(sv, evN(kind + "_view")) : sv, c = dev === "all" ? Math.max(sc, evN(kind + "_click")) : sc;
       const uv = v - sv, uc = c - sc;
       return `${uv || uc ? `<tr class="unk"><td class="slot"><b>칸 구분 전 기록</b><small>어느 칸인지 기록하기 전 숫자</small></td><td class="num">${uv.toLocaleString()}</td><td class="num">${uc.toLocaleString()}</td><td class="num">–</td></tr>` : ""}<tr class="sum"><td>${label}</td><td class="num">${v.toLocaleString()}</td><td class="num">${c.toLocaleString()}</td><td class="num">${pct(sc, sv)}</td></tr>`;
     };
-    let html = `<div class="adm-tablewrap adm-tablewrap--free"><table class="adm-table adm-table--compact"><thead><tr><th>광고 칸</th><th class="num">노출</th><th class="num">클릭</th><th class="num">클릭률</th></tr></thead><tbody>
+    // 기기별 합계 (모바일 vs PC 한눈에)
+    let html = "";
+    if (hasDev) {
+      const byDev = (d, ev) => all.filter((x) => x.deviceCategory === d && x.eventName === ev).reduce((t, x) => t + x.eventCount, 0);
+      const devs = SLOT_DEVS.slice(1).filter(([d]) => d !== "tablet" || all.some((x) => x.deviceCategory === "tablet"));
+      const cell = (d, kind) => { const v = byDev(d, kind + "_view"), c = byDev(d, kind + "_click"); return `<td class="num">${v.toLocaleString()}</td><td class="num">${c.toLocaleString()}<small class="muted"> ${pct(c, v)}</small></td>`; };
+      html += `<div class="adm-tablewrap adm-tablewrap--free"><table class="adm-table adm-table--compact adm-devsum"><thead><tr><th>기기</th><th class="num">배너 노출</th><th class="num">배너 클릭</th><th class="num">띠 노출</th><th class="num">띠 클릭</th></tr></thead><tbody>
+        ${devs.map(([d, l]) => `<tr><td><b>${l}</b></td>${cell(d, "banner")}${cell(d, "strip")}</tr>`).join("")}</tbody></table></div>
+        <div class="adm-seg adm-devseg" role="group" aria-label="기기 고르기">${SLOT_DEVS.filter(([d]) => d !== "tablet" || devs.some(([x]) => x === "tablet")).map(([d, l]) => `<button type="button" data-slot-dev="${d}" aria-pressed="${d === dev}">${l}</button>`).join("")}</div>`;
+    }
+    html += `<div class="adm-tablewrap adm-tablewrap--free"><table class="adm-table adm-table--compact"><thead><tr><th>광고 칸${dev === "all" ? "" : ` <small class="muted">(${SLOT_DEVS.find(([d]) => d === dev)[1]})</small>`}</th><th class="num">노출</th><th class="num">클릭</th><th class="num">클릭률</th></tr></thead><tbody>
       ${tr.slice(0, 3).join("")}${sumRows("banner", "광고 배너 합계")}
       ${tr.slice(3).join("")}${sumRows("strip", "띠 배너 합계")}</tbody></table></div>
-      <p class="muted small">합계는 위쪽 '광고 배너 클릭'·'띠 배너 클릭'과 같은 숫자예요. 클릭률은 칸이 기록된 노출·클릭으로만 계산해요.</p>`;
+      <p class="muted small">${dev === "all" ? "합계는 위쪽 '광고 배너 클릭'·'띠 배너 클릭'과 같은 숫자예요. " : "기기를 고르면 어느 칸인지 기록된 노출·클릭만 세요. "}클릭률은 칸이 기록된 노출·클릭으로만 계산해요.</p>`;
     if (daily) {
       const days = []; for (let t = to; t >= from && days.length < 31; t = addDays(t, -1)) days.push(t);
       const dRows = days.slice(0, 31).map((d) => {
-        const e = sd.events ? agg(sd.events, d, d, ["eventName"], ["eventCount"]) : [];
+        const e = dev === "all" ? (sd.events ? agg(sd.events, d, d, ["eventName"], ["eventCount"]) : [])
+          : agg(sd.slots, d, d, ["eventName", "deviceCategory"], ["eventCount"]).filter((x) => x.deviceCategory === dev);
         const n = (x) => e.filter((y) => y.eventName === x).reduce((t, y) => t + y.eventCount, 0);
         return `<tr><td>${toIso(d)}</td><td class="num">${n("banner_view").toLocaleString()}</td><td class="num">${n("banner_click").toLocaleString()}</td><td class="num">${n("strip_view").toLocaleString()}</td><td class="num">${n("strip_click").toLocaleString()}</td></tr>`;
       });
@@ -2060,6 +2078,12 @@
   $("#pagesSwitch").addEventListener("submit", savePagesSwitch);
   $("#langCountrySwitch").addEventListener("submit", saveLangCountry);
   $("#dashGoStats").addEventListener("click", () => document.querySelector('.adm-tabs [data-tab="stats"]').click());
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-slot-dev]"); if (!b) return;
+    slotDev = b.dataset.slotDev;
+    if (!$("#tab-ads")?.hidden) renderAdPerf();
+    if (ST.data && !$("#tab-stats")?.hidden) renderStats();
+  });
   $("#adPerfRange").addEventListener("click", (e) => { const b = e.target.closest("button[data-r]"); if (!b) return; AP.r = b.dataset.r; renderAdPerf(); });
   document.addEventListener("click", (e) => { if (e.target.closest("[data-go-stats]")) document.querySelector('.adm-tabs [data-tab="stats"]').click(); });
   $("#perfTable thead").addEventListener("click", (e) => { const th = e.target.closest("th[data-k]"); if (!th) return; DASH.dir = DASH.sort === th.dataset.k ? -DASH.dir : -1; DASH.sort = th.dataset.k; renderDash(); });
