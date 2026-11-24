@@ -21,11 +21,12 @@ const DAYS = 90;   // 날짜별로 쪼갠 기록을 몇 일치 보관할지 (관
 const FROM = `${DAYS - 1}daysAgo`;
 const RANGES = [
   { startDate: "today", endDate: "today", name: "today" }, { startDate: "yesterday", endDate: "yesterday", name: "yesterday" },
-  { startDate: "6daysAgo", endDate: "today", name: "d7" }, { startDate: "29daysAgo", endDate: "today", name: "d30" },
+  // 7일·30일은 다 끝난 날만 (어제까지) – 이전 기간(p7·p30)과 같은 조건으로 비교하려고
+  { startDate: "7daysAgo", endDate: "yesterday", name: "d7" }, { startDate: "30daysAgo", endDate: "yesterday", name: "d30" },
 ];
 const PREV_RANGES = [
   { startDate: "2daysAgo", endDate: "2daysAgo", name: "d2" },
-  { startDate: "13daysAgo", endDate: "7daysAgo", name: "p7" }, { startDate: "59daysAgo", endDate: "30daysAgo", name: "p30" },
+  { startDate: "14daysAgo", endDate: "8daysAgo", name: "p7" }, { startDate: "60daysAgo", endDate: "31daysAgo", name: "p30" },
 ];
 
 const b64url = (b) => Buffer.from(b).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -200,17 +201,22 @@ export async function collect(prop, token) {
   const tot = {};
   for (const r of rows(totals)) tot[r.dateRange || "d30"] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
   // 비교용 '중복 없는 방문자' (바로 전 기간): 어제의 전날, 이전 7일, 이전 30일 – 관리자 증감 숫자가 위 숫자와 같은 기준이 되게
-  //  + 어제 같은 시각까지(ySame): 오늘 기록이 있는 마지막 시까지 어제 숫자를 '중복 없이' 셈 → 오늘 방문자·새 방문자·방문 횟수도 ▲▼% 가능
-  const hrs = rows(hourly).map((r) => r.dateHour).filter(Boolean).sort();
-  const lastDH = hrs[hrs.length - 1] || "", lastH = Number(lastDH.slice(8, 10));
+  //  + 오늘 vs 어제 '같은 시간'(0시 ~ 다 끝난 마지막 시 59분)을 둘 다 같은 조건으로 셈 (tSame·ySame, 중복 없는 수)
+  const tzNow = daily?.metadata?.timeZone || "Asia/Seoul";
+  const H = Number(new Intl.DateTimeFormat("en-US", { timeZone: tzNow, hour: "2-digit", hourCycle: "h23" }).format(new Date())) - 1;
   try {
     const M4 = D("activeUsers", "newUsers", "sessions", "screenPageViews");
     const reqs = [{ dateRanges: PREV_RANGES, metrics: M4 }];
-    if (lastDH) reqs.push({ dateRanges: [{ startDate: "yesterday", endDate: "yesterday" }], metrics: M4,
-      dimensionFilter: filterIn("hour", Array.from({ length: lastH + 1 }, (_, i) => String(i).padStart(2, "0"))) });
+    if (H >= 0) {
+      const hf = filterIn("hour", Array.from({ length: H + 1 }, (_, i) => String(i).padStart(2, "0")));
+      reqs.push({ dateRanges: [{ startDate: "today", endDate: "today", name: "tSame" }, { startDate: "yesterday", endDate: "yesterday", name: "ySame" }], metrics: M4, dimensionFilter: hf });
+    }
     const [prevTot, same] = await batch(prop, token, reqs);
     for (const r of rows(prevTot)) if (r.dateRange) tot[r.dateRange] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
-    if (same) { const r = rows(same)[0] || {}; tot.ySame = { users: r.activeUsers || 0, newUsers: r.newUsers || 0, sessions: r.sessions || 0, views: r.screenPageViews || 0, hour: lastH }; }
+    if (same) {
+      for (const k of ["tSame", "ySame"]) tot[k] = { users: 0, newUsers: 0, sessions: 0, views: 0, hour: H };
+      for (const r of rows(same)) if (r.dateRange) tot[r.dateRange] = { users: r.activeUsers || 0, newUsers: r.newUsers || 0, sessions: r.sessions || 0, views: r.screenPageViews || 0, hour: H };
+    }
   } catch {}
   return {
     v: 2, generatedAt: new Date().toISOString(), days: DAYS,
@@ -253,7 +259,7 @@ async function main() {
   await mkdir(dirname(OUT), { recursive: true });
   await writeFile(OUT + ".tmp", JSON.stringify(encrypt(data, password)) + "\n");
   await rename(OUT + ".tmp", OUT);
-  console.log(`통계 저장 (GA 시간대 ${data.timeZone || "?"}): 오늘 방문자 ${data.totals.today?.users ?? 0}명·페이지뷰 ${data.totals.today?.views ?? 0}, 어제 방문자 ${data.totals.yesterday?.users ?? 0}명(같은 시각까지 ${data.totals.ySame ? data.totals.ySame.users + "명" : "-"}), 최근 30분 ${data.realtime ? data.realtime.users + "명" : "-"}, 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
+  console.log(`통계 저장 (GA 시간대 ${data.timeZone || "?"}): 오늘 방문자 ${data.totals.today?.users ?? 0}명·페이지뷰 ${data.totals.today?.views ?? 0}, 어제 방문자 ${data.totals.yesterday?.users ?? 0}명(0~${data.totals.ySame?.hour ?? "-"}시 비교: 오늘 ${data.totals.tSame?.users ?? "-"}명 / 어제 ${data.totals.ySame?.users ?? "-"}명), 최근 30분 ${data.realtime ? data.realtime.users + "명" : "-"}, 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
