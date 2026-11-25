@@ -2056,6 +2056,38 @@
     const wks = pick("works", ["pagePath"], ["screenPageViews", "activeUsers"]);
     for (const w of wks) w.pageTitle = titleOf(d.works, w.pagePath);
     const custom = !preset;
+    // 국가별 자세히: 방문자(기간별 중복 없는 수)·증감·새 방문자·방문·페이지뷰·영상 재생·클릭·평균 참여 시간·주요 도시
+    const countryHtml = (() => {
+      const hasM = d.country?.c?.includes("newUsers");
+      const rowsC = pick("country", ["countryId", "country"], hasM ? ["activeUsers", "sessions", "newUsers", "screenPageViews", "userEngagementDuration", "engagedSessions"] : ["activeUsers", "sessions"]);
+      const ct = d.countryTot || {};
+      const curTot = preset ? ct[preset] : null;   // 정해진 기간이면 GA가 센 중복 없는 국가 방문자
+      const prevKey = { yesterday: "d2", d7: "p7", d30: "p30" }[ST.mode];
+      const prevTot = prevKey && !prevPartial ? ct[prevKey] : null;
+      const ev = d.countryEv ? agg(d.countryEv, from, to, ["countryId", "eventName"], ["eventCount"]) : [];
+      const evOf = (cc, n) => ev.filter((x) => x.countryId === cc && x.eventName === n).reduce((t, x) => t + x.eventCount, 0);
+      const cities = d.city ? agg(d.city, from, to, ["countryId", "city"], ["activeUsers"]) : [];
+      const cityOf = (cc) => cities.filter((x) => x.countryId === cc && x.city && x.city !== "(not set)").sort((a, b) => b.activeUsers - a.activeUsers).slice(0, 3).map((x) => `${x.city} ${x.activeUsers}`).join(", ");
+      const list = rowsC.map((x) => ({ ...x, users: curTot?.[x.countryId]?.[0] ?? x.activeUsers, nu: curTot?.[x.countryId]?.[1] ?? x.newUsers })).sort((a, b) => b.users - a.users);
+      const totalU = list.reduce((t, x) => t + x.users, 0) || 1;
+      const sec = (n) => { n = Math.round(n || 0); return n >= 60 ? `${Math.floor(n / 60)}분 ${n % 60}초` : `${n}초`; };
+      const dlt = (cc, cur) => {
+        if (!prevTot) return "";
+        const p = prevTot[cc]?.[0] || 0;
+        if (!p) return cur ? `<em class="st-d st-d--up">새로</em>` : "";
+        const pc = Math.round(((cur - p) / p) * 100);
+        return `<em class="st-d ${pc > 0 ? "st-d--up" : pc < 0 ? "st-d--down" : ""}">${pc > 0 ? "▲" : pc < 0 ? "▼" : "−"}${pc ? Math.abs(pc) + "%" : ""}</em><small class="muted"> ${p}</small>`;
+      };
+      const rt = d.realtime?.countries?.length ? `<p class="small">최근 30분 접속 (${escH(new Date(d.realtime.at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }))} 기준): ${d.realtime.countries.map((x) => `${flag(x.c)} ${escH(COUNTRY_KO(x.c, x.c))} ${x.u}명`).join(" · ")}</p>` : "";
+      const note = [curTot ? "방문자·새 방문자는 기간 전체에서 중복 없이 센 숫자" : len > 1 ? "방문자는 날짜별 방문자를 더한 숫자(여러 날 온 사람은 여러 번)" : "",
+        prevTot ? `증감은 ${prevKey === "d2" ? md(pFrom) : mdr(pFrom, pTo)} 같은 기준 대비 (회색 = 그때 방문자)` : ST.mode === "today" ? "오늘은 국가별 시간 구분이 없어 증감 비교 안 함" : prevPartial ? "비교 기간에 기록 시작일이 있어 증감 비교 안 함" : "",
+        "평균 참여 = 방문자 1명이 화면을 실제로 보고 있던 시간"].filter(Boolean).join(" · ");
+      if (!list.length) return `<section class="adm-card st-card st-wide"><h3>국가별 방문자</h3>${rt}<p class="muted">이 기간에는 기록이 없어요.</p></section>`;
+      return `<section class="adm-card st-card st-wide"><h3>국가별 방문자 <span class="muted small">(${list.length}개 나라)</span></h3>${rt}
+        <div class="st-tablewrap"><table class="st-table st-ctable"><thead><tr><th>국가</th><th>방문자</th><th>비율</th>${prevTot ? "<th>증감</th>" : ""}${hasM ? "<th>새 방문자</th><th>방문</th><th>페이지뷰</th><th>평균 참여</th>" : "<th>방문</th>"}${ev.length || d.countryEv ? "<th>영상 재생</th><th>배너+띠 클릭</th>" : ""}<th>주요 도시</th></tr></thead><tbody>
+        ${list.slice(0, 50).map((x) => `<tr><td class="st-cname">${flag(x.countryId)} ${escH(COUNTRY_KO(x.countryId, x.country))}</td><td class="num"><b>${num(x.users)}</b></td><td class="num">${Math.round((x.users / totalU) * 100)}%</td>${prevTot ? `<td class="num">${dlt(x.countryId, x.users)}</td>` : ""}${hasM ? `<td class="num">${num(x.nu)}</td><td class="num">${num(x.sessions)}</td><td class="num">${num(x.screenPageViews)}</td><td class="num">${x.activeUsers ? sec(x.userEngagementDuration / x.activeUsers) : "-"}</td>` : `<td class="num">${num(x.sessions)}</td>`}${d.countryEv ? `<td class="num">${num(evOf(x.countryId, "video_play"))}</td><td class="num">${num(evOf(x.countryId, "banner_click") + evOf(x.countryId, "strip_click"))}</td>` : ""}<td class="small muted">${escH(cityOf(x.countryId)) || "-"}</td></tr>`).join("")}
+        </tbody></table></div><p class="muted small">${escH(note)}</p></section>`;
+    })();
     box.innerHTML = `
       <p class="st-period"><b>${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}</b> <span class="muted small">(${len}일 · ${cmpLabel})</span></p>
       <div class="st-kpis st-kpis--main">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${num(v)}</b>${dl}</div>`).join("")}</div>
@@ -2066,7 +2098,7 @@
         <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰(GA)</th><th>영상 재생</th><th>배너+띠 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
         <tbody>${rowsHtml || `<tr><td colspan="8" class="muted">이 기간에는 기록이 없어요.</td></tr>`}</tbody></table></div></section>
       <div class="st-grid">
-        <section class="adm-card st-card"><h3>국가별 방문자</h3>${bars(pick("country", ["country", "countryId"], ["activeUsers"]), (x) => `${flag(x.countryId)} ${escH(COUNTRY_KO(x.countryId, x.country))}`, (x) => x.activeUsers)}</section>
+        ${countryHtml}
         <section class="adm-card st-card"><h3>유입 경로</h3>${bars(pick("channel", ["sessionDefaultChannelGroup", "sessionSource"], ["sessions"]), (x) => `${escH(GROUP_KO[x.sessionDefaultChannelGroup] || x.sessionDefaultChannelGroup)} <small class="muted">${escH(x.sessionSource)}</small>`, (x) => x.sessions)}</section>
         <section class="adm-card st-card"><h3>외부 사이트에서 온 방문 <span class="muted small">(이전 페이지 주소)</span></h3>${bars(refHosts(), (x) => escH(x.host), (x) => x.sessions)}</section>
         <section class="adm-card st-card"><h3>처음 들어온 페이지</h3>${bars(pick("landing", ["landingPage"], ["sessions"]).filter((x) => x.landingPage && x.landingPage !== "(not set)"), (x) => landLabel(x.landingPage), (x) => x.sessions)}</section>

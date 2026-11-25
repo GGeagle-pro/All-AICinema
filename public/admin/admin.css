@@ -477,3 +477,7 @@
 .adm-promo .btn{white-space:nowrap}
 .adm-promo-go{display:flex;flex-wrap:wrap;gap:8px}
 #promoLang{flex-wrap:wrap}
+/* 국가별 방문자 표 */
+.st-ctable td,.st-ctable th{white-space:nowrap}
+.st-ctable td.st-cname{min-width:120px}
+.st-ctable td.small{white-space:normal;min-width:140px}

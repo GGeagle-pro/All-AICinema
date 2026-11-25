@@ -122,7 +122,7 @@ export async function collect(prop, token) {
     { dateRanges: RANGES, metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews") },
     { dateRanges: RANGE, dimensions: D("date"), metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews"), limit: BIG },
     { dateRanges: RANGE, dimensions: D("date", "eventName"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", EVENTS), limit: BIG },
-    { dateRanges: RANGE, dimensions: D("date", "country", "countryId"), metrics: D("activeUsers", "sessions"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "country", "countryId"), metrics: D("activeUsers", "sessions", "newUsers", "screenPageViews", "userEngagementDuration", "engagedSessions"), limit: BIG },
     { dateRanges: RANGE, dimensions: D("date", "sessionDefaultChannelGroup", "sessionSource"), metrics: D("sessions", "activeUsers"), limit: BIG },
   ]);
   const [device, language, videos, works, search] = await batch(prop, token, [
@@ -132,6 +132,16 @@ export async function collect(prop, token) {
     { dateRanges: RANGE, dimensions: D("date", "pagePath", "pageTitle"), metrics: D("screenPageViews", "activeUsers"), dimensionFilter: begins("pagePath", "/work/"), limit: BIG },
     { dateRanges: RANGE, dimensions: D("date", "searchTerm"), metrics: D("eventCount"), dimensionFilter: { filter: { fieldName: "eventName", stringFilter: { value: "search" } } }, limit: BIG },
   ]);
+  // 국가별 자세히: 국가×이벤트(재생·클릭·검색), 국가×도시, 기간별 '중복 없는' 국가 방문자(오늘·어제·7일·30일 + 비교용 전 기간)
+  let countryEv = null, city = null, countryTot = null, countryPrev = null;
+  try {
+    [countryEv, city, countryTot, countryPrev] = await batch(prop, token, [
+      { dateRanges: RANGE, dimensions: D("date", "countryId", "eventName"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", ["video_play", "banner_click", "strip_click", "search", "share"]), limit: BIG },
+      { dateRanges: RANGE, dimensions: D("date", "countryId", "city"), metrics: D("activeUsers", "sessions"), limit: BIG },
+      { dateRanges: RANGES, dimensions: D("countryId"), metrics: D("activeUsers", "newUsers"), limit: 1000 },
+      { dateRanges: PREV_RANGES, dimensions: D("countryId"), metrics: D("activeUsers", "newUsers"), limit: 1000 },
+    ]);
+  } catch (e) { console.log("국가 자세히 실패:", String(e.message || e).slice(0, 200)); }
   // 시간대별 (어제·오늘)
   const [hourly, hourlyEv] = await batch(prop, token, [
     { dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("dateHour"), metrics: D("activeUsers", "screenPageViews"), limit: 100 },
@@ -192,10 +202,14 @@ export async function collect(prop, token) {
   try {
     const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${prop}:runRealtimeReport`, {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ metrics: D("activeUsers", "screenPageViews"), minuteRanges: [{ startMinutesAgo: 29, endMinutesAgo: 0 }] }),
+      body: JSON.stringify({ dimensions: D("countryId"), metrics: D("activeUsers", "screenPageViews"), minuteRanges: [{ startMinutesAgo: 29, endMinutesAgo: 0 }] }),
     });
     const j = await res.json().catch(() => ({}));
-    if (res.ok) { const m = j.rows?.[0]?.metricValues || []; realtime = { users: Number(m[0]?.value || 0), views: Number(m[1]?.value || 0), at: new Date().toISOString() }; }
+    if (res.ok) {
+      const rs = (j.rows || []).map((r) => ({ c: r.dimensionValues?.[0]?.value || "", u: Number(r.metricValues?.[0]?.value || 0), v: Number(r.metricValues?.[1]?.value || 0) }));
+      // 나라별로 나눠 받으면 합계가 중복 없는 수와 다를 수 있어 전체는 따로 받지 않고 나라 합으로 (30분 안이라 차이 거의 없음)
+      realtime = { users: rs.reduce((t, x) => t + x.u, 0), views: rs.reduce((t, x) => t + x.v, 0), countries: rs.sort((a, b) => b.u - a.u).slice(0, 20), at: new Date().toISOString() };
+    }
   } catch {}
 
   // 점검용: 어제 숫자를 여러 기준으로 (GA 화면 숫자와 맞춰 보기) – 로그에만 출력
@@ -233,7 +247,11 @@ export async function collect(prop, token) {
     totals: tot, realtime,
     daily: table(daily, ["date", "activeUsers", "newUsers", "sessions", "screenPageViews"]),
     events: table(events, ["date", "eventName", "eventCount"]),
-    country: table(country, ["date", "country", "countryId", "activeUsers", "sessions"]),
+    country: table(country, ["date", "country", "countryId", "activeUsers", "sessions", "newUsers", "screenPageViews", "userEngagementDuration", "engagedSessions"]),
+    countryEv: countryEv ? table(countryEv, ["date", "countryId", "eventName", "eventCount"]) : null,
+    city: city ? table(city, ["date", "countryId", "city", "activeUsers", "sessions"]) : null,
+    // 기간별 국가 방문자(중복 없는 수): { today: { KR: [방문자, 새 방문자] }, yesterday, d7, d30, d2, p7, p30 }
+    countryTot: (() => { const o = {}; for (const t of [countryTot, countryPrev]) for (const r of t ? rows(t) : []) { const k = r.dateRange || "d30"; (o[k] ||= {})[r.countryId] = [r.activeUsers, r.newUsers]; } return o; })(),
     channel: table(channel, ["date", "sessionDefaultChannelGroup", "sessionSource", "sessions", "activeUsers"]),
     device: table(device, ["date", "deviceCategory", "activeUsers", "sessions"]),
     language: table(language, ["date", "language", "activeUsers"]),
