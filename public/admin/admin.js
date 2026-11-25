@@ -2011,7 +2011,7 @@
       <p class="st-period"><b>${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}</b> <span class="muted small">(${len}일 · ${cmpLabel})</span></p>
       <div class="st-kpis st-kpis--main">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${num(v)}</b>${dl}</div>`).join("")}</div>
       ${custom && len > 1 ? `<p class="muted small">* 직접 고른 기간의 방문자는 날짜별 방문자를 더한 숫자예요. 여러 날 온 사람은 여러 번 세어져요.</p>` : ""}
-      <section class="adm-card st-card st-wide"><h3>광고 칸별 성과 <span class="muted small">(이 기간 · 광고 배너 1~3, 띠 배너 1~6)</span></h3>${slotReport(d, from, to, { daily: false })}</section>
+      <section class="adm-card st-card st-wide"><h3>광고 칸별 성과 <span class="muted small">(${ST.mode === "today" ? `오늘 0:00~${d.generatedAt ? new Date(d.generatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "지금"} 전체 · 칸별 기록은 시간 구분이 없어 위 카드(0:00~${H != null ? H + ":59" : "지금"})보다 넓어요` : "이 기간"} · 광고 배너 1~3, 띠 배너 1~6)</span></h3>${slotReport(d, from, to, { daily: false })}</section>
       ${adsHtml}
       <section class="adm-card st-card st-wide"><h3>${chartTitle}</h3>${chartHtml}
         <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰(GA)</th><th>영상 재생</th><th>배너+띠 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
