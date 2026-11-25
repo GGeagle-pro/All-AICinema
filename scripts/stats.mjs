@@ -202,6 +202,8 @@ export async function collect(prop, token) {
   try {
     const [chk] = await batch(prop, token, [{ dateRanges: [{ startDate: "yesterday", endDate: "yesterday" }], metrics: D("activeUsers", "totalUsers", "newUsers", "sessions", "screenPageViews") }]);
     const r = rows(chk)[0] || {};
+    const [hc] = await batch(prop, token, [{ dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("hour"), metrics: D("activeUsers") }]);
+    console.log("점검 hour 값:", rows(hc).map((x) => x.hour).sort().join(","));
     console.log(`점검 어제: activeUsers ${r.activeUsers}, totalUsers ${r.totalUsers}, newUsers ${r.newUsers}, sessions ${r.sessions}, views ${r.screenPageViews}, 임계값 ${chk.metadata?.subjectToThresholding ? "적용" : "없음"}, 시간대 ${chk.metadata?.timeZone}`);
   } catch (e) { console.log("점검 실패", e.message); }
   const tot = {};
@@ -214,7 +216,8 @@ export async function collect(prop, token) {
     const M4 = D("activeUsers", "newUsers", "sessions", "screenPageViews");
     const reqs = [{ dateRanges: PREV_RANGES, metrics: M4 }];
     if (H >= 0) {
-      const hf = filterIn("hour", Array.from({ length: H + 1 }, (_, i) => String(i).padStart(2, "0")));
+      // GA 'hour' 값이 "9"·"09" 어느 쪽으로 와도 걸리게 둘 다 넣음 (예전엔 "00"~"09"만 넣어 0~9시가 빠졌음)
+      const hf = filterIn("hour", Array.from({ length: H + 1 }, (_, i) => [String(i), String(i).padStart(2, "0")]).flat().filter((v, i, a) => a.indexOf(v) === i));
       reqs.push({ dateRanges: [{ startDate: "today", endDate: "today", name: "tSame" }, { startDate: "yesterday", endDate: "yesterday", name: "ySame" }], metrics: M4, dimensionFilter: hf });
     }
     const [prevTot, same] = await batch(prop, token, reqs);
