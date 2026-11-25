@@ -15,7 +15,7 @@ import { collectAdsense } from "./adsense.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = resolve(ROOT, "stats/stats.enc.json");
 const ITER = 250000;
-const EVENTS = ["video_play", "banner_click", "strip_click", "banner_view", "strip_view", "search", "work_open", "video_error", "share"];
+const EVENTS = ["watch_time", "video_play", "banner_click", "strip_click", "banner_view", "strip_view", "search", "work_open", "video_error", "share"];
 const SLOT_EVENTS = ["banner_click", "strip_click", "banner_view", "strip_view"];
 const DAYS = 90;   // 날짜별로 쪼갠 기록을 몇 일치 보관할지 (관리자에서 달력으로 아무 기간이나 골라 합산)
 const FROM = `${DAYS - 1}daysAgo`;
@@ -119,9 +119,9 @@ const BIG = 100000;
 
 export async function collect(prop, token) {
   const [totals, daily, events, country, channel] = await batch(prop, token, [
-    { dateRanges: RANGES, metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews") },
-    { dateRanges: RANGE, dimensions: D("date"), metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews"), limit: BIG },
-    { dateRanges: RANGE, dimensions: D("date", "eventName"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", EVENTS), limit: BIG },
+    { dateRanges: RANGES, metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews", "userEngagementDuration", "engagedSessions") },
+    { dateRanges: RANGE, dimensions: D("date"), metrics: D("activeUsers", "newUsers", "sessions", "screenPageViews", "userEngagementDuration", "engagedSessions"), limit: BIG },
+    { dateRanges: RANGE, dimensions: D("date", "eventName"), metrics: D("eventCount", "eventValue"), dimensionFilter: filterIn("eventName", EVENTS), limit: BIG },
     { dateRanges: RANGE, dimensions: D("date", "country", "countryId"), metrics: D("activeUsers", "sessions", "newUsers", "screenPageViews", "userEngagementDuration", "engagedSessions"), limit: BIG },
     { dateRanges: RANGE, dimensions: D("date", "sessionDefaultChannelGroup", "sessionSource"), metrics: D("sessions", "activeUsers"), limit: BIG },
   ]);
@@ -145,7 +145,7 @@ export async function collect(prop, token) {
   // 시간대별 (어제·오늘)
   const [hourly, hourlyEv] = await batch(prop, token, [
     { dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("dateHour"), metrics: D("activeUsers", "screenPageViews"), limit: 100 },
-    { dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("dateHour", "eventName"), metrics: D("eventCount"), dimensionFilter: filterIn("eventName", EVENTS), limit: 1000 },
+    { dateRanges: [{ startDate: "yesterday", endDate: "today" }], dimensions: D("dateHour", "eventName"), metrics: D("eventCount", "eventValue"), dimensionFilter: filterIn("eventName", EVENTS), limit: 1000 },
   ]);
   // 유입 경로 자세히: 첫 방문 페이지, 이전 페이지(외부 사이트 주소), 캠페인(UTM)
   const [landing, referrer, campaign] = await batch(prop, token, [
@@ -221,13 +221,13 @@ export async function collect(prop, token) {
     console.log(`점검 어제: activeUsers ${r.activeUsers}, totalUsers ${r.totalUsers}, newUsers ${r.newUsers}, sessions ${r.sessions}, views ${r.screenPageViews}, 임계값 ${chk.metadata?.subjectToThresholding ? "적용" : "없음"}, 시간대 ${chk.metadata?.timeZone}`);
   } catch (e) { console.log("점검 실패", e.message); }
   const tot = {};
-  for (const r of rows(totals)) tot[r.dateRange || "d30"] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
+  for (const r of rows(totals)) tot[r.dateRange || "d30"] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews, engage: r.userEngagementDuration || 0, engaged: r.engagedSessions || 0 };
   // 비교용 '중복 없는 방문자' (바로 전 기간): 어제의 전날, 이전 7일, 이전 30일 – 관리자 증감 숫자가 위 숫자와 같은 기준이 되게
   //  + 오늘 vs 어제 '같은 시간'(0시 ~ 다 끝난 마지막 시 59분)을 둘 다 같은 조건으로 셈 (tSame·ySame, 중복 없는 수)
   const tzNow = daily?.metadata?.timeZone || "Asia/Seoul";
   const H = Number(new Intl.DateTimeFormat("en-US", { timeZone: tzNow, hour: "2-digit", hourCycle: "h23" }).format(new Date())) - 1;
   try {
-    const M4 = D("activeUsers", "newUsers", "sessions", "screenPageViews");
+    const M4 = D("activeUsers", "newUsers", "sessions", "screenPageViews", "userEngagementDuration", "engagedSessions");
     const reqs = [{ dateRanges: PREV_RANGES, metrics: M4 }];
     if (H >= 0) {
       // GA 'hour' 값이 "9"·"09" 어느 쪽으로 와도 걸리게 둘 다 넣음 (예전엔 "00"~"09"만 넣어 0~9시가 빠졌음)
@@ -235,18 +235,18 @@ export async function collect(prop, token) {
       reqs.push({ dateRanges: [{ startDate: "today", endDate: "today", name: "tSame" }, { startDate: "yesterday", endDate: "yesterday", name: "ySame" }], metrics: M4, dimensionFilter: hf });
     }
     const [prevTot, same] = await batch(prop, token, reqs);
-    for (const r of rows(prevTot)) if (r.dateRange) tot[r.dateRange] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews };
+    for (const r of rows(prevTot)) if (r.dateRange) tot[r.dateRange] = { users: r.activeUsers, newUsers: r.newUsers, sessions: r.sessions, views: r.screenPageViews, engage: r.userEngagementDuration || 0, engaged: r.engagedSessions || 0 };
     if (same) {
-      for (const k of ["tSame", "ySame"]) tot[k] = { users: 0, newUsers: 0, sessions: 0, views: 0, hour: H };
-      for (const r of rows(same)) if (r.dateRange) tot[r.dateRange] = { users: r.activeUsers || 0, newUsers: r.newUsers || 0, sessions: r.sessions || 0, views: r.screenPageViews || 0, hour: H };
+      for (const k of ["tSame", "ySame"]) tot[k] = { users: 0, newUsers: 0, sessions: 0, views: 0, engage: 0, engaged: 0, hour: H };
+      for (const r of rows(same)) if (r.dateRange) tot[r.dateRange] = { users: r.activeUsers || 0, newUsers: r.newUsers || 0, sessions: r.sessions || 0, views: r.screenPageViews || 0, engage: r.userEngagementDuration || 0, engaged: r.engagedSessions || 0, hour: H };
     }
   } catch {}
   return {
     v: 2, generatedAt: new Date().toISOString(), days: DAYS,
     timeZone: daily?.metadata?.timeZone || "",
     totals: tot, realtime,
-    daily: table(daily, ["date", "activeUsers", "newUsers", "sessions", "screenPageViews"]),
-    events: table(events, ["date", "eventName", "eventCount"]),
+    daily: table(daily, ["date", "activeUsers", "newUsers", "sessions", "screenPageViews", "userEngagementDuration", "engagedSessions"]),
+    events: table(events, ["date", "eventName", "eventCount", "eventValue"]),   // watch_time 의 eventValue = 영상 시청 초
     country: table(country, ["date", "country", "countryId", "activeUsers", "sessions", "newUsers", "screenPageViews", "userEngagementDuration", "engagedSessions"]),
     countryEv: countryEv ? table(countryEv, ["date", "countryId", "eventName", "eventCount"]) : null,
     city: city ? table(city, ["date", "countryId", "city", "activeUsers", "sessions"]) : null,
@@ -265,7 +265,7 @@ export async function collect(prop, token) {
     gender: gender ? table(gender, ["date", "userGender", "activeUsers"]) : null,
     age: age ? table(age, ["date", "userAgeBracket", "activeUsers"]) : null,
     demoError,
-    hourlyEv: table(hourlyEv, ["dateHour", "eventName", "eventCount"]),
+    hourlyEv: table(hourlyEv, ["dateHour", "eventName", "eventCount", "eventValue"]),
     errors: errors ? table(errors, ["date", "linkUrl", "linkText", "eventCount"]) : null,
     slots: slots ? table(slots, ["date", "eventName", "linkText", "deviceCategory", "eventCount"]) : null,
     ads, adsError,

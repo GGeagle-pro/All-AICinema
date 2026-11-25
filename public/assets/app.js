@@ -795,6 +795,26 @@
     });
   }
 
+  // 영상 시청 시간 (관리자 통계 '영상 시청 시간'): 실제로 재생 중인 시간만 1초 단위로 모아서
+  //  영상이 바뀔 때·닫을 때·다른 앱으로 갈 때·5분마다 GA 'watch_time' 이벤트(value = 초)로 보냄. 아동용 영상은 세지 않음
+  let watchSec = 0, watchId = "", watchLast = 0;
+  const flushWatch = (beacon = false) => {
+    const sec = Math.round(watchSec); watchSec = 0;
+    if (sec >= 1 && watchId) try { if (typeof window.gtag === "function") window.gtag("event", "watch_time", { value: sec, link_url: `https://youtu.be/${watchId}`, ui_lang: I18N.lang, ...(beacon ? { transport_type: "beacon" } : {}) }); } catch {}
+  };
+  setInterval(() => {
+    const now = Date.now(), dt = watchLast ? Math.min(2, (now - watchLast) / 1000) : 0; watchLast = now;
+    try {
+      if (!ytPlayer?.getPlayerState || $("#player").hidden || ytPlayer.getPlayerState() !== 1 || kidsNow()) return;
+      const v = state.queue[state.current]; if (!v) return;
+      if (v.id !== watchId) { flushWatch(); watchId = v.id; }
+      watchSec += dt;
+      if (watchSec >= 300) flushWatch();
+    } catch {}
+  }, 1000);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) flushWatch(true); });
+  addEventListener("pagehide", () => flushWatch(true));
+
   // 재생 중 5초마다 위치 저장 (이어보기용)
   setInterval(() => {
     try {
@@ -890,6 +910,7 @@
     p.hidden = true;
     closedAt = Date.now();
     document.body.classList.remove("locked");
+    flushWatch();
     // 닫기 전 위치 저장 + 목록 카드의 진행 막대 갱신
     try {
       const v = state.queue[state.current];

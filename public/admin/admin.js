@@ -1874,16 +1874,26 @@
     for (const [id, v] of [["#stFrom", from], ["#stTo", to]]) { const i = $(id); i.min = toIso(minD); i.max = toIso(today); i.value = toIso(v); }
     $("#stWhen").textContent = d.generatedAt ? `· ${new Date(d.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준${d.realtime ? ` · 그때 최근 30분 접속 ${d.realtime.users}명` : ""}` : "";
 
-    const days = agg(d.daily, from, to, ["date"], ["activeUsers", "newUsers", "sessions", "screenPageViews"]);
-    const pdays = agg(d.daily, pFrom, pTo, ["date"], ["activeUsers", "newUsers", "sessions", "screenPageViews"]);
-    const ev = agg(d.events, from, to, ["date", "eventName"], ["eventCount"]);
-    const pev = agg(d.events, pFrom, pTo, ["eventName"], ["eventCount"]);
+    const DM = ["activeUsers", "newUsers", "sessions", "screenPageViews", "userEngagementDuration", "engagedSessions"];
+    const days = agg(d.daily, from, to, ["date"], DM);
+    const pdays = agg(d.daily, pFrom, pTo, ["date"], DM);
+    const ev = agg(d.events, from, to, ["date", "eventName"], ["eventCount", "eventValue"]);
+    const pev = agg(d.events, pFrom, pTo, ["eventName"], ["eventCount", "eventValue"]);
     const evSum = (list, name) => list.filter((x) => x.eventName === name).reduce((t, x) => t + x.eventCount, 0);
+    const evVal = (list, name) => list.filter((x) => x.eventName === name).reduce((t, x) => t + (x.eventValue || 0), 0);
+    const hasEng = !!d.daily?.c?.includes("engagedSessions"), hasWatch = !!d.events?.c?.includes("eventValue");
+    // 머문 시간·이탈률·시청 시간 표시
+    const dur = (sec) => { sec = Math.round(sec || 0); if (sec < 60) return `${sec}초`; const m = Math.floor(sec / 60); if (m < 60) return `${m}분 ${sec % 60}초`; return `${Math.floor(m / 60)}시간 ${m % 60}분`; };
+    const pctTxt = (r) => `${(r * 100).toFixed(1)}%`;
+    const bounce = (o) => (o.sessions ? 1 - (o.engaged || 0) / o.sessions : 0);
+    const stay = (o) => (o.sessions ? (o.engage || 0) / o.sessions : 0);
+    // 이탈률은 낮을수록 좋음 → 내려가면 초록, %p(포인트) 차이로
+    const bounceDelta = (c, p) => { const dp = (c - p) * 100; return `<em class="st-d ${dp < -0.05 ? "st-d--up" : dp > 0.05 ? "st-d--down" : ""}">${dp > 0.05 ? "▲" : dp < -0.05 ? "▼" : "−"}${Math.abs(dp) >= 0.05 ? Math.abs(dp).toFixed(1) + "%p" : " 같음"}</em>`; };
     const preset = { today: "today", yesterday: "yesterday", d7: "d7", d30: "d30" }[ST.mode];
     const T = preset && d.totals?.[preset];   // 미리 정한 기간은 GA4 가 센 '중복 없는 방문자' 그대로
     const PT = T && d.totals?.[{ today: "yesterday", yesterday: "d2", d7: "p7", d30: "p30" }[preset]];   // 바로 전 기간 (같은 기준)
-    const cur = { users: T ? T.users : sumOf(days, "activeUsers"), newUsers: T ? T.newUsers : sumOf(days, "newUsers"), sessions: sumOf(days, "sessions"), views: sumOf(days, "screenPageViews") };
-    const prev = { users: sumOf(pdays, "activeUsers"), newUsers: sumOf(pdays, "newUsers"), sessions: sumOf(pdays, "sessions"), views: sumOf(pdays, "screenPageViews") };
+    const cur = { users: T ? T.users : sumOf(days, "activeUsers"), newUsers: T ? T.newUsers : sumOf(days, "newUsers"), sessions: sumOf(days, "sessions"), views: sumOf(days, "screenPageViews"), engage: sumOf(days, "userEngagementDuration"), engaged: sumOf(days, "engagedSessions") };
+    const prev = { users: sumOf(pdays, "activeUsers"), newUsers: sumOf(pdays, "newUsers"), sessions: sumOf(pdays, "sessions"), views: sumOf(pdays, "screenPageViews"), engage: sumOf(pdays, "userEngagementDuration"), engaged: sumOf(pdays, "engagedSessions") };
     const curU = sumOf(days, "activeUsers");   // 비교는 같은 방식(일별 합)으로
     const todayYmd = ymd(new Date(d.generatedAt || Date.now()), d.timeZone);
     // 오늘이 들어간 직접 고른 기간은 하루가 안 끝나서 같은 조건 비교가 안 됨 → 증감 안 보여 줌
@@ -1898,13 +1908,13 @@
     const firstNote = (lab, v) => `<small class="st-vs">${escH(`${lab} ${v}`.trim())} · 기록 시작일이라 비교 안 함</small>`;
     let kpi;
     if (ST.mode === "today") {
-      const evH = (date) => agg(d.hourlyEv, "", "z", ["dateHour", "eventName"], ["eventCount"]).filter((x) => x.dateHour.slice(0, 8) === date && Number(x.dateHour.slice(8)) <= H);
+      const evH = (date) => agg(d.hourlyEv, "", "z", ["dateHour", "eventName"], ["eventCount", "eventValue"]).filter((x) => x.dateHour.slice(0, 8) === date && Number(x.dateHour.slice(8)) <= H);
       const tE = H != null ? evH(from) : [], yE = H != null ? evH(pFrom) : [];
       // 이미지처럼 깔끔하게: 큰 숫자도 비교와 같은 구간(오늘 0:00~H:59)으로 → ▲▼% 아래엔 "11/23 21" 한 줄
       // 오늘은 0시~H시 59분까지만 세서 어제 같은 시간과 비교. 어제 하루 전체 숫자도 같이 보여 줘서 '어제' 화면 숫자와 헷갈리지 않게
       //  예) ▲43%  11/23 ~21시 21 · 하루 28
       const yAll = d.totals?.yesterday || {};
-      const yEv = agg(d.events, pFrom, pFrom, ["eventName"], ["eventCount"]);
+      const yEv = agg(d.events, pFrom, pFrom, ["eventName"], ["eventCount", "eventValue"]);
       const C = (c, p, full) => {
         if (H == null) return noCmpHtml("비교는 새벽 1시 이후 (다음 수집부터)");
         const lab = `${md(pFrom)} ~${H}시 ${num(p)}${full != null ? ` · 하루 ${num(full)}` : ""}`;
@@ -1919,6 +1929,22 @@
         ["영상 재생", ...EV("video_play")], ["광고 배너 클릭", ...EV("banner_click")],
         ["띠 배너 클릭", ...EV("strip_click")], ["검색", ...EV("search")], ["시리즈 화면", ...EV("work_open")],
       ];
+      // 머문 시간·이탈률·시청 시간 (같은 구간 0:00~H:59끼리)
+      const Cx = (cv, pv, txt, fullTxt, bad = false) => {
+        if (H == null) return noCmpHtml("비교는 새벽 1시 이후 (다음 수집부터)");
+        const lab = `${md(pFrom)} ~${H}시 ${txt}${fullTxt != null ? ` · 하루 ${fullTxt}` : ""}`;
+        if (prevPartial) return firstNote(lab, "");
+        return (bad ? bounceDelta(cv, pv) : deltaBase(cv, pv)) + `<small class="st-vs">${escH(lab)}</small>`;
+      };
+      const tS = TS || cur, yS = YS || {};
+      const tW = H != null ? evVal(tE, "watch_time") : evVal(ev, "watch_time"), yW = evVal(yE, "watch_time");
+      const tP = H != null ? evSum(tE, "video_play") : evSum(ev, "video_play"), yP = evSum(yE, "video_play");
+      if (hasEng) kpi.push(
+        ["평균 머문 시간 (방문당)", dur(stay(tS)), Cx(stay(tS), stay(yS), dur(stay(yS)), dur(stay(yAll)))],
+        ["이탈률 (낮을수록 좋음)", pctTxt(bounce(tS)), Cx(bounce(tS), bounce(yS), pctTxt(bounce(yS)), pctTxt(bounce(yAll)), true)]);
+      if (hasWatch) kpi.push(
+        ["영상 시청 시간", dur(tW), Cx(tW, yW, dur(yW), dur(evVal(yEv, "watch_time")))],
+        ["재생당 평균 시청", dur(tP ? tW / tP : 0), Cx(tP ? tW / tP : 0, yP ? yW / yP : 0, dur(yP ? yW / yP : 0))]);
     } else {
       // 어제 → 그 전날 하루 / 7일·30일(어제까지) → 바로 전 같은 길이 / 직접 고른 기간 → 바로 전 같은 길이 (오늘 포함이면 비교 안 함)
       const vs = len === 1 ? md(pFrom) : mdr(pFrom, pTo);
@@ -1932,6 +1958,15 @@
         ["영상 재생", evSum(ev, "video_play"), E("video_play")], ["광고 배너 클릭", evSum(ev, "banner_click"), E("banner_click")],
         ["띠 배너 클릭", evSum(ev, "strip_click"), E("strip_click")], ["검색", evSum(ev, "search"), E("search")], ["시리즈 화면", evSum(ev, "work_open"), E("work_open")],
       ];
+      // 머문 시간·이탈률·시청 시간 (일별 합으로 같은 기준 비교)
+      const Dx = (cv, pv, txt, bad = false) => (noCmp ? "" : prevPartial ? firstNote(vs, txt) : (bad ? bounceDelta(cv, pv) : deltaBase(cv, pv)) + `<small class="st-vs">${escH(vs)} ${escH(txt)}</small>`);
+      const cW = evVal(ev, "watch_time"), pW = evVal(pev, "watch_time"), cP = evSum(ev, "video_play"), pP = evSum(pev, "video_play");
+      if (hasEng) kpi.push(
+        ["평균 머문 시간 (방문당)", dur(stay(cur)), Dx(stay(cur), stay(prev), dur(stay(prev)))],
+        ["이탈률 (낮을수록 좋음)", pctTxt(bounce(cur)), Dx(bounce(cur), bounce(prev), pctTxt(bounce(prev)), true)]);
+      if (hasWatch) kpi.push(
+        ["영상 시청 시간", dur(cW), Dx(cW, pW, dur(pW))],
+        ["재생당 평균 시청", dur(cP ? cW / cP : 0), Dx(cP ? cW / cP : 0, pP ? pW / pP : 0, dur(pP ? pW / pP : 0))]);
     }
     const vsName = ST.mode === "today" ? (H != null ? `${md(pFrom)} 같은 시간` : "") : len === 1 ? md(pFrom) : mdr(pFrom, pTo);
     const cmpLabel = prevPartial ? `${md(trackStart)}은 통계 기록을 시작한 날(하루가 다 안 찼음)이라 증감 비교 안 함` : noCmp ? "오늘이 들어 있어 증감 비교 안 함" : ST.mode === "today" ? (H != null ? `0:00${hl} · 증감은 ${vsName} 대비` : "증감은 새벽 1시 이후부터") : `증감은 ${vsName} 대비`;
@@ -2097,8 +2132,9 @@
     })();
     box.innerHTML = `
       <p class="st-period"><b>${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}</b> <span class="muted small">(${len}일 · ${cmpLabel})</span></p>
-      <div class="st-kpis st-kpis--main">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${num(v)}</b>${dl}</div>`).join("")}</div>
+      <div class="st-kpis st-kpis--main">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${typeof v === "string" ? escH(v) : num(v)}</b>${dl}</div>`).join("")}</div>
       ${custom && len > 1 ? `<p class="muted small">* 직접 고른 기간의 방문자는 날짜별 방문자를 더한 숫자예요. 여러 날 온 사람은 여러 번 세어져요.</p>` : ""}
+      ${hasEng || hasWatch ? `<p class="muted small">머문 시간 = 방문 1번에 화면을 실제로 보고 있던 시간 · 이탈률 = 10초 안에 나가고 다른 화면·영상도 안 본 방문의 비율(GA4 기준, 낮을수록 좋음) · 영상 시청 시간 = 플레이어에서 실제로 재생된 시간 합계(11/26부터 기록)</p>` : ""}
       <section class="adm-card st-card st-wide"><h3>광고 칸별 성과 <span class="muted small">(${ST.mode === "today" ? `오늘 0:00~${d.generatedAt ? new Date(d.generatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "지금"} 전체 · 칸별 기록은 시간 구분이 없어 위 카드(0:00~${H != null ? H + ":59" : "지금"})보다 넓어요` : "이 기간"} · 광고 배너 1~3, 띠 배너 1~6)</span></h3>${slotReport(d, from, to, { daily: false })}</section>
       ${adsHtml}
       <section class="adm-card st-card st-wide"><h3>${chartTitle}</h3>${chartHtml}
