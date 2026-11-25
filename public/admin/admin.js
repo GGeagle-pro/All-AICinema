@@ -1088,6 +1088,23 @@
       afterSiteSave("검색용 페이지 설정 반영 중");
     });
   }
+  // 장르·나라별 모음 페이지 스위치 (site.json genrePages:false → 다음 수집 때 /genre/ 페이지 삭제)
+  function renderGenreSwitch() {
+    const on = state.site?.genrePages !== false;
+    for (const r of document.querySelectorAll('input[name="genreOn"]')) r.checked = r.value === (on ? "on" : "off");
+    $("#genreNow").textContent = on ? "지금: 켜짐" : "지금: 꺼짐 (페이지 없음)";
+  }
+  function saveGenreSwitch(e) {
+    e.preventDefault();
+    const on = document.querySelector('input[name="genreOn"]:checked')?.value !== "off";
+    run(async () => {
+      const changed = await saveSite(`장르별 모음 페이지 ${on ? "켜기" : "끄기"}`, (s) => { if ((s.genrePages !== false) === on) return false; s.genrePages = on; return true; });
+      renderGenreSwitch();
+      if (!changed) return toast("이미 그 상태예요.");
+      toast(on ? "켰어요. 3~5분 뒤 페이지가 만들어져요." : "껐어요. 3~5분 뒤 모음 페이지가 모두 지워져요.");
+      afterSiteSave("장르별 모음 페이지 설정 반영 중");
+    });
+  }
   // 작품 에디터 노트 (site.json workNotes["채널 / 작품"] = 한국어 글 또는 { ko, en, ja, zh, es })
   //  - 비워 둔 언어는 그 언어 화면에서 안 보이고, 자동 '작품 분석'만 보여요
   const NOTE_LANGS = [["ko", "한국어"], ["en", "English"], ["ja", "日本語"], ["zh", "中文"], ["es", "Español"]];
@@ -1122,7 +1139,7 @@
 
   function renderWorks() {
     renderWorksSwitch();
-    renderPagesSwitch();
+    renderPagesSwitch(); renderGenreSwitch();
     const box = $("#worksList");
     if (!box || !state.videos) return;
     const q = ($("#worksQ")?.value || "").trim().toLowerCase();
@@ -2153,6 +2170,7 @@
     $("#chQ").addEventListener("keydown", (e) => { if (e.key === "Escape" && e.target.value) { e.target.value = ""; renderChannels(); } }); }
   $("#worksSwitch").addEventListener("submit", saveWorksSwitch);
   $("#pagesSwitch").addEventListener("submit", savePagesSwitch);
+  $("#genreSwitch").addEventListener("submit", saveGenreSwitch);
   $("#langCountrySwitch").addEventListener("submit", saveLangCountry);
   $("#dashGoStats").addEventListener("click", () => document.querySelector('.adm-tabs [data-tab="stats"]').click());
   document.addEventListener("click", (e) => {

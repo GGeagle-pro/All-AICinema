@@ -189,6 +189,18 @@
             <button class="btn btn--primary" type="submit">저장</button>
           </form>
         </div>
+        <div class="adm-card">
+          <h2>장르·나라별 모음 페이지</h2>
+          <p class="muted small">"AI 공포 영화", "한국 AI 드라마" 같은 검색어로 찾아오도록 <b>/genre/horror/</b> 같은 모음 페이지를 5개 언어로 자동으로 만들어요(영상 12편 이상인 장르·나라만). 소개 글·인기 시리즈·많이 본 영상·최신 영상·자주 묻는 질문이 자동으로 들어가고 수집 때마다 갱신돼요. 끄면 3~5분 뒤 모두 지워져요(원상 복구).</p>
+          <form id="genreSwitch" class="adm-radios" novalidate>
+            <label class="adm-radio"><input type="radio" name="genreOn" value="on" />
+              <span><b>켜기</b><br /><span class="muted small">모음 페이지 만들기 · <a href="/genre/" target="_blank" rel="noopener">지금 페이지 보기</a></span></span></label>
+            <label class="adm-radio"><input type="radio" name="genreOn" value="off" />
+              <span><b>끄기 (원상 복구)</b><br /><span class="muted small">모음 페이지를 모두 지우고 사이트맵에서도 빼요.</span></span></label>
+            <p id="genreNow" class="adm-hint"></p>
+            <button class="btn btn--primary" type="submit">저장</button>
+          </form>
+        </div>
         <div id="worksList" class="adm-works"></div>
       </div>
 
@@ -351,6 +363,6 @@
   </main>
 
   <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
-  <script src="admin.js?v=20261125b" defer></script>
+  <script src="admin.js?v=20261125c" defer></script>
 </body>
 </html>

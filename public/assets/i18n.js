@@ -48,6 +48,7 @@
     "AI 제작 도구": ["AI creation tools", "AI制作ツール", "AI创作工具", "Herramientas de IA"],
     "자주 묻는 질문": ["FAQ", "よくある質問", "常见问题", "Preguntas frecuentes"],
     "주간 TOP 10": ["Weekly Top 10", "週間TOP10", "每周TOP 10", "Top 10 semanal"],
+    "장르별 모음": ["Genres", "ジャンル別", "按类型浏览", "Géneros"],
     "▶ 재생하기": ["▶ Play", "▶ 再生", "▶ 播放", "▶ Reproducir"],
     "다음 화 자동 재생으로 보기": ["Watch with autoplay", "連続再生で見る", "连续自动播放", "Ver con reproducción automática"],
     "전체 회차": ["All episodes", "全エピソード", "全部剧集", "Todos los episodios"],

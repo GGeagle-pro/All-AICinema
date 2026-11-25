@@ -10,6 +10,7 @@ Data as of 2026-11-25.
 - [Home (Korean)](https://all-aicinema.syncbrain100.com/): browse all AI movies and dramas
 - [Home (English)](https://all-aicinema.syncbrain100.com/en/) · [日本語](https://all-aicinema.syncbrain100.com/ja/) · [中文](https://all-aicinema.syncbrain100.com/zh/) · [Español](https://all-aicinema.syncbrain100.com/es/)
 - [About & FAQ](https://all-aicinema.syncbrain100.com/en/faq/) ([한국어](https://all-aicinema.syncbrain100.com/faq/)): what the site is, how it works, popular titles
+- [AI movies by genre & country](https://all-aicinema.syncbrain100.com/en/genre/) ([한국어](https://all-aicinema.syncbrain100.com/genre/)): e.g. AI horror, AI romance, Korean AI dramas
 - [AI filmmaking tools](https://all-aicinema.syncbrain100.com/en/tools/) ([한국어](https://all-aicinema.syncbrain100.com/tools/)): tools used to make AI films (Runway, Veo, Sora, Kling, Higgsfield, ElevenLabs, Suno…)
 - [Sitemap](https://all-aicinema.syncbrain100.com/sitemap.xml) · [RSS: latest videos](https://all-aicinema.syncbrain100.com/rss.xml)
 

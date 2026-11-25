@@ -202,6 +202,7 @@ Data as of ${day}.
 - [Home (Korean)](${SITE}/): browse all AI movies and dramas
 - [Home (English)](${SITE}/en/) · [日本語](${SITE}/ja/) · [中文](${SITE}/zh/) · [Español](${SITE}/es/)
 - [About & FAQ](${SITE}/en/faq/) ([한국어](${SITE}/faq/)): what the site is, how it works, popular titles
+- [AI movies by genre & country](${SITE}/en/genre/) ([한국어](${SITE}/genre/)): e.g. AI horror, AI romance, Korean AI dramas
 - [AI filmmaking tools](${SITE}/en/tools/) ([한국어](${SITE}/tools/)): tools used to make AI films (Runway, Veo, Sora, Kling, Higgsfield, ElevenLabs, Suno…)
 - [Sitemap](${SITE}/sitemap.xml) · [RSS: latest videos](${SITE}/rss.xml)
 
