@@ -1088,6 +1088,38 @@
       afterSiteSave("검색용 페이지 설정 반영 중");
     });
   }
+  // 주간 TOP 10 홍보 글 (public/data/top-promo.json – top.mjs 가 만듦)
+  const PROMO_WHERE = {
+    ko: [["네이버 블로그 글쓰기", "https://blog.naver.com/GoBlogWrite.naver"], ["X에 올리기", "x"], ["디시 AI 갤러리", "https://gall.dcinside.com/mgallery/board/lists/?id=ai"]],
+    en: [["Post on X", "x"], ["Reddit r/aivideo", "https://www.reddit.com/r/aivideo/submit"], ["Facebook", "fb"]],
+    ja: [["Xに投稿", "x"], ["note", "https://note.com/notes/new"]],
+    zh: [["微博", "weibo"], ["X", "x"]],
+    es: [["Publicar en X", "x"], ["Reddit", "https://www.reddit.com/r/aivideo/submit"], ["Facebook", "fb"]],
+  };
+  let promoLang = "ko", promoData = null;
+  async function renderPromo() {
+    const box = $("#promoBody"); if (!box) return;
+    if (!promoData) { try { promoData = (await readJson("public/data/top-promo.json")).data; } catch { promoData = null; } }
+    const P = promoData?.langs?.[promoLang];
+    $("#promoAt").textContent = promoData?.at ? `${promoData.week} · ${promoData.at} 기준` : "";
+    for (const b of document.querySelectorAll("#promoLang [data-l]")) b.setAttribute("aria-pressed", String(b.dataset.l === promoLang));
+    if (!P) { box.innerHTML = `<p class="adm-hint">아직 홍보 글이 없어요. 다음 영상 수집(최대 2시간) 뒤에 생겨요.</p>`; return; }
+    const enc = encodeURIComponent;
+    const link = (u) => (u === "x" ? `https://twitter.com/intent/tweet?text=${enc(P.sns)}` : u === "fb" ? `https://www.facebook.com/sharer/sharer.php?u=${enc(P.url)}` : u === "weibo" ? `https://service.weibo.com/share/share.php?url=${enc(P.url)}&title=${enc(P.sns.slice(0, 120))}` : u);
+    const block = (label, hint, text, rows) => `<div class="adm-promo"><div class="adm-row-head"><b>${escH(label)}</b><button type="button" class="btn" data-copy-promo>복사</button></div>${hint ? `<p class="muted small">${escH(hint)}</p>` : ""}<textarea readonly rows="${rows}">${escH(text)}</textarea></div>`;
+    box.innerHTML = `<p class="small">페이지: <a href="${escH(P.url)}" target="_blank" rel="noopener">${escH(P.url)}</a> (${escH(P.range)})</p>
+      ${block("SNS 짧은 글", "X·스레드·인스타 설명 등 (해시태그 포함)", P.sns, 7)}
+      ${block("블로그 제목", "", P.blogT, 1)}${block("블로그 본문", "네이버 블로그·티스토리·note 등", P.blog, 12)}
+      ${block("커뮤니티 제목", "", P.comT, 1)}${block("커뮤니티 본문", "레딧·디시 등 – 규칙에서 홍보 허용 여부 먼저 확인, 같은 곳엔 주 1회 이하", P.com, 9)}
+      <p class="adm-promo-go">${(PROMO_WHERE[promoLang] || []).map(([t, u]) => `<a class="btn" href="${escH(link(u))}" target="_blank" rel="noopener">${escH(t)} ↗</a>`).join(" ")}</p>`;
+  }
+  $("#promoLang")?.addEventListener("click", (e) => { const b = e.target.closest("[data-l]"); if (!b) return; promoLang = b.dataset.l; renderPromo(); });
+  $("#promoBody")?.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-copy-promo]"); if (!b) return;
+    const ta = b.closest(".adm-promo").querySelector("textarea");
+    try { await navigator.clipboard.writeText(ta.value); } catch { ta.select(); try { document.execCommand("copy"); } catch {} }
+    toast("복사했어요.");
+  });
   // 장르·나라별 모음 페이지 스위치 (site.json genrePages:false → 다음 수집 때 /genre/ 페이지 삭제)
   function renderGenreSwitch() {
     const on = state.site?.genrePages !== false;
@@ -2121,7 +2153,7 @@
     for (const p of ["dash", "channels", "stats", "works", "videos", "hidden", "menu", "ads"]) $(`#tab-${p}`).hidden = p !== t.dataset.tab;
     if (t.dataset.tab === "stats") openStats();
     if (t.dataset.tab === "dash") renderDash();
-    if (t.dataset.tab === "ads") renderAdPerf();
+    if (t.dataset.tab === "ads") { renderAdPerf(); renderPromo(); }
     t.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   });
   $("#addUrl").addEventListener("input", updateAddForm);
