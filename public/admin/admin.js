@@ -1542,7 +1542,7 @@
       </ol>`;
   }
   // ── 대시보드 (첫 화면): 영상·채널 숫자는 바로, 방문자·재생 오류·채널 성과는 통계 암호가 저장돼 있으면 ──
-  const DASH = { sort: "plays", dir: -1 };
+  const DASH = { sort: "plays", dir: -1, range: (() => { try { return localStorage.getItem("aic:admin:perfRange") || "d30"; } catch { return "d30"; } })() };
   async function renderDash() {
     const box = $("#dashKpis"); if (!box) return;
     { const li = $("#secToken"); const remember = (() => { try { return !!localStorage.getItem(KEY); } catch { return false; } })();
@@ -1614,7 +1614,14 @@
     // 채널별 성과
     const tb = $("#perfTable tbody"); tb.textContent = "";
     const plays = new Map();
-    if (sd?.videos) for (const x of agg(sd.videos, d30, today, ["pagePath"], ["screenPageViews"])) {
+    // 기간: 오늘 · 어제 · 7일(오늘 포함) · 30일(오늘 포함), 한국 날짜 기준
+    if (!["today", "yesterday", "d7", "d30"].includes(DASH.range)) DASH.range = "d30";
+    const yday = ymd(now - day);
+    const [pf, pt] = { today: [today, today], yesterday: [yday, yday], d7: [d7, today], d30: [d30, today] }[DASH.range];
+    document.querySelectorAll("#perfRange [data-prange]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.prange === DASH.range)));
+    const pmd = (x) => `${Number(x.slice(4, 6))}/${Number(x.slice(6, 8))}`;
+    $("#perfWhen").textContent = `(${{ today: "오늘", yesterday: "어제", d7: "최근 7일", d30: "최근 30일" }[DASH.range]} · ${pf === pt ? pmd(pf) : `${pmd(pf)}~${pmd(pt)}`})`;
+    if (sd?.videos) for (const x of agg(sd.videos, pf, pt, ["pagePath"], ["screenPageViews"])) {
       const id = (String(x.pagePath).match(/\/watch\/([\w-]{11})/) || [])[1]; const v = id && byId.get(id);
       if (v) plays.set(v.channel, (plays.get(v.channel) || 0) + x.screenPageViews);
     }
@@ -2245,6 +2252,7 @@
   });
   $("#adPerfRange").addEventListener("click", (e) => { const b = e.target.closest("button[data-r]"); if (!b) return; AP.r = b.dataset.r; renderAdPerf(); });
   document.addEventListener("click", (e) => { if (e.target.closest("[data-go-stats]")) document.querySelector('.adm-tabs [data-tab="stats"]').click(); });
+  $("#perfRange").addEventListener("click", (e) => { const b = e.target.closest("[data-prange]"); if (!b || b.dataset.prange === DASH.range) return; DASH.range = b.dataset.prange; try { localStorage.setItem("aic:admin:perfRange", DASH.range); } catch {} renderDash(); });
   $("#perfTable thead").addEventListener("click", (e) => { const th = e.target.closest("th[data-k]"); if (!th) return; DASH.dir = DASH.sort === th.dataset.k ? -DASH.dir : -1; DASH.sort = th.dataset.k; renderDash(); });
 
   // 시작

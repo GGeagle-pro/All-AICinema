@@ -19,7 +19,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="../assets/style.css?v=20261123b" />
-  <link rel="stylesheet" href="admin.css?v=20261125e" />
+  <link rel="stylesheet" href="admin.css?v=20261125q" />
 </head>
 <body>
   <header class="topbar adm-top">
@@ -97,7 +97,14 @@
           <ul id="dashErrors" class="adm-list"></ul>
         </div>
         <div class="adm-card">
-          <h2>채널별 성과 <span class="muted small">(최근 30일)</span></h2>
+          <div class="adm-row-head adm-perfhead"><h2>채널별 성과 <span id="perfWhen" class="muted small"></span></h2>
+            <div class="st-seg adm-perfseg" id="perfRange" role="group" aria-label="성과 기간">
+              <button type="button" class="btn" data-prange="today" aria-pressed="false">오늘</button>
+              <button type="button" class="btn" data-prange="yesterday" aria-pressed="false">어제</button>
+              <button type="button" class="btn" data-prange="d7" aria-pressed="false">7일</button>
+              <button type="button" class="btn" data-prange="d30" aria-pressed="true">30일</button>
+            </div>
+          </div>
           <p class="muted small">사이트 재생 = 사이트에서 그 채널 영상을 연 횟수(GA). 유튜브 조회수 = 사이트에 있는 그 채널 영상들의 유튜브 전체 조회수 합. 제목을 누르면 정렬 기준이 바뀌어요.</p>
           <div class="adm-tablewrap"><table class="adm-table" id="perfTable"><thead><tr>
             <th data-k="name">채널</th><th class="num" data-k="n">영상</th><th class="num" data-k="plays">사이트 재생 ▼</th><th class="num" data-k="per">영상당 재생</th><th class="num" data-k="yt">유튜브 조회수</th><th class="num" data-k="last">최근 업로드</th>
@@ -371,6 +378,6 @@
   </main>
 
   <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
-  <script src="admin.js?v=20261125e" defer></script>
+  <script src="admin.js?v=20261125q" defer></script>
 </body>
 </html>

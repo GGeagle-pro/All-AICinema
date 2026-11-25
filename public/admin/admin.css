@@ -481,3 +481,11 @@
 .st-ctable td,.st-ctable th{white-space:nowrap}
 .st-ctable td.st-cname{min-width:120px}
 .st-ctable td.small{white-space:normal;min-width:140px}
+/* 채널별 성과 기간 버튼 */
+.adm-perfhead{flex-wrap:wrap;gap:8px 12px}
+.adm-perfhead h2{margin:0}
+.adm-perfseg .btn{padding:6px 14px;white-space:nowrap}
+@media (max-width:760px){
+  .adm-perfseg{flex:1 1 100%}
+  .adm-perfseg .btn{flex:1;min-height:44px;padding:6px 4px}
+}
