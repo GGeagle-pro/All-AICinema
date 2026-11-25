@@ -7,5 +7,7 @@ function gtag() { window.dataLayer.push(arguments); }
 window.gtag = gtag;
 gtag("js", new Date());
 gtag("config", "AW-947429542");
+// 새 Google Ads 계정 (2026-11-25, AllAICinema 773-750-3442) – 전환은 app.js 가 첫 영상 재생 때 보냄
+gtag("config", "AW-18594991806");
 // Google 애널리틱스 4 (방문·클릭·국가 통계 → 관리자 > 통계 탭)
 gtag("config", "G-5PXH52MY88");

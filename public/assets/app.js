@@ -82,6 +82,10 @@
   // 유튜브 '아동용' 영상을 보는 동안은 통계를 보내지 않음 (YouTube 개발자 정책)
   let kidsIds = new Set();
   const kidsNow = () => { try { const v = !$("#player").hidden && state.queue[state.current]; return !!(v && kidsIds.has(v.id)); } catch { return false; } };
+  // Google Ads 전환: 이 페이지에서 처음 영상을 틀었을 때 1번만 (아동용 영상은 보내지 않음)
+  const ADS_CONV = "AW-18594991806/xWtDCJrulb8dEL6d5KJF";
+  let adsConvSent = false;
+  const adsConversion = () => { try { if (adsConvSent || kidsNow() || typeof window.gtag !== "function") return; adsConvSent = true; window.gtag("event", "conversion", { send_to: ADS_CONV, value: 1.0, currency: "KRW" }); } catch {} };
   const track = (name, params = {}) => { try { if (kidsNow()) return; if (typeof window.gtag === "function") window.gtag("event", name, { ...params, ui_lang: I18N.lang }); } catch {} };
   const nm = (x) => I18N.name(x);
   const views = (n) => I18N.views(n);         // "조회수 1.2만회" / "12K views" / "1.2万回視聴" / "1.2万次观看"
@@ -814,6 +818,7 @@
     if (VALID_ID.test(v.id)) {
       track("page_view", { page_location: `${location.origin}/watch/${v.id}/`, page_title: `${v.title} | ${v.channel}` });
       track("video_play", { video_id: v.id, video_title: v.title.slice(0, 90), channel: v.channel });
+      adsConversion();
     }
     setFavBtn(fav.has(v.id));
     $("#pChannel").innerHTML = avatarHtml(v.channel, "avatar avatar--sm", v.cid) + `<span>${esc(v.channel)}</span>`;
