@@ -23,6 +23,9 @@ RedirectMatch 404 /\.(?!well-known/)
 </FilesMatch>
 
 <IfModule mod_headers.c>
+  # AI 학습용 텍스트·데이터 마이닝 거부 표시 (TDMRep 표준, 이용약관 제5조)
+  Header always set tdm-reservation "1"
+  Header always set tdm-policy "https://all-aicinema.syncbrain100.com/terms.html"
   # 콘텐츠 보안 정책 (HTML 안의 <meta> 와 같은 내용 + 헤더로만 가능한 frame-ancestors)
   #  - 인라인 스크립트·onclick 같은 속성 스크립트 실행 금지 → XSS 차단
   #  - 다른 사이트가 이 페이지를 iframe 으로 감싸는 클릭재킹 차단

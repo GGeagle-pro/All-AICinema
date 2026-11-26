@@ -120,6 +120,7 @@ export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver,
   <meta name="description" content="${esc(desc)}" />
   <meta name="theme-color" content="#0b0b10" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-video-preview:-1" />
+  <meta name="tdm-reservation" content="1" />
   <link rel="canonical" href="${url}" />${head ? "\n  " + head : ""}
   <meta property="og:type" content="${ogType}" />
   <meta property="og:site_name" content="All AI-Cinema" />

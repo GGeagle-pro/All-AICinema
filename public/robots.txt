@@ -1,22 +1,47 @@
-# 검색엔진·AI 검색(ChatGPT, Gemini, Claude, Perplexity, Copilot 등) 모두 환영
+# 검색엔진·AI 검색(답변) 서비스는 환영 – 사이트 소개·작품을 찾아 연결해 주는 봇
+# AI 모델 '학습용' 수집은 거부 (이용약관 제5조: https://all-aicinema.syncbrain100.com/terms.html)
+# 그 밖의 봇: 페이지는 허용, 원본 데이터 파일(/data/)은 거부
 User-agent: *
 Allow: /
 Disallow: /admin/
+Disallow: /data/
 
-# AI 검색·답변 서비스 (명시적으로 허용)
+# ── AI 검색·답변 서비스 (사용자가 물어볼 때 찾아보는 봇) : 허용 ──
 User-agent: OAI-SearchBot
 User-agent: ChatGPT-User
-User-agent: GPTBot
-User-agent: Google-Extended
 User-agent: Claude-SearchBot
 User-agent: Claude-User
-User-agent: ClaudeBot
 User-agent: PerplexityBot
 User-agent: Perplexity-User
-User-agent: Applebot-Extended
 User-agent: bingbot
+User-agent: Googlebot
+User-agent: Yeti
+User-agent: Daumoa
 Allow: /
 Disallow: /admin/
 
-# AI용 사이트 요약: https://all-aicinema.syncbrain100.com/llms.txt
+# ── AI 모델 학습용 수집 : 거부 ──
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: anthropic-ai
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+User-agent: Bytespider
+User-agent: meta-externalagent
+User-agent: FacebookBot
+User-agent: Amazonbot
+User-agent: cohere-ai
+User-agent: cohere-training-data-crawler
+User-agent: Diffbot
+User-agent: omgili
+User-agent: ImagesiftBot
+User-agent: PetalBot
+User-agent: Timpibot
+User-agent: AI2Bot
+User-agent: Ai2Bot-Dolma
+User-agent: img2dataset
+Disallow: /
+
+# AI 검색용 사이트 요약: https://all-aicinema.syncbrain100.com/llms.txt
 Sitemap: https://all-aicinema.syncbrain100.com/sitemap.xml

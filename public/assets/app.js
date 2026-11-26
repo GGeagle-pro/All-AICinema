@@ -1154,7 +1154,7 @@
       const fl = $("#faqLink"); if (fl) fl.href = code === "ko" ? "/faq/" : `/${code}/faq/`;
       const tp = $("#topLink"); if (tp) tp.href = code === "ko" ? "/top/" : `/${code}/top/`;
       const gl = $("#genreLink"); if (gl) gl.href = code === "ko" ? "/genre/" : `/${code}/genre/`;
-    { const en = code !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; }
+    { const en = code !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; const tm = $("#termsLink"); if (tm) tm.href = en ? "/en/terms.html" : "/terms.html"; }
       // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
       const u = new URL(location.href); u.searchParams.delete("lang");
       if (/^\/((en|ja|zh|es)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
@@ -1167,7 +1167,7 @@
     paint();
     { const tl = $("#toolsLink"); if (tl) tl.href = I18N.lang === "ko" ? "/tools/" : `/${I18N.lang}/tools/`; }
     { const fl = $("#faqLink"); if (fl) fl.href = I18N.lang === "ko" ? "/faq/" : `/${I18N.lang}/faq/`; const tp = $("#topLink"); if (tp) tp.href = I18N.lang === "ko" ? "/top/" : `/${I18N.lang}/top/`; const gl = $("#genreLink"); if (gl) gl.href = I18N.lang === "ko" ? "/genre/" : `/${I18N.lang}/genre/`; }
-    { const en = I18N.lang !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; }
+    { const en = I18N.lang !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; const tm = $("#termsLink"); if (tm) tm.href = en ? "/en/terms.html" : "/terms.html"; }
     if (I18N.onGeo) I18N.onGeo((code) => choose(code, false));   // 접속 국가(IP)로 정한 언어 적용
   }
 

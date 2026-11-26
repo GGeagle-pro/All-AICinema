@@ -160,6 +160,8 @@ function sitemap(lastmod, pages = [], tools = []) {
     { loc: `${SITE}/about.html`, changefreq: "monthly", priority: "0.5" },
     { loc: `${SITE}/privacy.html`, changefreq: "yearly", priority: "0.2" },
     { loc: `${SITE}/en/about.html`, changefreq: "monthly", priority: "0.5" },
+    { loc: `${SITE}/terms.html`, changefreq: "yearly", priority: "0.3" },
+    { loc: `${SITE}/en/terms.html`, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE}/en/privacy.html`, changefreq: "yearly", priority: "0.2" },
     // AI 제작 도구 추천 페이지 (5개 언어, scripts/tools.mjs)
     ...tools.map((u) => ({ loc: u.loc, lastmod, changefreq: "weekly", priority: "0.7",

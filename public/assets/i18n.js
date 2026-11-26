@@ -175,6 +175,7 @@
     "footer.rights": ["All videos are copyrighted by their YouTube channels and creators, and play through the official YouTube player.<br />To request removal of a video, use the contact on the About page.", "すべての動画の著作権は各YouTubeチャンネルと制作者に帰属し、YouTube公式プレーヤーで再生されます。<br />掲載停止のご依頼は「サイトについて」の連絡先までお送りください。", "所有视频的版权归各YouTube频道及创作者所有，本站通过YouTube官方播放器播放。<br />如需下架视频，请通过“关于”页面中的联系方式与我们联系。", "Todos los videos pertenecen a sus canales de YouTube y creadores, y se reproducen con el reproductor oficial de YouTube.<br />Para solicitar la retirada de un video, usa el contacto de la página Acerca de."],
     "소개": ["About", "サイトについて", "关于", "Acerca de"],
     "개인정보처리방침": ["Privacy", "プライバシー", "隐私政策", "Privacidad"],
+    "이용약관": ["Terms", "利用規約", "使用条款", "Términos"],
     // 시간
     "방금": ["just now", "たった今", "刚刚", "ahora mismo"],
     // 장르·국가 (관리자 카테고리 이름)
