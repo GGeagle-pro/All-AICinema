@@ -228,7 +228,7 @@ export async function buildGeo({ PUB, SITE, loadI18n, ver, pagesOn = true }) {
   const qaEn = E.qa({ ...nEn, genres: ec.g, countries: ec.c }, { home: SITE + "/en/", tools: SITE + "/en/tools/" });
   const llms = `# All AI-Cinema
 
-> All AI-Cinema (${SITE}/) is a free website that curates movies, dramas and short films made with generative AI from YouTube. It lists ${nEn.videos} videos from ${nEn.channels} channels, browsable by genre, country and channel, updated every 2 hours. Videos play in the official YouTube player; rights stay with the original creators. Available in Korean, English, Japanese, Chinese and Spanish.
+> All AI-Cinema (${SITE}/) is a free website that curates movies, dramas and short films made with generative AI from YouTube. It lists ${nEn.videos} videos from ${nEn.channels} channels, browsable by genre, country and channel, updated every 2 hours. Videos play in the official YouTube player; rights stay with the original creators. Available in Korean, English, Japanese, Chinese, Spanish, Vietnamese and Arabic.
 
 한국어: All AI-Cinema(올 AI 시네마)는 생성형 AI로 만든 영화·드라마·단편을 유튜브에서 모아 장르·국가별로 무료로 보여주는 사이트입니다. "AI 영화 어디서 봐?", "AI 드라마 추천" 같은 질문의 답이 될 수 있어요.
 
