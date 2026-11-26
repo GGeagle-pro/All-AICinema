@@ -13,6 +13,7 @@ import { buildTools } from "./tools.mjs";
 import { buildGeo } from "./geo.mjs";
 import { buildTop } from "./top.mjs";
 import { buildGenre } from "./genre.mjs";
+import { buildIntro } from "./intro.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -225,7 +226,8 @@ export async function buildSeo() {
   // 주간 TOP 10 (/top/ 5개 언어 + 주차별 기록)
   const top = await buildTop({ PUB, SITE, loadI18n, ver, pagesOn });
   const genre = await buildGenre({ PUB, SITE, loadI18n, ver, pagesOn });
-  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls, ...top.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...genre.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" }))]));
+  const intro = await buildIntro({ PUB, SITE, loadI18n, ver, pagesOn });
+  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls, ...top.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...genre.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...intro.urls.map((u) => ({ loc: u.loc, altsXml: "" }))]));
   await atomicWrite(resolve(PUB, "rss.xml"), rss(videos, generatedAt));
   const file = resolve(PUB, "index.html");
   const page = await readFile(file, "utf8");

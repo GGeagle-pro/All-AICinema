@@ -107,7 +107,7 @@ export async function loadAll(PUB) {
 }
 
 // ── 공통 틀 ──
-export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver, head = "", noTrack = false }) {
+export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver, head = "", noTrack = false, noAds = false }) {
   const t = (s, v) => I.t(s, v);
   return `<!doctype html>
 <html lang="${HTML_LANG[lang]}">
@@ -140,8 +140,8 @@ export function shell({ lang, title, desc, url, image, ogType, ld, body, I, ver,
   <link rel="stylesheet" href="/assets/style.css?v=${ver}" />
   <link rel="stylesheet" href="/assets/page.css?v=${ver}" />
   ${noTrack ? "<!-- 유튜브 '아동용' 영상: 통계·광고 추적 없음 (YouTube 개발자 정책) -->" : `<script async src="https://www.googletagmanager.com/gtag/js?id=G-5PXH52MY88"></script>
-  <script src="/assets/gtag-init.js?v=${ver}"></script>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8096684162493748" crossorigin="anonymous"></script>`}
+  <script src="/assets/gtag-init.js?v=${ver}"></script>${noAds ? "\n  <!-- 광고 없는 페이지 (검색광고 랜딩용) -->" : `
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8096684162493748" crossorigin="anonymous"></script>`}`}
   ${ld.map((o) => `<script type="application/ld+json">${jsonLd(o)}</script>`).join("\n  ")}
 </head>
 <body class="sp-page">

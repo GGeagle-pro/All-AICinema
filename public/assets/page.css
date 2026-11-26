@@ -101,3 +101,9 @@
 .share-bar b{font-size:14px;margin-right:4px}
 .share-btn{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--bg2);color:inherit;font:inherit;font-size:14px;white-space:nowrap;cursor:pointer;text-decoration:none}
 .share-btn:hover{border-color:var(--accent,#e8a)}
+/* 소개 페이지 */
+.intro-pick{padding:12px 0;border-bottom:1px solid var(--line)}
+.intro-pick h3{margin:0 0 4px;font-size:17px}
+.intro-pick p{margin:0;line-height:1.7}
+.intro-genres dt,.intro-info dt{font-weight:700;margin-top:12px}
+.intro-genres dd,.intro-info dd{margin:2px 0 0;line-height:1.6}
