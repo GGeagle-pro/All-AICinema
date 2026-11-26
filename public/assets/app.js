@@ -99,6 +99,15 @@
   const siteName = () => state.site.siteName;
 
   // ===== 애드센스 =====
+  // 검색광고(구글·네이버·카카오)로 들어온 방문은 이번 접속 동안 광고를 최소한으로 (아래 광고 1개 + 플레이어 아래 1개만)
+  //  - 광고 클릭 표시: gclid/gbraid/wbraid(구글), n_media(네이버), utm_medium=cpc|ppc|paid
+  const adLite = (() => {
+    try {
+      const q = new URLSearchParams(location.search);
+      if (q.has("gclid") || q.has("gbraid") || q.has("wbraid") || q.has("n_media") || /^(cpc|ppc|paid|paidsearch)$/i.test(q.get("utm_medium") || "")) sessionStorage.setItem("aic:adlite", "1");
+      return sessionStorage.getItem("aic:adlite") === "1";
+    } catch { return false; }
+  })();
   const adClient = () => (/^ca-pub-\d{16}$/.test(state.site.adsense.client) ? state.site.adsense.client : "");
   // 광고 단위 번호: 숫자 8~12자리, 1111111111 같은 예시 번호는 무시
   const adSlot = (key) => {
@@ -133,7 +142,15 @@
     box.hidden = !ins;
     if (ins) { box.appendChild(ins); pushAd(ins); }
   }
-  function renderAds() {
+  function policyLinks(l) {
+  const P = (ko, en, xx) => (l === "ko" ? ko : l === "en" ? en : xx);
+  const a = $("#aboutLink"), pv = $("#privacyLink"), tm = $("#termsLink");
+  if (a) a.href = P("/about.html", "/en/about.html", `/${l}/intro/`);
+  if (pv) pv.href = P("/privacy.html", "/en/privacy.html", `/${l}/privacy/`);
+  if (tm) tm.href = P("/terms.html", "/en/terms.html", `/${l}/terms/`);
+}
+function renderAds() {
+    if (adLite) { for (const sel of ["#adTop", "#railL", "#railR"]) { const b = $(sel); if (b) { b.textContent = ""; b.hidden = true; } } document.body.classList.remove("has-rails"); placeAd("#adBottom", "bottom"); return; }
     placeAd("#adTop", "top");
     placeAd("#adBottom", "bottom");
     // 양옆 세로 배너: 데스크톱에서만, 양쪽 모두 페이지와 함께 스크롤 (애드센스 정책: 양쪽 대칭 고정 광고 금지)
@@ -744,7 +761,7 @@
         const h = stripHtml("div", stripBase() + Math.floor(i / feedEvery())); if (h) { tmp.innerHTML = h; frag.appendChild(tmp.firstElementChild); }
       }
       if ((i + 1) % feedEvery() === 0 && i + 1 < state.list.length) {
-        const ins = adIns("feed");
+        const ins = adLite ? null : adIns("feed");
         if (ins) { const box = document.createElement("div"); box.className = "ad ad--feed"; box.appendChild(ins); frag.appendChild(box); newAds.push(ins); }
       }
     }
@@ -1154,7 +1171,7 @@
       const fl = $("#faqLink"); if (fl) fl.href = code === "ko" ? "/faq/" : `/${code}/faq/`;
       const tp = $("#topLink"); if (tp) tp.href = code === "ko" ? "/top/" : `/${code}/top/`;
       const gl = $("#genreLink"); if (gl) gl.href = code === "ko" ? "/genre/" : `/${code}/genre/`;
-    { const en = code !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; const tm = $("#termsLink"); if (tm) tm.href = en ? "/en/terms.html" : "/terms.html"; }
+    policyLinks(code);
       // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
       const u = new URL(location.href); u.searchParams.delete("lang");
       if (/^\/((en|ja|zh|es|vi|ar)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
@@ -1167,7 +1184,7 @@
     paint();
     { const tl = $("#toolsLink"); if (tl) tl.href = I18N.lang === "ko" ? "/tools/" : `/${I18N.lang}/tools/`; }
     { const fl = $("#faqLink"); if (fl) fl.href = I18N.lang === "ko" ? "/faq/" : `/${I18N.lang}/faq/`; const tp = $("#topLink"); if (tp) tp.href = I18N.lang === "ko" ? "/top/" : `/${I18N.lang}/top/`; const gl = $("#genreLink"); if (gl) gl.href = I18N.lang === "ko" ? "/genre/" : `/${I18N.lang}/genre/`; }
-    { const en = I18N.lang !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; const tm = $("#termsLink"); if (tm) tm.href = en ? "/en/terms.html" : "/terms.html"; }
+    policyLinks(I18N.lang);
     if (I18N.onGeo) I18N.onGeo((code) => choose(code, false));   // 접속 국가(IP)로 정한 언어 적용
   }
 
@@ -1591,7 +1608,8 @@
     };
     $("#pFav").onclick = () => {
       const v = state.queue[state.current]; if (!v) return;
-      setFavBtn(toggleFav(v.id));
+      const on = toggleFav(v.id); setFavBtn(on);
+      if (on) track("add_favorite", { link_url: `https://youtu.be/${v.id}` });
       if (state.cat === "전체" || state.cat === FAV_KEY) apply();   // 메인의 찜 목록도 바로 갱신
     };
     $("#pShare").onclick = () => { const v = state.queue[state.current]; if (v) openShare(v); };

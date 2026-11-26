@@ -14,6 +14,7 @@ import { buildGeo } from "./geo.mjs";
 import { buildTop } from "./top.mjs";
 import { buildGenre } from "./genre.mjs";
 import { buildIntro } from "./intro.mjs";
+import { buildLegal } from "./legal.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -125,13 +126,18 @@ function localize(page, code, I) {
   // 하위 폴더에서도 파일을 찾게: 상대 경로 → 절대 경로
   p = p.replace(/\s(href|src)="(?!https?:|\/|#|\?|data:|mailto:)([^"]+)"/g, ' $1="/$2"');
   // 화면 글자 미리 번역 (자바스크립트를 안 돌리는 로봇용) – 원문은 data-* 에 남겨 언어 전환이 그대로 되게
-  p = p.replace(/<([a-z0-9]+)([^<>]*?\sdata-i18n(?:="([^"]*)")?)([^<>]*)>([^<]*)</g, (m, tag, a1, key, a2, text) => {
+  p = p.replace(/<([a-z0-9]+)([^<>]*?\sdata-i18n(?:="([^"]*)")?)(?=[\s>\/])([^<>]*)>([^<]*)</g, (m, tag, a1, key, a2, text) => {
     const src = key || text.trim();
     if (!src || !text.trim()) return m;
     const out = t(src);
     if (out === src) return m;
     const a = key ? `${a1}${a2}` : `${a1.replace(/\sdata-i18n$/, ` data-i18n="${attr(src)}"`)}${a2}`;
     return `<${tag}${a}>${text.replace(text.trim(), html(out))}<`;
+  });
+  // 태그가 든 문구(data-i18n-html="키"): 사전의 고정 문구라 그대로 넣음
+  p = p.replace(/(<([a-z0-9]+)[^<>]*\sdata-i18n-html="([^"]+)"[^<>]*>)([\s\S]*?)(<\/\2>)/g, (m, open, tag, key, inner, close) => {
+    const out = t(key);
+    return out === key ? m : `${open}${out}${close}`;
   });
   p = p.replace(/<[a-z0-9]+[^<>]*\sdata-i18n-attr="([^"]+)"[^<>]*>/g, (tagStr, list) => {
     let out = tagStr;
@@ -245,7 +251,8 @@ export async function buildSeo() {
   const top = await buildTop({ PUB, SITE, loadI18n, ver, pagesOn });
   const genre = await buildGenre({ PUB, SITE, loadI18n, ver, pagesOn });
   const intro = await buildIntro({ PUB, SITE, loadI18n, ver, pagesOn });
-  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls, ...top.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...genre.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...intro.urls.map((u) => ({ loc: u.loc, altsXml: "" }))]));
+  const legal = await buildLegal({ PUB, SITE, loadI18n, ver });
+  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls, ...top.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...genre.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...intro.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...legal.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" }))]));
   await atomicWrite(resolve(PUB, "rss.xml"), rss(videos, generatedAt));
   const file = resolve(PUB, "index.html");
   const page = await readFile(file, "utf8");
