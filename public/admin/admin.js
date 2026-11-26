@@ -1890,6 +1890,10 @@
     const bounce = (o) => (o.sessions ? 1 - (o.engaged || 0) / o.sessions : 0);
     const stay = (o) => (o.sessions ? (o.engage || 0) / o.sessions : 0);
     // 이탈률은 낮을수록 좋음 → 내려가면 초록, %p(포인트) 차이로
+    // 재방문자 = 방문자 − 새 방문자 (GA4: 이 기간 전에 한 번이라도 온 적 있는 사람), 재방문율 = 재방문자 ÷ 방문자
+    const ret = (o) => Math.max(0, (o?.users || 0) - (o?.newUsers || 0));
+    const retR = (o) => (o?.users ? ret(o) / o.users : 0);
+    const rateDelta = (c, p) => { const dp = (c - p) * 100; return `<em class="st-d ${dp > 0.05 ? "st-d--up" : dp < -0.05 ? "st-d--down" : ""}">${dp > 0.05 ? "▲" : dp < -0.05 ? "▼" : "−"}${Math.abs(dp) >= 0.05 ? Math.abs(dp).toFixed(1) + "%p" : " 같음"}</em>`; };
     const bounceDelta = (c, p) => { const dp = (c - p) * 100; return `<em class="st-d ${dp < -0.05 ? "st-d--up" : dp > 0.05 ? "st-d--down" : ""}">${dp > 0.05 ? "▲" : dp < -0.05 ? "▼" : "−"}${Math.abs(dp) >= 0.05 ? Math.abs(dp).toFixed(1) + "%p" : " 같음"}</em>`; };
     const preset = { today: "today", yesterday: "yesterday", d7: "d7", d30: "d30" }[ST.mode];
     const T = preset && d.totals?.[preset];   // 미리 정한 기간은 GA4 가 센 '중복 없는 방문자' 그대로
@@ -1927,6 +1931,8 @@
       const EV = (n) => [V(evSum(ev, n), evSum(tE, n)), C(evSum(tE, n), evSum(yE, n), evSum(yEv, n))];
       kpi = [
         ["방문자", V(cur.users, TS?.users), C(TS?.users, YS?.users, yAll.users)], ["새 방문자", V(cur.newUsers, TS?.newUsers), C(TS?.newUsers, YS?.newUsers, yAll.newUsers)],
+        ["재방문자", V(ret(cur), ret(TS)), C(ret(TS), ret(YS), ret(yAll))],
+        ["재방문율", pctTxt(V(retR(cur), retR(TS))), H == null ? noCmpHtml("비교는 새벽 1시 이후 (다음 수집부터)") : prevPartial ? firstNote(`${md(pFrom)} ~${H}시 ${pctTxt(retR(YS))} · 하루 ${pctTxt(retR(yAll))}`, "") : rateDelta(retR(TS), retR(YS)) + `<small class="st-vs">${escH(`${md(pFrom)} ~${H}시 ${pctTxt(retR(YS))} · 하루 ${pctTxt(retR(yAll))}`)}</small>`],
         ["방문 횟수", V(cur.sessions, TS?.sessions), C(TS?.sessions, YS?.sessions, yAll.sessions)], ["페이지뷰 (GA·영상 열기 포함)", V(cur.views, TS?.views), C(TS?.views, YS?.views, yAll.views)],
         ["영상 재생", ...EV("video_play")], ["광고 배너 클릭", ...EV("banner_click")],
         ["띠 배너 클릭", ...EV("strip_click")], ["검색", ...EV("search")], ["시리즈 화면", ...EV("work_open")],
@@ -1956,6 +1962,8 @@
         // 방문자·새 방문자는 '중복 없는 수': 정해진 기간은 GA가 같은 방식으로 센 이전 기간(PT), 직접 고른 기간은 일별 합끼리
         ["방문자", cur.users, PT ? D2(cur.users, PT.users) : D2(curU, prev.users)],
         ["새 방문자", cur.newUsers, PT ? D2(cur.newUsers, PT.newUsers) : D2(sumOf(days, "newUsers"), prev.newUsers)],
+        ["재방문자", ret(cur), PT ? D2(ret(cur), ret(PT)) : D2(Math.max(0, curU - sumOf(days, "newUsers")), ret(prev))],
+        ["재방문율", pctTxt(retR(cur)), noCmp ? "" : (() => { const c = PT ? retR(cur) : retR({ users: curU, newUsers: sumOf(days, "newUsers") }), p = PT ? retR(PT) : retR(prev); return prevPartial ? firstNote(vs, pctTxt(p)) : rateDelta(c, p) + `<small class="st-vs">${escH(vs)} ${escH(pctTxt(p))}</small>`; })()],
         ["방문 횟수", cur.sessions, D2(cur.sessions, prev.sessions)], ["페이지뷰 (GA·영상 열기 포함)", cur.views, D2(cur.views, prev.views)],
         ["영상 재생", evSum(ev, "video_play"), E("video_play")], ["광고 배너 클릭", evSum(ev, "banner_click"), E("banner_click")],
         ["띠 배너 클릭", evSum(ev, "strip_click"), E("strip_click")], ["검색", evSum(ev, "search"), E("search")], ["시리즈 화면", evSum(ev, "work_open"), E("work_open")],
@@ -2088,7 +2096,7 @@
     }
     const rowsHtml = [...days].sort((a, b) => (a.date < b.date ? 1 : -1)).map((x) => {
       const e = (n) => ev.filter((y) => y.date === x.date && y.eventName === n).reduce((t, y) => t + y.eventCount, 0);
-      return `<tr><td>${toIso(x.date).slice(5).replace("-", "/")}</td><td>${num(x.activeUsers)}</td><td>${num(x.newUsers)}</td><td>${num(x.screenPageViews)}</td><td>${num(e("video_play"))}</td><td>${num(e("banner_click") + e("strip_click"))}</td><td>${num(e("search"))}</td>${adsByDate ? `<td>${num(adsByDate.get(x.date) || 0)}</td>` : ""}</tr>`;
+      return `<tr><td>${toIso(x.date).slice(5).replace("-", "/")}</td><td>${num(x.activeUsers)}</td><td>${num(x.newUsers)}</td><td>${num(Math.max(0, (x.activeUsers || 0) - (x.newUsers || 0)))}</td><td>${x.activeUsers ? Math.round((Math.max(0, x.activeUsers - (x.newUsers || 0)) / x.activeUsers) * 100) + "%" : "-"}</td><td>${num(x.screenPageViews)}</td><td>${num(e("video_play"))}</td><td>${num(e("banner_click") + e("strip_click"))}</td><td>${num(e("search"))}</td>${adsByDate ? `<td>${num(adsByDate.get(x.date) || 0)}</td>` : ""}</tr>`;
     }).join("");
 
     const pick = (k, keys, mets) => agg(d[k], from, to, keys, mets);
@@ -2128,19 +2136,20 @@
         "평균 참여 = 방문자 1명이 화면을 실제로 보고 있던 시간"].filter(Boolean).join(" · ");
       if (!list.length) return `<section class="adm-card st-card st-wide"><h3>국가별 방문자</h3>${rt}<p class="muted">이 기간에는 기록이 없어요.</p></section>`;
       return `<section class="adm-card st-card st-wide"><h3>국가별 방문자 <span class="muted small">(${list.length}개 나라)</span></h3>${rt}
-        <div class="st-tablewrap"><table class="st-table st-ctable"><thead><tr><th>국가</th><th>방문자</th><th>비율</th>${prevTot ? "<th>증감</th>" : ""}${hasM ? "<th>새 방문자</th><th>방문</th><th>페이지뷰</th><th>평균 참여</th>" : "<th>방문</th>"}${ev.length || d.countryEv ? "<th>영상 재생</th><th>배너+띠 클릭</th>" : ""}<th>주요 도시</th></tr></thead><tbody>
-        ${list.slice(0, 50).map((x) => `<tr><td class="st-cname">${flag(x.countryId)} ${escH(COUNTRY_KO(x.countryId, x.country))}</td><td class="num"><b>${num(x.users)}</b></td><td class="num">${Math.round((x.users / totalU) * 100)}%</td>${prevTot ? `<td class="num">${dlt(x.countryId, x.users)}</td>` : ""}${hasM ? `<td class="num">${num(x.nu)}</td><td class="num">${num(x.sessions)}</td><td class="num">${num(x.screenPageViews)}</td><td class="num">${x.activeUsers ? sec(x.userEngagementDuration / x.activeUsers) : "-"}</td>` : `<td class="num">${num(x.sessions)}</td>`}${d.countryEv ? `<td class="num">${num(evOf(x.countryId, "video_play"))}</td><td class="num">${num(evOf(x.countryId, "banner_click") + evOf(x.countryId, "strip_click"))}</td>` : ""}<td class="small muted">${escH(cityOf(x.countryId)) || "-"}</td></tr>`).join("")}
+        <div class="st-tablewrap"><table class="st-table st-ctable"><thead><tr><th>국가</th><th>방문자</th><th>비율</th>${prevTot ? "<th>증감</th>" : ""}${hasM ? "<th>새 방문자</th><th>재방문율</th><th>방문</th><th>페이지뷰</th><th>평균 참여</th>" : "<th>방문</th>"}${ev.length || d.countryEv ? "<th>영상 재생</th><th>배너+띠 클릭</th>" : ""}<th>주요 도시</th></tr></thead><tbody>
+        ${list.slice(0, 50).map((x) => `<tr><td class="st-cname">${flag(x.countryId)} ${escH(COUNTRY_KO(x.countryId, x.country))}</td><td class="num"><b>${num(x.users)}</b></td><td class="num">${Math.round((x.users / totalU) * 100)}%</td>${prevTot ? `<td class="num">${dlt(x.countryId, x.users)}</td>` : ""}${hasM ? `<td class="num">${num(x.nu)}</td><td class="num">${x.users ? Math.round((Math.max(0, x.users - (x.nu || 0)) / x.users) * 100) + "%" : "-"}</td><td class="num">${num(x.sessions)}</td><td class="num">${num(x.screenPageViews)}</td><td class="num">${x.activeUsers ? sec(x.userEngagementDuration / x.activeUsers) : "-"}</td>` : `<td class="num">${num(x.sessions)}</td>`}${d.countryEv ? `<td class="num">${num(evOf(x.countryId, "video_play"))}</td><td class="num">${num(evOf(x.countryId, "banner_click") + evOf(x.countryId, "strip_click"))}</td>` : ""}<td class="small muted">${escH(cityOf(x.countryId)) || "-"}</td></tr>`).join("")}
         </tbody></table></div><p class="muted small">${escH(note)}</p></section>`;
     })();
     box.innerHTML = `
       <p class="st-period"><b>${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}</b> <span class="muted small">(${len}일 · ${cmpLabel})</span></p>
-      <div class="st-kpis st-kpis--main">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 2 && len > 1 ? " *" : ""}</span><b>${typeof v === "string" ? escH(v) : num(v)}</b>${dl}</div>`).join("")}</div>
+      <div class="st-kpis st-kpis--main">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 4 && len > 1 ? " *" : ""}</span><b>${typeof v === "string" ? escH(v) : num(v)}</b>${dl}</div>`).join("")}</div>
       ${custom && len > 1 ? `<p class="muted small">* 직접 고른 기간의 방문자는 날짜별 방문자를 더한 숫자예요. 여러 날 온 사람은 여러 번 세어져요.</p>` : ""}
+      <p class="muted small">재방문자 = 이 기간 방문자 중 이전에 한 번이라도 온 적 있는 사람(방문자 − 새 방문자) · 재방문율 = 재방문자 ÷ 방문자 (높을수록 다시 찾는 사람이 많음, 증감은 %p)</p>
       ${hasEng || hasWatch ? `<p class="muted small">머문 시간 = 방문 1번에 화면을 실제로 보고 있던 시간 · 이탈률 = 10초 안에 나가고 다른 화면·영상도 안 본 방문의 비율(GA4 기준, 낮을수록 좋음) · 영상 시청 시간 = 플레이어에서 실제로 재생된 시간 합계(11/26부터 기록)</p>` : ""}
       <section class="adm-card st-card st-wide"><h3>광고 칸별 성과 <span class="muted small">(${ST.mode === "today" ? `오늘 0:00~${d.generatedAt ? new Date(d.generatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "지금"} 전체 · 칸별 기록은 시간 구분이 없어 위 카드(0:00~${H != null ? H + ":59" : "지금"})보다 넓어요` : "이 기간"} · 광고 배너 1~3, 띠 배너 1~6)</span></h3>${slotReport(d, from, to, { daily: false })}</section>
       ${adsHtml}
       <section class="adm-card st-card st-wide"><h3>${chartTitle}</h3>${chartHtml}
-        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>페이지뷰(GA)</th><th>영상 재생</th><th>배너+띠 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
+        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>날짜</th><th>방문자</th><th>새 방문자</th><th>재방문</th><th>재방문율</th><th>페이지뷰(GA)</th><th>영상 재생</th><th>배너+띠 클릭</th><th>검색</th>${adsByDate ? "<th>수익</th>" : ""}</tr></thead>
         <tbody>${rowsHtml || `<tr><td colspan="8" class="muted">이 기간에는 기록이 없어요.</td></tr>`}</tbody></table></div></section>
       <div class="st-grid">
         ${countryHtml}
