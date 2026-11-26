@@ -32,7 +32,7 @@ const jsonLd = (o) => JSON.stringify(o).replace(/</g, "\\u003c");
 const cut = (s, n) => { const a = Array.from(String(s || "").replace(/\s+/g, " ").trim()); return a.length > n ? a.slice(0, n - 1).join("").trim() + "…" : a.join(""); };   // 글자 단위 (이모지가 반으로 잘리지 않게)
 
 // ── 해외 검색 노출: 언어별 페이지 ──
-// ko = 기본 주소(/), 나머지는 /en/ /ja/ /zh/ /es/ (미국·영국·싱가포르 등 영어권은 /en/, 중화권은 /zh/)
+// ko = 기본 주소(/), 나머지는 /en/ /ja/ /zh/ /es/ /vi/ /ar/(오른쪽→왼쪽) (미국·영국·싱가포르 등 영어권은 /en/, 중화권은 /zh/)
 const LANGS = {
   ko: { path: "/", hreflang: "ko", html: "ko", locale: "ko_KR" },
   en: { path: "/en/", hreflang: "en", html: "en", locale: "en_US",
@@ -67,6 +67,22 @@ const LANGS = {
     h1: "All AI-Cinema – Películas, series y cortos hechos con IA",
     ogAlt: "All AI-Cinema – historias creadas con IA, en un solo lugar",
     listName: "Nuevas películas y series con IA" },
+  vi: { path: "/vi/", hreflang: "vi", html: "vi", locale: "vi_VN",
+    title: "All AI-Cinema | Xem phim AI, phim bộ AI & phim ngắn AI",
+    desc: "Phim, phim bộ và phim ngắn do AI tạo ra, tất cả ở một nơi. Chọn theo thể loại, quốc gia và kênh YouTube rồi xem ngay — miễn phí.",
+    ogDesc: "Phim, phim bộ và phim ngắn do AI tạo ra ở một nơi. Xem ngay, miễn phí.",
+    keywords: "phim AI, phim bộ AI, phim ngắn AI, video tạo bằng AI, phim hoạt hình AI, điện ảnh AI",
+    h1: "All AI-Cinema – Phim AI, phim bộ AI và phim ngắn AI",
+    ogAlt: "All AI-Cinema – những câu chuyện do AI tạo ra, ở một nơi",
+    listName: "Phim và phim bộ AI mới nhất" },
+  ar: { path: "/ar/", hreflang: "ar", html: "ar", locale: "ar_AR", rtl: true,
+    title: "All AI-Cinema | شاهد أفلام ومسلسلات وأفلامًا قصيرة بالذكاء الاصطناعي",
+    desc: "أفضل الأفلام والمسلسلات والأفلام القصيرة المصنوعة بالذكاء الاصطناعي في مكان واحد. اختر حسب النوع والدولة وقناة يوتيوب وشاهد فورًا مجانًا.",
+    ogDesc: "أفلام ومسلسلات وأفلام قصيرة بالذكاء الاصطناعي في مكان واحد. مشاهدة فورية مجانًا.",
+    keywords: "أفلام الذكاء الاصطناعي, مسلسلات الذكاء الاصطناعي, فيلم قصير بالذكاء الاصطناعي, فيديو مولد بالذكاء الاصطناعي, رسوم متحركة بالذكاء الاصطناعي",
+    h1: "All AI-Cinema – أفلام ومسلسلات وأفلام قصيرة بالذكاء الاصطناعي",
+    ogAlt: "All AI-Cinema – قصص صنعها الذكاء الاصطناعي في مكان واحد",
+    listName: "أحدث أفلام ومسلسلات الذكاء الاصطناعي" },
 };
 const hreflangLinks = () => Object.values(LANGS).map((l) => `<link rel="alternate" hreflang="${l.hreflang}" href="${SITE}${l.path}" />`).join("\n  ")
   + `\n  <link rel="alternate" hreflang="x-default" href="${SITE}/en/" />`;
@@ -87,7 +103,7 @@ function localize(page, code, I) {
   const t = (s) => I.t(s);
   const attr = (s) => html(s).replace(/&#39;/g, "'");
   let p = page;
-  p = p.replace(/<html lang="[^"]*">/, `<html lang="${L.html}">`);
+  p = p.replace(/<html lang="[^"]*">/, `<html lang="${L.html}"${L.rtl ? ' dir="rtl"' : ""}>`);
   p = p.replace(/<title>[^<]*<\/title>/, `<title>${html(L.title)}</title>`);
   p = p.replace(/(<meta name="description" content=")[^"]*/, `$1${attr(L.desc)}`);
   p = p.replace(/(<meta name="keywords" content=")[^"]*/, `$1${attr(L.keywords)}`);
@@ -221,7 +237,7 @@ export async function buildSeo() {
   try { pagesOn = JSON.parse(await readFile(resolve(PUB, "data/site.json"), "utf8")).pages !== false; } catch {}
   let pages = { urls: [], counts: { works: 0, videos: 0 }, changed: 0 };
   if (pagesOn) pages = await buildPages({ PUB, SITE, loadI18n, ver });
-  else for (const base of [".", "ko", "en", "ja", "zh", "es"]) for (const d of ["watch", "work"]) await rm(resolve(PUB, base, d), { recursive: true, force: true });
+  else for (const base of [".", "ko", "en", "ja", "zh", "es", "vi", "ar"]) for (const d of ["watch", "work"]) await rm(resolve(PUB, base, d), { recursive: true, force: true });
   const tools = await buildTools({ PUB, SITE, loadI18n, ver });
   // AI 검색용: /faq/ (5개 언어) + /llms.txt
   const geo = await buildGeo({ PUB, SITE, loadI18n, ver, pagesOn });

@@ -7,9 +7,9 @@ import { readFile, writeFile, rename, mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { shell, esc, HTML_LANG, HOME, loadAll } from "./pages.mjs";
 
-const LANGS = ["ko", "en", "ja", "zh", "es"];
-const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es" };
-const BASE = { ko: "/genre/", en: "/en/genre/", ja: "/ja/genre/", zh: "/zh/genre/", es: "/es/genre/" };
+const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar"];
+const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
+const BASE = { ko: "/genre/", en: "/en/genre/", ja: "/ja/genre/", zh: "/zh/genre/", es: "/es/genre/", vi: "/vi/genre/", ar: "/ar/genre/" };
 // 주소 이름 (바꾸면 검색엔진에 쌓인 주소가 바뀌므로 그대로 둘 것)
 export const GENRE_SLUG = {
   "드라마": "drama", "판타지": "fantasy", "액션·히어로": "action", "로맨스": "romance", "사극·무협": "historical",
@@ -84,6 +84,30 @@ const TX = {
     q1: (g) => `¿Dónde ver películas de ${g} con IA gratis?`, a1: (g) => `All AI-Cinema reúne títulos de ${g} hechos con IA publicados en YouTube para verlos gratis en un solo lugar. Se reproducen en el reproductor de YouTube y no hace falta registrarse.`,
     q2: (g) => `¿Cuáles son los títulos de ${g} con IA más populares?`, a2: (v, w) => `El video más visto ahora es «${v.title}» de ${v.channel}.${w ? ` Una serie popular es «${w.name}» de ${w.channel} (${w.list.length} episodios).` : ""}`,
     q3: () => "¿Con qué frecuencia se añaden títulos nuevos?", a3: (s) => `En los últimos 30 días se añadieron ${s.n30} videos. El sitio revisa sus canales de YouTube cada 2 horas y añade los nuevos automáticamente.`,
+  },
+  vi: {
+    h: (g, c) => (c ? `Phim & phim bộ AI từ ${g}` : `Phim & phim bộ AI thể loại ${g}`),
+    t: (g, c) => (c ? `Phim, phim bộ & phim ngắn AI từ ${g}` : `Phim & phim bộ AI ${g} hay nhất – Xem miễn phí`),
+    intro: (g, c, s) => `${s.more ? "Hơn " : ""}${s.n} phim, phim bộ và phim ngắn ${c ? "làm bằng AI từ " + g : "thể loại " + g + " làm bằng AI"} trên YouTube, gom về một nơi. Chúng đến từ ${s.ch} kênh${s.w ? ` và ${s.w} phim bộ` : ""}; ${s.topN > 1 ? "các kênh đăng nhiều nhất là" : "kênh đăng nhiều nhất là"} ${s.top}. Có ${s.n30} video mới trong 30 ngày qua, và video mới được thêm tự động mỗi 2 giờ.`,
+    works: "Phim bộ nổi bật", eps: (n) => `${n} tập`, pop: "Xem nhiều nhất", fresh: "Mới thêm gần đây", other: "Thể loại & quốc gia khác", views: "lượt xem",
+    all: (g) => `Xem tất cả ${g} trên trang`, home: "Trang chủ", hub: "Thể loại", hubT: "Phim & phim bộ AI theo thể loại", hubD: "Phim, phim bộ và phim ngắn làm bằng AI, sắp xếp theo thể loại và quốc gia. Chọn một mục để xem phim bộ nổi bật và video mới nhất.",
+    genres: "Thể loại", countries: "Quốc gia", count: (n) => `${n} video`,
+    faq: "Câu hỏi thường gặp",
+    q1: (g) => `Xem phim AI ${g} miễn phí ở đâu?`, a1: (g) => `All AI-Cinema gom các phim AI ${g} công khai trên YouTube để bạn xem miễn phí ở một nơi. Video phát bằng trình phát YouTube và không cần đăng ký.`,
+    q2: (g) => `Phim AI ${g} nào được yêu thích nhất?`, a2: (v, w) => `Video được xem nhiều nhất hiện nay là "${v.title}" của ${v.channel}.${w ? ` Một phim bộ nổi bật là "${w.name}" của ${w.channel} (${w.list.length} tập).` : ""}`,
+    q3: () => "Bao lâu thì có phim mới?", a3: (s) => `Có ${s.n30} video mới trong 30 ngày qua. Trang kiểm tra các kênh YouTube mỗi 2 giờ và tự động thêm video mới.`,
+  },
+  ar: {
+    h: (g, c) => (c ? `أفلام ومسلسلات بالذكاء الاصطناعي من ${g}` : `أفلام ومسلسلات ${g} بالذكاء الاصطناعي`),
+    t: (g, c) => (c ? `أفلام ومسلسلات وأفلام قصيرة بالذكاء الاصطناعي من ${g}` : `أفضل أفلام ومسلسلات ${g} بالذكاء الاصطناعي – مجانًا`),
+    intro: (g, c, s) => `${s.more ? "أكثر من " : ""}${s.n} فيلمًا ومسلسلًا وفيلمًا قصيرًا ${c ? "بالذكاء الاصطناعي من " + g : "من نوع " + g + " مصنوعة بالذكاء الاصطناعي"} على يوتيوب، في مكان واحد. تأتي من ${s.ch} قناة${s.w ? ` و${s.w} مسلسلًا` : ""}، و${s.topN > 1 ? "أنشط القنوات هي" : "أنشط قناة هي"} ${s.top}. أُضيف ${s.n30} فيديو جديد خلال آخر 30 يومًا، وتُضاف فيديوهات جديدة تلقائيًا كل ساعتين.`,
+    works: "مسلسلات رائجة", eps: (n) => `${n} حلقة`, pop: "الأكثر مشاهدة", fresh: "أُضيف مؤخرًا", other: "أنواع ودول أخرى", views: "مشاهدة",
+    all: (g) => `تصفّح كل ${g} على الموقع`, home: "الرئيسية", hub: "الأنواع", hubT: "أفلام ومسلسلات الذكاء الاصطناعي حسب النوع", hubD: "أفلام ومسلسلات وأفلام قصيرة مصنوعة بالذكاء الاصطناعي مرتبة حسب النوع والدولة. اختر واحدًا لترى المسلسلات الرائجة وأحدث الفيديوهات.",
+    genres: "الأنواع", countries: "الدول", count: (n) => `${n} فيديو`,
+    faq: "الأسئلة الشائعة",
+    q1: (g) => `أين أشاهد أفلام ${g} بالذكاء الاصطناعي مجانًا؟`, a1: (g) => `يجمع All AI-Cinema أعمال ${g} المصنوعة بالذكاء الاصطناعي والمنشورة على يوتيوب لتشاهدها مجانًا في مكان واحد. تُعرض الفيديوهات عبر مشغّل يوتيوب ولا حاجة للتسجيل.`,
+    q2: (g) => `ما أشهر أعمال ${g} بالذكاء الاصطناعي؟`, a2: (v, w) => `الفيديو الأكثر مشاهدة الآن هو «${v.title}» من قناة ${v.channel}.${w ? ` ومن المسلسلات الرائجة «${w.name}» من ${w.channel} (${w.list.length} حلقة).` : ""}`,
+    q3: () => "كم مرة تُضاف أعمال جديدة؟", a3: (s) => `أُضيف ${s.n30} فيديو جديد خلال آخر 30 يومًا. يفحص الموقع قنوات يوتيوب كل ساعتين ويضيف الجديد تلقائيًا.`,
   },
 };
 

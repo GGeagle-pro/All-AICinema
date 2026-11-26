@@ -1095,6 +1095,8 @@
     ja: [["Xに投稿", "x"], ["note", "https://note.com/notes/new"]],
     zh: [["微博", "weibo"], ["X", "x"]],
     es: [["Publicar en X", "x"], ["Reddit", "https://www.reddit.com/r/aivideo/submit"], ["Facebook", "fb"]],
+    vi: [["Facebook", "fb"], ["Zalo", "zalo"], ["X", "x"]],
+    ar: [["X", "x"], ["Facebook", "fb"], ["Telegram", "tg"]],
   };
   let promoLang = "ko", promoData = null;
   async function renderPromo() {
@@ -1105,7 +1107,7 @@
     for (const b of document.querySelectorAll("#promoLang [data-l]")) b.setAttribute("aria-pressed", String(b.dataset.l === promoLang));
     if (!P) { box.innerHTML = `<p class="adm-hint">아직 홍보 글이 없어요. 다음 영상 수집(최대 2시간) 뒤에 생겨요.</p>`; return; }
     const enc = encodeURIComponent;
-    const link = (u) => (u === "x" ? `https://twitter.com/intent/tweet?text=${enc(P.sns)}` : u === "fb" ? `https://www.facebook.com/sharer/sharer.php?u=${enc(P.url)}` : u === "weibo" ? `https://service.weibo.com/share/share.php?url=${enc(P.url)}&title=${enc(P.sns.slice(0, 120))}` : u);
+    const link = (u) => (u === "x" ? `https://twitter.com/intent/tweet?text=${enc(P.sns)}` : u === "fb" ? `https://www.facebook.com/sharer/sharer.php?u=${enc(P.url)}` : u === "weibo" ? `https://service.weibo.com/share/share.php?url=${enc(P.url)}&title=${enc(P.sns.slice(0, 120))}` : u === "zalo" ? `https://sp.zalo.me/share_inline?u=${enc(P.url)}` : u === "tg" ? `https://t.me/share/url?url=${enc(P.url)}&text=${enc(P.sns.slice(0, 200))}` : u);
     const block = (label, hint, text, rows) => `<div class="adm-promo"><div class="adm-row-head"><b>${escH(label)}</b><button type="button" class="btn" data-copy-promo>복사</button></div>${hint ? `<p class="muted small">${escH(hint)}</p>` : ""}<textarea readonly rows="${rows}">${escH(text)}</textarea></div>`;
     box.innerHTML = `<p class="small">페이지: <a href="${escH(P.url)}" target="_blank" rel="noopener">${escH(P.url)}</a> (${escH(P.range)})</p>
       ${block("SNS 짧은 글", "X·스레드·인스타 설명 등 (해시태그 포함)", P.sns, 7)}
@@ -1139,7 +1141,7 @@
   }
   // 작품 에디터 노트 (site.json workNotes["채널 / 작품"] = 한국어 글 또는 { ko, en, ja, zh, es })
   //  - 비워 둔 언어는 그 언어 화면에서 안 보이고, 자동 '작품 분석'만 보여요
-  const NOTE_LANGS = [["ko", "한국어"], ["en", "English"], ["ja", "日本語"], ["zh", "中文"], ["es", "Español"]];
+  const NOTE_LANGS = [["ko", "한국어"], ["en", "English"], ["ja", "日本語"], ["zh", "中文"], ["es", "Español"], ["vi", "Tiếng Việt"], ["ar", "العربية"]];
   function noteEditor(ch, name) {
     const key = `${ch} / ${name}`, cur = state.site?.workNotes?.[key];
     const val = (l) => (typeof cur === "string" ? (l === "ko" ? cur : "") : cur?.[l] || "");

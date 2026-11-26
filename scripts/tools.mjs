@@ -8,8 +8,8 @@ import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { shell, esc, HTML_LANG, HOME } from "./pages.mjs";
 
-const PATH = { ko: "/tools/", en: "/en/tools/", ja: "/ja/tools/", zh: "/zh/tools/", es: "/es/tools/" };
-const HREFLANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es" };
+const PATH = { ko: "/tools/", en: "/en/tools/", ja: "/ja/tools/", zh: "/zh/tools/", es: "/es/tools/", vi: "/vi/tools/", ar: "/ar/tools/" };
+const HREFLANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
 const safeUrl = (u) => { try { const x = new URL(String(u || "").trim()); return x.protocol === "https:" ? x.href : ""; } catch { return ""; } };
 const jsonLd = (o) => JSON.stringify(o).replace(/</g, "\\u003c");
 
@@ -39,6 +39,16 @@ const TXT = {
     steps: ["Diseña personajes y escenarios con una herramienta de imágenes", "Genera escenas (planos) con una herramienta de video", "Añade voces y música", "Edita, une los planos y añade subtítulos"],
     stepsTitle: "El proceso de cine con IA", go: "Ir al sitio", disclose: "Algunos enlaces de esta página son de afiliado. Si te registras o compras a través de ellos, podemos recibir una comisión sin costo adicional para ti.",
     watch: "Ver películas hechas con IA", desc: "Lista seleccionada de herramientas de IA para hacer películas y series: video, voz y doblaje, música, imágenes y edición." },
+  vi: { title: "Cách làm phim bằng AI – Công cụ video, giọng nói & âm nhạc AI", h1: "Làm phim bằng AI: công cụ đề xuất",
+    lead: "Phim và phim bộ AI trên All AI-Cinema được làm bằng những công cụ như thế này. Chúng được sắp xếp theo thứ tự sử dụng: tạo cảnh từ chữ hoặc ảnh, thêm giọng nói và nhạc, rồi biên tập.",
+    steps: ["Thiết kế nhân vật và bối cảnh bằng công cụ ảnh", "Tạo cảnh (cú máy) bằng công cụ video", "Thêm giọng nói và âm nhạc", "Biên tập, nối cảnh và thêm phụ đề"],
+    stepsTitle: "Quy trình làm phim AI", go: "Đến trang", disclose: "Một số liên kết trên trang này là liên kết tiếp thị. Nếu bạn đăng ký hoặc mua qua đó, chúng tôi có thể nhận hoa hồng mà bạn không phải trả thêm.",
+    watch: "Xem phim làm bằng AI", desc: "Danh sách công cụ AI để làm phim và phim bộ: tạo video, giọng nói và lồng tiếng, âm nhạc, hình ảnh và biên tập." },
+  ar: { title: "كيف تصنع أفلامًا بالذكاء الاصطناعي – أفضل أدوات الفيديو والصوت والموسيقى", h1: "اصنع أفلامًا بالذكاء الاصطناعي: أدوات مقترحة",
+    lead: "تُصنع أفلام ومسلسلات الذكاء الاصطناعي على All AI-Cinema بأدوات مثل هذه. رتّبناها حسب خطوات العمل: إنشاء المشاهد من نص أو صور، ثم إضافة الأصوات والموسيقى، ثم المونتاج.",
+    steps: ["صمّم الشخصيات والمواقع بأداة صور", "أنشئ المشاهد (اللقطات) بأداة فيديو", "أضف الأصوات والموسيقى", "حرّر المشاهد واجمعها وأضف الترجمة"],
+    stepsTitle: "خطوات صناعة فيلم بالذكاء الاصطناعي", go: "زيارة الموقع", disclose: "بعض الروابط في هذه الصفحة روابط تسويقية. إذا سجّلت أو اشتريت عبرها فقد نحصل على عمولة دون أي تكلفة إضافية عليك.",
+    watch: "شاهد أفلامًا صُنعت بالذكاء الاصطناعي", desc: "قائمة مختارة من أدوات الذكاء الاصطناعي لصناعة الأفلام والمسلسلات: توليد الفيديو، الصوت والدبلجة، الموسيقى، الصور والمونتاج." },
 };
 
 async function writeIfChanged(file, text) {

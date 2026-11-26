@@ -8,7 +8,7 @@ Data as of 2026-11-26.
 
 ## Main pages
 - [Home (Korean)](https://all-aicinema.syncbrain100.com/): browse all AI movies and dramas
-- [Home (English)](https://all-aicinema.syncbrain100.com/en/) · [日本語](https://all-aicinema.syncbrain100.com/ja/) · [中文](https://all-aicinema.syncbrain100.com/zh/) · [Español](https://all-aicinema.syncbrain100.com/es/)
+- [Home (English)](https://all-aicinema.syncbrain100.com/en/) · [日本語](https://all-aicinema.syncbrain100.com/ja/) · [中文](https://all-aicinema.syncbrain100.com/zh/) · [Español](https://all-aicinema.syncbrain100.com/es/) · [Tiếng Việt](https://all-aicinema.syncbrain100.com/vi/) · [العربية](https://all-aicinema.syncbrain100.com/ar/)
 - [About & FAQ](https://all-aicinema.syncbrain100.com/en/faq/) ([한국어](https://all-aicinema.syncbrain100.com/faq/)): what the site is, how it works, popular titles
 - [AI movies by genre & country](https://all-aicinema.syncbrain100.com/en/genre/) ([한국어](https://all-aicinema.syncbrain100.com/genre/)): e.g. AI horror, AI romance, Korean AI dramas
 - [AI filmmaking tools](https://all-aicinema.syncbrain100.com/en/tools/) ([한국어](https://all-aicinema.syncbrain100.com/tools/)): tools used to make AI films (Runway, Veo, Sora, Kling, Higgsfield, ElevenLabs, Suno…)
@@ -79,7 +79,7 @@ Creators generate scenes with AI video tools such as Runway, Google Veo (Flow), 
 Yes. Send your channel or video link to champkj79@gmail.com and it will be reviewed and added. Rights holders who want a video removed can use the same address.
 
 ### Is the site available in other languages?
-Yes: Korean, English, Japanese, Simplified Chinese and Spanish. The language matching your country is shown first.
+Yes: Korean, English, Japanese, Simplified Chinese, Spanish, Vietnamese and Arabic. The language matching your country is shown first.
 
 ## Contact
 champkj79@gmail.com (submissions and takedown requests)

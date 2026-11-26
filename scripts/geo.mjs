@@ -6,9 +6,9 @@ import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { shell, esc, HTML_LANG, HOME, loadAll } from "./pages.mjs";
 
-const PATH = { ko: "/faq/", en: "/en/faq/", ja: "/ja/faq/", zh: "/zh/faq/", es: "/es/faq/" };
-const HREFLANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es" };
-const TOOLS = { ko: "/tools/", en: "/en/tools/", ja: "/ja/tools/", zh: "/zh/tools/", es: "/es/tools/" };
+const PATH = { ko: "/faq/", en: "/en/faq/", ja: "/ja/faq/", zh: "/zh/faq/", es: "/es/faq/", vi: "/vi/faq/", ar: "/ar/faq/" };
+const HREFLANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
+const TOOLS = { ko: "/tools/", en: "/en/tools/", ja: "/ja/tools/", zh: "/zh/tools/", es: "/es/tools/", vi: "/vi/tools/", ar: "/ar/tools/" };
 const CONTACT = "champkj79@gmail.com";
 const jsonLd = (o) => JSON.stringify(o).replace(/</g, "\\u003c");
 const fmt = (n, lang) => new Intl.NumberFormat(HTML_LANG[lang]).format(n);
@@ -30,14 +30,14 @@ const TXT = {
       ["영상 저작권은 괜찮나요?", "모든 영상의 저작권은 원래 유튜브 채널과 제작자에게 있어요. 이 사이트는 영상을 복사하지 않고 유튜브 공식 플레이어로만 재생해서 조회수와 수익은 원래 채널에 그대로 반영돼요. 제작자가 다른 사이트 재생을 막은 영상은 자동으로 빠져요."],
       ["AI 영화는 어떤 도구로 만드나요?", `Runway, Google Veo(Flow), Sora, Kling, Higgsfield 같은 AI 영상 도구로 장면을 만들고, ElevenLabs 같은 음성 AI와 Suno 같은 음악 AI를 더해 완성해요. 도구 모음: ${L.tools}`],
       ["내 AI 영화나 채널도 올릴 수 있나요?", `네. 채널이나 영상 주소를 ${CONTACT} 로 보내주시면 확인 후 추가해요. 게시 중단을 원하시는 권리자도 같은 주소로 연락해 주세요.`],
-      ["다른 언어로도 볼 수 있나요?", "한국어, 영어, 일본어, 중국어(간체), 스페인어 화면을 지원하고, 접속한 나라에 맞는 언어가 먼저 보여요."],
+      ["다른 언어로도 볼 수 있나요?", "한국어, 영어, 일본어, 중국어(간체), 스페인어, 베트남어, 아랍어 화면을 지원하고, 접속한 나라에 맞는 언어가 먼저 보여요."],
     ],
   },
   en: {
     title: "Where to Watch AI Movies & AI Dramas – All AI-Cinema FAQ",
     h1: "All AI-Cinema: watch AI-generated movies and dramas for free",
     desc: (n) => `All AI-Cinema collects ${n.videos} AI-generated movies, dramas and short films from ${n.channels} YouTube channels and lets you browse them by genre and country for free. New videos are added every 2 hours.`,
-    facts: "At a glance", fVideos: "Videos", fChannels: "Channels", fWorks: "Series", fUpdate: "Updates", fUpdateV: "Every hour", fLangs: "Languages", fPrice: "Price", fPriceV: "Free · no sign-up",
+    facts: "At a glance", fVideos: "Videos", fChannels: "Channels", fWorks: "Series", fUpdate: "Updates", fUpdateV: "Every 2 hours", fLangs: "Languages", fPrice: "Price", fPriceV: "Free · no sign-up",
     faqT: "Frequently asked questions", popT: "Popular AI movies and dramas right now", worksT: "Popular AI drama series", chT: "Top AI film channels", catT: "Genres & countries",
     ep: (n) => `${n} episodes`, vids: (n) => `${n} videos`, updated: "Data as of",
     qa: (n, L) => [
@@ -48,7 +48,7 @@ const TXT = {
       ["Is it legal? Who owns the videos?", "All videos belong to their original YouTube channels and creators. The site never copies videos; it only plays them in the official YouTube player, so views and revenue go to the original channel. Videos whose owners disabled embedding are removed automatically."],
       ["Which tools are used to make AI movies?", `Creators generate scenes with AI video tools such as Runway, Google Veo (Flow), Sora, Kling and Higgsfield, then add voices with tools like ElevenLabs and music with tools like Suno. Tool guide: ${L.tools}`],
       ["Can I submit my own AI film or channel?", `Yes. Send your channel or video link to ${CONTACT} and it will be reviewed and added. Rights holders who want a video removed can use the same address.`],
-      ["Is the site available in other languages?", "Yes: Korean, English, Japanese, Simplified Chinese and Spanish. The language matching your country is shown first."],
+      ["Is the site available in other languages?", "Yes: Korean, English, Japanese, Simplified Chinese, Spanish, Vietnamese and Arabic. The language matching your country is shown first."],
     ],
   },
   ja: {
@@ -66,7 +66,7 @@ const TXT = {
       ["動画の著作権は大丈夫ですか？", "すべての動画の著作権は元のYouTubeチャンネルと制作者にあります。本サイトは動画をコピーせず、YouTube公式プレーヤーでのみ再生するため、再生回数と収益は元のチャンネルに反映されます。外部サイトでの再生が禁止された動画は自動で除外されます。"],
       ["AI映画はどんなツールで作られていますか？", `Runway、Google Veo（Flow）、Sora、Kling、HiggsfieldなどのAI動画ツールでシーンを作り、ElevenLabsなどの音声AIやSunoなどの音楽AIで仕上げます。ツール一覧：${L.tools}`],
       ["自分のAI映画やチャンネルも掲載できますか？", `はい。チャンネルや動画のURLを${CONTACT}へ送っていただければ、確認のうえ追加します。掲載停止をご希望の権利者様も同じアドレスへご連絡ください。`],
-      ["他の言語でも見られますか？", "韓国語・英語・日本語・中国語（簡体字）・スペイン語に対応し、アクセスした国に合った言語が最初に表示されます。"],
+      ["他の言語でも見られますか？", "韓国語・英語・日本語・中国語（簡体字）・スペイン語・ベトナム語・アラビア語に対応し、アクセスした国に合った言語が最初に表示されます。"],
     ],
   },
   zh: {
@@ -84,14 +84,14 @@ const TXT = {
       ["视频版权没有问题吗？", "所有视频的版权归原 YouTube 频道和创作者所有。本站不复制视频，只通过 YouTube 官方播放器播放，播放量和收益都归原频道。禁止外部网站播放的视频会被自动移除。"],
       ["AI电影是用什么工具制作的？", `创作者用 Runway、Google Veo（Flow）、Sora、可灵 Kling、Higgsfield 等AI视频工具生成镜头，再用 ElevenLabs 等配音工具和 Suno 等音乐工具完成。工具推荐：${L.tools}`],
       ["可以提交我自己的AI电影或频道吗？", `可以。请把频道或视频链接发送到 ${CONTACT}，确认后会添加。希望下架的版权方也请联系同一邮箱。`],
-      ["支持其他语言吗？", "支持韩语、英语、日语、简体中文和西班牙语，会优先显示与访问国家相符的语言。"],
+      ["支持其他语言吗？", "支持韩语、英语、日语、简体中文、西班牙语、越南语和阿拉伯语，会优先显示与访问国家相符的语言。"],
     ],
   },
   es: {
     title: "¿Dónde ver películas y series hechas con IA? – Preguntas frecuentes de All AI-Cinema",
     h1: "All AI-Cinema: películas y series hechas con IA, gratis y en un solo lugar",
     desc: (n) => `All AI-Cinema reúne ${n.videos} películas, series y cortos creados con IA generativa de ${n.channels} canales de YouTube, para verlos gratis por género y país. Se añaden videos nuevos cada 2 horas.`,
-    facts: "En resumen", fVideos: "Videos", fChannels: "Canales", fWorks: "Series", fUpdate: "Actualización", fUpdateV: "Cada hora", fLangs: "Idiomas", fPrice: "Precio", fPriceV: "Gratis · sin registro",
+    facts: "En resumen", fVideos: "Videos", fChannels: "Canales", fWorks: "Series", fUpdate: "Actualización", fUpdateV: "Cada 2 horas", fLangs: "Idiomas", fPrice: "Precio", fPriceV: "Gratis · sin registro",
     faqT: "Preguntas frecuentes", popT: "Películas y series con IA populares ahora", worksT: "Series de IA populares", chT: "Canales de cine con IA más activos", catT: "Géneros y países",
     ep: (n) => `${n} episodios`, vids: (n) => `${n} videos`, updated: "Datos a",
     qa: (n, L) => [
@@ -102,7 +102,43 @@ const TXT = {
       ["¿Es legal? ¿De quién son los videos?", "Todos los videos pertenecen a sus canales y creadores originales. El sitio no copia videos: solo los reproduce con el reproductor oficial de YouTube, así que las vistas y los ingresos van al canal original. Los videos cuyo dueño desactivó la inserción se retiran automáticamente."],
       ["¿Con qué herramientas se hacen las películas con IA?", `Los creadores generan escenas con herramientas como Runway, Google Veo (Flow), Sora, Kling y Higgsfield, y añaden voces con ElevenLabs y música con Suno. Guía de herramientas: ${L.tools}`],
       ["¿Puedo enviar mi película o canal?", `Sí. Envía el enlace de tu canal o video a ${CONTACT} y lo revisaremos para añadirlo. Los titulares de derechos que quieran retirar un video pueden escribir a la misma dirección.`],
-      ["¿Está disponible en otros idiomas?", "Sí: coreano, inglés, japonés, chino simplificado y español. Primero se muestra el idioma de tu país."],
+      ["¿Está disponible en otros idiomas?", "Sí: coreano, inglés, japonés, chino simplificado, español, vietnamita y árabe. Primero se muestra el idioma de tu país."],
+    ],
+  },
+  vi: {
+    title: "Xem phim AI và phim bộ AI ở đâu? – Câu hỏi thường gặp về All AI-Cinema",
+    h1: "All AI-Cinema: xem miễn phí phim và phim bộ làm bằng AI",
+    desc: (n) => `All AI-Cinema gom ${n.videos} phim, phim bộ và phim ngắn làm bằng AI tạo sinh từ ${n.channels} kênh YouTube, để bạn xem miễn phí theo thể loại và quốc gia. Video mới được thêm mỗi 2 giờ.`,
+    facts: "Tổng quan", fVideos: "Video", fChannels: "Kênh", fWorks: "Phim bộ", fUpdate: "Cập nhật", fUpdateV: "Mỗi 2 giờ", fLangs: "Ngôn ngữ", fPrice: "Giá", fPriceV: "Miễn phí · không cần đăng ký",
+    faqT: "Câu hỏi thường gặp", popT: "Phim & phim bộ AI đang hot", worksT: "Phim bộ AI nổi bật", chT: "Kênh phim AI đăng nhiều nhất", catT: "Thể loại & quốc gia",
+    ep: (n) => `${n} tập`, vids: (n) => `${n} video`, updated: "Dữ liệu tính đến",
+    qa: (n, L) => [
+      ["All AI-Cinema là trang gì?", `All AI-Cinema là trang tuyển chọn miễn phí, gom phim, phim bộ và phim ngắn làm bằng AI tạo sinh trên YouTube về một nơi. Hiện có ${n.videos} video từ ${n.channels} kênh, lọc theo thể loại, quốc gia và kênh rồi phát chỉ với một lần nhấn.`],
+      ["Xem phim AI và phim bộ AI miễn phí ở đâu?", `Bạn có thể xem miễn phí, không cần đăng ký, trên All AI-Cinema (${L.home}). Video phát bằng trình phát YouTube chính thức, và phim bộ nhiều tập có thể xem theo thứ tự từ tập 1.`],
+      ["Có những thể loại và quốc gia nào?", `Có các thể loại như ${n.genres}, với tác phẩm của nhà sáng tạo từ ${n.countries} và nhiều nơi khác.`],
+      ["Bao lâu thì có phim AI mới?", "Khi một kênh YouTube trong danh sách đăng video mới, video sẽ được thêm tự động trong vòng 2 giờ."],
+      ["Có hợp pháp không? Video thuộc về ai?", "Mọi video thuộc về kênh YouTube và nhà sáng tạo gốc. Trang không sao chép video mà chỉ phát bằng trình phát YouTube chính thức, nên lượt xem và doanh thu vẫn thuộc về kênh gốc. Video bị chủ sở hữu tắt nhúng sẽ tự động bị gỡ."],
+      ["Phim AI được làm bằng công cụ nào?", `Nhà sáng tạo tạo cảnh bằng các công cụ video AI như Runway, Google Veo (Flow), Sora, Kling và Higgsfield, rồi thêm giọng nói bằng ElevenLabs và nhạc bằng Suno. Hướng dẫn công cụ: ${L.tools}`],
+      ["Tôi có thể gửi phim hoặc kênh của mình không?", `Có. Gửi liên kết kênh hoặc video đến ${CONTACT}, chúng tôi sẽ xem xét và thêm vào. Chủ sở hữu quyền muốn gỡ video cũng liên hệ địa chỉ này.`],
+      ["Trang có ngôn ngữ khác không?", "Có: tiếng Hàn, Anh, Nhật, Trung (giản thể), Tây Ban Nha, Việt và Ả Rập. Ngôn ngữ phù hợp với quốc gia của bạn sẽ hiện trước."],
+    ],
+  },
+  ar: {
+    title: "أين تشاهد أفلام ومسلسلات الذكاء الاصطناعي؟ – الأسئلة الشائعة عن All AI-Cinema",
+    h1: "All AI-Cinema: شاهد أفلام ومسلسلات الذكاء الاصطناعي مجانًا",
+    desc: (n) => `يجمع All AI-Cinema ${n.videos} فيلمًا ومسلسلًا وفيلمًا قصيرًا مصنوعة بالذكاء الاصطناعي التوليدي من ${n.channels} قناة على يوتيوب، لتتصفحها مجانًا حسب النوع والدولة. تُضاف فيديوهات جديدة كل ساعتين.`,
+    facts: "نظرة سريعة", fVideos: "فيديوهات", fChannels: "قنوات", fWorks: "مسلسلات", fUpdate: "التحديث", fUpdateV: "كل ساعتين", fLangs: "اللغات", fPrice: "السعر", fPriceV: "مجاني · بلا تسجيل",
+    faqT: "الأسئلة الشائعة", popT: "أفلام ومسلسلات الذكاء الاصطناعي الرائجة الآن", worksT: "مسلسلات الذكاء الاصطناعي الرائجة", chT: "أنشط قنوات أفلام الذكاء الاصطناعي", catT: "الأنواع والدول",
+    ep: (n) => `${n} حلقة`, vids: (n) => `${n} فيديو`, updated: "البيانات حتى",
+    qa: (n, L) => [
+      ["ما هو All AI-Cinema؟", `All AI-Cinema موقع مجاني يجمع في مكان واحد الأفلام والمسلسلات والأفلام القصيرة المصنوعة بالذكاء الاصطناعي التوليدي والمنشورة على يوتيوب. يضم الآن ${n.videos} فيديو من ${n.channels} قناة، يمكنك تصفيتها حسب النوع والدولة والقناة وتشغيلها بنقرة واحدة.`],
+      ["أين أشاهد أفلام ومسلسلات الذكاء الاصطناعي مجانًا؟", `يمكنك مشاهدتها مجانًا ودون تسجيل على All AI-Cinema (${L.home}). تُعرض الفيديوهات عبر مشغّل يوتيوب الرسمي، ويمكن مشاهدة المسلسلات متعددة الحلقات بالترتيب من الحلقة 1.`],
+      ["ما الأنواع والدول المتاحة؟", `تشمل الأنواع ${n.genres}، مع أعمال لمبدعين من ${n.countries} وغيرها.`],
+      ["كم مرة تُضاف أفلام جديدة؟", "عندما تنشر قناة يوتيوب مُدرجة فيديو جديدًا، يُضاف تلقائيًا خلال ساعتين."],
+      ["هل هذا قانوني؟ ولمن الفيديوهات؟", "جميع الفيديوهات ملك لقنواتها ومبدعيها الأصليين. لا ينسخ الموقع أي فيديو، بل يعرضها فقط عبر مشغّل يوتيوب الرسمي، فتذهب المشاهدات والأرباح إلى القناة الأصلية. وتُزال تلقائيًا الفيديوهات التي منع أصحابها تضمينها."],
+      ["ما الأدوات المستخدمة لصنع أفلام الذكاء الاصطناعي؟", `يصنع المبدعون المشاهد بأدوات فيديو مثل Runway وGoogle Veo (Flow) وSora وKling وHiggsfield، ثم يضيفون الأصوات بأدوات مثل ElevenLabs والموسيقى بأدوات مثل Suno. دليل الأدوات: ${L.tools}`],
+      ["هل يمكنني إرسال فيلمي أو قناتي؟", `نعم. أرسل رابط قناتك أو الفيديو إلى ${CONTACT} وسنراجعه ونضيفه. ويمكن لأصحاب الحقوق الراغبين في إزالة فيديو التواصل عبر العنوان نفسه.`],
+      ["هل الموقع متاح بلغات أخرى؟", "نعم: الكورية والإنجليزية واليابانية والصينية المبسطة والإسبانية والفيتنامية والعربية. تظهر أولًا اللغة المناسبة لبلدك."],
     ],
   },
 };
@@ -164,7 +200,7 @@ export async function buildGeo({ PUB, SITE, loadI18n, ver, pagesOn = true }) {
     <section class="pg-sec"><h2>${esc(T.facts)}</h2><dl class="geo-facts">
       <div><dt>${esc(T.fVideos)}</dt><dd>${n.videos}</dd></div><div><dt>${esc(T.fChannels)}</dt><dd>${n.channels}</dd></div>
       ${pagesOn ? `<div><dt>${esc(T.fWorks)}</dt><dd>${fmt(works.length, lang)}</dd></div>` : ""}<div><dt>${esc(T.fUpdate)}</dt><dd>${esc(T.fUpdateV)}</dd></div>
-      <div><dt>${esc(T.fLangs)}</dt><dd>한국어 · English · 日本語 · 中文 · Español</dd></div><div><dt>${esc(T.fPrice)}</dt><dd>${esc(T.fPriceV)}</dd></div>
+      <div><dt>${esc(T.fLangs)}</dt><dd>한국어 · English · 日本語 · 中文 · Español · Tiếng Việt · العربية</dd></div><div><dt>${esc(T.fPrice)}</dt><dd>${esc(T.fPriceV)}</dd></div>
     </dl><p class="geo-upd">${esc(T.updated)} ${day}</p></section>
     <section class="pg-sec"><h2>${esc(T.faqT)}</h2>${qa.map(([q, a]) => `<details class="geo-qa" open><summary><h3>${esc(q)}</h3></summary><p>${link(a)}</p></details>`).join("")}</section>
     <section class="pg-sec"><h2>${esc(T.popT)}</h2><ol class="geo-list">${popular.map((v) => `<li><a href="${watchUrl(v).replace(SITE, "")}">${esc(v.title)}</a> <span class="muted">· ${esc(v.channel)}</span></li>`).join("")}</ol></section>
@@ -200,7 +236,7 @@ Data as of ${day}.
 
 ## Main pages
 - [Home (Korean)](${SITE}/): browse all AI movies and dramas
-- [Home (English)](${SITE}/en/) · [日本語](${SITE}/ja/) · [中文](${SITE}/zh/) · [Español](${SITE}/es/)
+- [Home (English)](${SITE}/en/) · [日本語](${SITE}/ja/) · [中文](${SITE}/zh/) · [Español](${SITE}/es/) · [Tiếng Việt](${SITE}/vi/) · [العربية](${SITE}/ar/)
 - [About & FAQ](${SITE}/en/faq/) ([한국어](${SITE}/faq/)): what the site is, how it works, popular titles
 - [AI movies by genre & country](${SITE}/en/genre/) ([한국어](${SITE}/genre/)): e.g. AI horror, AI romance, Korean AI dramas
 - [AI filmmaking tools](${SITE}/en/tools/) ([한국어](${SITE}/tools/)): tools used to make AI films (Runway, Veo, Sora, Kling, Higgsfield, ElevenLabs, Suno…)

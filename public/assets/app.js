@@ -1157,7 +1157,7 @@
     { const en = code !== "ko"; const a = $("#aboutLink"), pv = $("#privacyLink"); if (a) a.href = en ? "/en/about.html" : "/about.html"; if (pv) pv.href = en ? "/en/privacy.html" : "/privacy.html"; const tm = $("#termsLink"); if (tm) tm.href = en ? "/en/terms.html" : "/terms.html"; }
       // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
       const u = new URL(location.href); u.searchParams.delete("lang");
-      if (/^\/((en|ja|zh|es)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
+      if (/^\/((en|ja|zh|es|vi|ar)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
       if (u.href !== location.href) history.replaceState(history.state, "", u.pathname + u.search);
       document.title = $("#player").hidden ? `${siteName()} | ${T("AI 영화·드라마 모아보기")}` : document.title;
       renderPromo(); renderMenus(); apply();

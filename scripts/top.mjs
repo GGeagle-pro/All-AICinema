@@ -7,15 +7,17 @@ import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { shell, esc, HTML_LANG, HOME, loadAll } from "./pages.mjs";
 
-const LANGS = ["ko", "en", "ja", "zh", "es"];
-const P = { ko: "/top/", en: "/en/top/", ja: "/ja/top/", zh: "/zh/top/", es: "/es/top/" };
-const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es" };
+const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar"];
+const P = { ko: "/top/", en: "/en/top/", ja: "/ja/top/", zh: "/zh/top/", es: "/es/top/", vi: "/vi/top/", ar: "/ar/top/" };
+const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
 const TXT = {
   ko: { t: (w) => `주간 AI 영화·드라마 TOP 10 (${w})`, h: "이번 주 AI 영화·드라마 TOP 10", d: (r) => `${r} 사이 유튜브에 올라온 AI 영화·드라마·단편 중 조회수가 가장 높은 10편이에요. 2시간마다 자동으로 갱신돼요.`, views: "조회수", arch: "지난주 순위", watch: "보기", home: "홈", crumb: "주간 TOP 10" },
   en: { t: (w) => `Weekly Top 10 AI Movies & Dramas (${w})`, h: "Top 10 AI movies and dramas this week", d: (r) => `The 10 most-viewed AI movies, dramas and short films uploaded to YouTube ${r}. Updated every 2 hours.`, views: "views", arch: "Past weeks", watch: "Watch", home: "Home", crumb: "Weekly Top 10" },
   ja: { t: (w) => `週間AI映画・ドラマTOP10（${w}）`, h: "今週のAI映画・ドラマTOP10", d: (r) => `${r}にYouTubeに公開されたAI映画・ドラマ・短編のうち、再生回数が多い10本です。2時間ごとに自動更新されます。`, views: "回視聴", arch: "過去の週", watch: "見る", home: "ホーム", crumb: "週間TOP10" },
   zh: { t: (w) => `每周AI电影与短剧TOP 10（${w}）`, h: "本周AI电影与短剧TOP 10", d: (r) => `${r}期间上传到YouTube的AI电影、短剧和短片中播放量最高的10部，每2小时自动更新。`, views: "次观看", arch: "往期排行", watch: "观看", home: "首页", crumb: "每周TOP 10" },
   es: { t: (w) => `Top 10 semanal de películas y series con IA (${w})`, h: "Top 10 de películas y series con IA de esta semana", d: (r) => `Las 10 películas, series y cortos con IA más vistos subidos a YouTube ${r}. Se actualiza cada 2 horas.`, views: "vistas", arch: "Semanas anteriores", watch: "Ver", home: "Inicio", crumb: "Top 10 semanal" },
+  vi: { t: (w) => `Top 10 phim & phim bộ AI trong tuần (${w})`, h: "Top 10 phim & phim bộ AI tuần này", d: (r) => `10 phim, phim bộ và phim ngắn làm bằng AI được xem nhiều nhất đăng lên YouTube ${r}. Cập nhật mỗi 2 giờ.`, views: "lượt xem", arch: "Các tuần trước", watch: "Xem", home: "Trang chủ", crumb: "Top 10 tuần" },
+  ar: { t: (w) => `أفضل 10 أفلام ومسلسلات بالذكاء الاصطناعي هذا الأسبوع (${w})`, h: "أفضل 10 أفلام ومسلسلات بالذكاء الاصطناعي هذا الأسبوع", d: (r) => `أكثر 10 أفلام ومسلسلات وأفلام قصيرة مصنوعة بالذكاء الاصطناعي مشاهدةً على يوتيوب ${r}. يُحدَّث كل ساعتين.`, views: "مشاهدة", arch: "الأسابيع السابقة", watch: "شاهد", home: "الرئيسية", crumb: "أفضل 10 أسبوعيًا" },
 };
 // 홍보용: 공유 버튼(언어별로 많이 쓰는 곳) + 관리자에서 복사할 글
 const enc = encodeURIComponent;
@@ -25,6 +27,8 @@ const SHARE = {
   ja: { t: "シェア", copy: "リンクをコピー", copied: "コピーしました", nets: ["x", "line", "facebook"] },
   zh: { t: "分享", copy: "复制链接", copied: "已复制", nets: ["weibo", "x", "line", "facebook"] },
   es: { t: "Compartir", copy: "Copiar enlace", copied: "Copiado", nets: ["whatsapp", "x", "facebook", "reddit"] },
+  vi: { t: "Chia sẻ", copy: "Sao chép liên kết", copied: "Đã sao chép", nets: ["facebook", "zalo", "x"] },
+  ar: { t: "مشاركة", copy: "نسخ الرابط", copied: "تم النسخ", nets: ["whatsapp", "x", "facebook", "telegram"] },
 };
 const NET = {
   x: ["X", (u, t) => `https://twitter.com/intent/tweet?text=${enc(t)}&url=${enc(u)}`],
@@ -34,8 +38,10 @@ const NET = {
   line: ["LINE", (u) => `https://social-plugins.line.me/lineit/share?url=${enc(u)}`],
   naver: ["네이버 블로그", (u, t) => `https://share.naver.com/web/shareView?url=${enc(u)}&title=${enc(t)}`],
   weibo: ["微博", (u, t) => `https://service.weibo.com/share/share.php?url=${enc(u)}&title=${enc(t)}`],
+  zalo: ["Zalo", (u) => `https://sp.zalo.me/share_inline?u=${enc(u)}`],
+  telegram: ["Telegram", (u, t) => `https://t.me/share/url?url=${enc(u)}&text=${enc(t)}`],
 };
-const TAGS = { ko: "#AI영화 #AI드라마 #AI단편영화 #주간TOP10", en: "#AIvideo #AIfilm #AImovies #AIart", ja: "#AI動画 #AI映画 #生成AI", zh: "#AI视频 #AI电影 #AI短剧", es: "#IA #películasIA #videoIA" };
+const TAGS = { ko: "#AI영화 #AI드라마 #AI단편영화 #주간TOP10", en: "#AIvideo #AIfilm #AImovies #AIart", ja: "#AI動画 #AI映画 #生成AI", zh: "#AI视频 #AI电影 #AI短剧", es: "#IA #películasIA #videoIA", vi: "#phimAI #AIvideo #phimngắnAI", ar: "#ذكاء_اصطناعي #أفلام_الذكاء_الاصطناعي #فيديو_AI" };
 // 관리자 '주간 TOP 10 홍보 글'에서 복사해 쓰는 글 (SNS 짧은 글 · 블로그 글 · 커뮤니티 글)
 function promoTexts(l, top, url, range, T, I) {
   const cut = (t, m) => ([...t].length > m ? [...t].slice(0, m).join("") + "…" : t);
@@ -70,6 +76,16 @@ function promoTexts(l, top, url, range, T, I) {
       blog: `Las 10 películas, series y cortos hechos con IA más vistos subidos a YouTube ${range}.\n\n${blogItems}\n\nRanking completo: ${url}\nPor género: ${SITE_URL}/es/genre/\n\n${TAGS.es}`,
       comT: `Las 10 películas con IA más vistas esta semana (${range})`,
       com: `Ranking semanal de películas y series hechas con IA en YouTube:\n\n${all}\n\nLista completa: ${url}` },
+    vi: { sns: `Top 10 phim & phim bộ AI tuần này (${range})\n\n${top3}\n…\n\nXem toàn bộ 👉 ${url}\n${TAGS.vi}`,
+      blogT: `Top 10 phim & phim bộ AI tuần này (${range})`,
+      blog: `10 phim, phim bộ và phim ngắn làm bằng AI được xem nhiều nhất đăng lên YouTube ${range}.\n\n${blogItems}\n\nBảng xếp hạng đầy đủ: ${url}\nTheo thể loại: ${SITE_URL}/vi/genre/\n\n${TAGS.vi}`,
+      comT: `Top 10 phim AI được xem nhiều nhất tuần này (${range})`,
+      com: `Bảng xếp hạng lượt xem tuần này của phim và phim bộ làm bằng AI trên YouTube:\n\n${all}\n\nDanh sách đầy đủ: ${url}` },
+    ar: { sns: `أفضل 10 أفلام ومسلسلات بالذكاء الاصطناعي هذا الأسبوع (${range})\n\n${top3}\n…\n\nالقائمة كاملة 👈 ${url}\n${TAGS.ar}`,
+      blogT: `أفضل 10 أفلام ومسلسلات بالذكاء الاصطناعي هذا الأسبوع (${range})`,
+      blog: `أكثر 10 أفلام ومسلسلات وأفلام قصيرة مصنوعة بالذكاء الاصطناعي مشاهدةً على يوتيوب ${range}.\n\n${blogItems}\n\nالترتيب الكامل: ${url}\nحسب النوع: ${SITE_URL}/ar/genre/\n\n${TAGS.ar}`,
+      comT: `أكثر 10 أفلام بالذكاء الاصطناعي مشاهدةً هذا الأسبوع (${range})`,
+      com: `ترتيب هذا الأسبوع لأفلام ومسلسلات الذكاء الاصطناعي الأكثر مشاهدة على يوتيوب:\n\n${all}\n\nالقائمة كاملة: ${url}` },
   };
   return P[l];
 }

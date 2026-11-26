@@ -107,3 +107,7 @@
 .intro-pick p{margin:0;line-height:1.7}
 .intro-genres dt,.intro-info dt{font-weight:700;margin-top:12px}
 .intro-genres dd,.intro-info dd{margin:2px 0 0;line-height:1.6}
+
+/* 아랍어(오른쪽→왼쪽) 화면: 영어·한국어로 된 영상 제목·채널 이름·설명은 그 글자 방향대로 (문장부호가 엉뚱한 쪽에 붙지 않게) */
+html[dir="rtl"] :is(h1, h2, h3, h4, p, li, dd, dt, figcaption, blockquote) { unicode-bidi: plaintext; text-align: right; }
+html[dir="rtl"] :is(input, textarea) { unicode-bidi: plaintext; }

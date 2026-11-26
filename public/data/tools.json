@@ -6,35 +6,45 @@
       "en": "Video generation",
       "ja": "動画生成",
       "zh": "视频生成",
-      "es": "Generación de video"
+      "es": "Generación de video",
+      "vi": "Tạo video",
+      "ar": "توليد الفيديو"
     },
     "voice": {
       "ko": "목소리·더빙",
       "en": "Voice & dubbing",
       "ja": "音声・吹き替え",
       "zh": "配音与语音",
-      "es": "Voz y doblaje"
+      "es": "Voz y doblaje",
+      "vi": "Giọng nói & lồng tiếng",
+      "ar": "الصوت والدبلجة"
     },
     "music": {
       "ko": "음악",
       "en": "Music",
       "ja": "音楽",
       "zh": "音乐",
-      "es": "Música"
+      "es": "Música",
+      "vi": "Âm nhạc",
+      "ar": "الموسيقى"
     },
     "image": {
       "ko": "이미지·콘셉트 아트",
       "en": "Images & concept art",
       "ja": "画像・コンセプトアート",
       "zh": "图像与概念美术",
-      "es": "Imágenes y arte conceptual"
+      "es": "Imágenes y arte conceptual",
+      "vi": "Hình ảnh & concept art",
+      "ar": "الصور والتصميم المفاهيمي"
     },
     "edit": {
       "ko": "편집·아바타",
       "en": "Editing & avatars",
       "ja": "編集・アバター",
       "zh": "剪辑与数字人",
-      "es": "Edición y avatares"
+      "es": "Edición y avatares",
+      "vi": "Biên tập & avatar",
+      "ar": "المونتاج والأفاتار"
     }
   },
   "tools": [
@@ -48,7 +58,9 @@
         "en": "A leading AI video tool that turns text or images into cinematic shots, with fine control over camera motion and style.",
         "ja": "テキストや画像から映画のようなショットを作り、カメラの動きやスタイルを細かく調整できる代表的なAI動画ツール。",
         "zh": "代表性的AI视频工具，可用文字或图片生成电影感镜头，并精细调整运镜与风格。",
-        "es": "Herramienta de video con IA de referencia: convierte texto o imágenes en planos cinematográficos con control de cámara y estilo."
+        "es": "Herramienta de video con IA de referencia: convierte texto o imágenes en planos cinematográficos con control de cámara y estilo.",
+        "vi": "Công cụ video AI hàng đầu biến chữ hoặc ảnh thành cảnh quay điện ảnh, điều chỉnh chi tiết chuyển động máy quay và phong cách.",
+        "ar": "أداة فيديو رائدة بالذكاء الاصطناعي تحوّل النص أو الصور إلى لقطات سينمائية مع تحكم دقيق في حركة الكاميرا والأسلوب."
       }
     },
     {
@@ -61,7 +73,9 @@
         "en": "Google's AI filmmaking tool: generate scenes with the Veo video model and stitch them into a short film.",
         "ja": "Googleの動画モデルVeoでシーンを作り、つなげて短編映画に仕上げるGoogleのAI映画制作ツール。",
         "zh": "谷歌的AI电影制作工具，用Veo视频模型生成镜头并拼接成短片。",
-        "es": "La herramienta de cine con IA de Google: genera escenas con el modelo Veo y únelas en un cortometraje."
+        "es": "La herramienta de cine con IA de Google: genera escenas con el modelo Veo y únelas en un cortometraje.",
+        "vi": "Công cụ làm phim AI của Google: tạo cảnh bằng mô hình video Veo rồi ghép thành phim ngắn.",
+        "ar": "أداة جوجل لصناعة الأفلام بالذكاء الاصطناعي: أنشئ المشاهد بنموذج Veo واجمعها في فيلم قصير."
       }
     },
     {
@@ -74,7 +88,9 @@
         "en": "OpenAI's video model that creates realistic scenes, with sound, from a text description.",
         "ja": "OpenAIの動画生成AI。文章の説明だけでリアルなシーンと音声を一緒に作れます。",
         "zh": "OpenAI推出的视频生成AI，仅凭文字描述即可生成逼真的画面和声音。",
-        "es": "El modelo de video de OpenAI: crea escenas realistas, con sonido, a partir de una descripción."
+        "es": "El modelo de video de OpenAI: crea escenas realistas, con sonido, a partir de una descripción.",
+        "vi": "Mô hình video của OpenAI tạo cảnh chân thực, có cả âm thanh, từ mô tả bằng chữ.",
+        "ar": "نموذج الفيديو من OpenAI الذي يصنع مشاهد واقعية مع الصوت من وصف نصي."
       }
     },
     {
@@ -87,7 +103,9 @@
         "en": "A video generator known for natural human motion and action scenes, popular with AI drama creators.",
         "ja": "人物の動きやアクションシーンが自然で、AIドラマ制作者に人気の動画生成ツール。",
         "zh": "人物动作与动作场面自然流畅，深受AI短剧创作者喜爱的视频生成工具。",
-        "es": "Generador de video conocido por el movimiento humano natural y las escenas de acción, popular entre creadores de series IA."
+        "es": "Generador de video conocido por el movimiento humano natural y las escenas de acción, popular entre creadores de series IA.",
+        "vi": "Công cụ tạo video nổi tiếng với chuyển động người tự nhiên và cảnh hành động, được người làm phim bộ AI ưa chuộng.",
+        "ar": "مولّد فيديو معروف بحركة بشرية طبيعية ومشاهد أكشن، ورائج بين صنّاع مسلسلات الذكاء الاصطناعي."
       }
     },
     {
@@ -100,7 +118,9 @@
         "en": "A video platform packed with cinematic camera-move presets that lets you pick from several leading video models in one place — popular with short-form and AI drama creators.",
         "ja": "映画のようなカメラワークのプリセットが豊富で、複数の最新動画モデルを一か所で使える動画プラットフォーム。ショート動画やAIドラマの制作者に人気です。",
         "zh": "拥有大量电影感运镜预设，可在一个平台上选用多种主流视频模型，深受短视频与AI短剧创作者欢迎。",
-        "es": "Plataforma de video con muchos ajustes de movimiento de cámara cinematográfico que reúne varios modelos líderes en un solo lugar; popular entre creadores de series y videos cortos."
+        "es": "Plataforma de video con muchos ajustes de movimiento de cámara cinematográfico que reúne varios modelos líderes en un solo lugar; popular entre creadores de series y videos cortos.",
+        "vi": "Nền tảng video với nhiều preset chuyển động máy quay điện ảnh, cho chọn nhiều mô hình video hàng đầu ở một nơi — được người làm video ngắn và phim bộ AI ưa chuộng.",
+        "ar": "منصة فيديو مليئة بإعدادات حركة كاميرا سينمائية، تتيح اختيار عدة نماذج فيديو رائدة في مكان واحد — رائجة بين صنّاع الفيديو القصير ومسلسلات الذكاء الاصطناعي."
       }
     },
     {
@@ -113,7 +133,9 @@
         "en": "ByteDance's video model, strong at multi-shot scenes and consistent characters. Available through Dreamina, BytePlus and other services.",
         "ja": "ByteDanceの動画生成モデル。複数カットがつながるシーンや人物の一貫性に強く、Dreamina・BytePlusなどで使えます。",
         "zh": "字节跳动推出的视频生成模型，擅长多镜头叙事与角色一致性，可通过即梦(Dreamina)、BytePlus 等使用。",
-        "es": "El modelo de video de ByteDance, destaca en escenas de varios planos y personajes coherentes. Disponible en Dreamina, BytePlus y otros servicios."
+        "es": "El modelo de video de ByteDance, destaca en escenas de varios planos y personajes coherentes. Disponible en Dreamina, BytePlus y otros servicios.",
+        "vi": "Mô hình video của ByteDance, mạnh về cảnh nhiều cú máy và nhân vật nhất quán. Dùng qua Dreamina, BytePlus và các dịch vụ khác.",
+        "ar": "نموذج الفيديو من ByteDance، قوي في المشاهد متعددة اللقطات وثبات الشخصيات. متاح عبر Dreamina وBytePlus وخدمات أخرى."
       }
     },
     {
@@ -126,7 +148,9 @@
         "en": "Quickly turns a single image into a clip with smooth camera movement.",
         "ja": "1枚の画像から滑らかなカメラワークの動画をすばやく作れます。",
         "zh": "可将单张图片快速生成带有流畅运镜的视频。",
-        "es": "Convierte rápidamente una imagen en un clip con movimientos de cámara suaves."
+        "es": "Convierte rápidamente una imagen en un clip con movimientos de cámara suaves.",
+        "vi": "Biến nhanh một bức ảnh thành clip với chuyển động máy quay mượt.",
+        "ar": "يحوّل صورة واحدة بسرعة إلى مقطع بحركة كاميرا سلسة."
       }
     },
     {
@@ -139,7 +163,9 @@
         "en": "MiniMax's video service, good for short scenes with expressive faces and emotion.",
         "ja": "MiniMaxの動画生成サービス。表情や感情表現が豊かな短いシーン作りに向いています。",
         "zh": "MiniMax的视频生成服务，适合制作表情与情绪表现丰富的短镜头。",
-        "es": "El servicio de video de MiniMax, ideal para escenas cortas con rostros y emociones expresivas."
+        "es": "El servicio de video de MiniMax, ideal para escenas cortas con rostros y emociones expresivas.",
+        "vi": "Dịch vụ video của MiniMax, hợp với cảnh ngắn có gương mặt và cảm xúc biểu cảm.",
+        "ar": "خدمة الفيديو من MiniMax، مناسبة للمشاهد القصيرة ذات الوجوه والمشاعر المعبّرة."
       }
     },
     {
@@ -152,7 +178,9 @@
         "en": "Makes playful effects and short clips easy — a friendly place to start with AI video.",
         "ja": "楽しいエフェクトや短いクリップを手軽に作れ、AI動画の入門に最適。",
         "zh": "轻松制作有趣特效和短片，适合AI视频入门。",
-        "es": "Facilita efectos divertidos y clips cortos: un buen punto de partida en el video con IA."
+        "es": "Facilita efectos divertidos y clips cortos: un buen punto de partida en el video con IA.",
+        "vi": "Dễ dàng tạo hiệu ứng vui và clip ngắn — điểm khởi đầu thân thiện với video AI.",
+        "ar": "يسهّل صنع تأثيرات مرحة ومقاطع قصيرة — بداية لطيفة مع فيديو الذكاء الاصطناعي."
       }
     },
     {
@@ -165,7 +193,9 @@
         "en": "Natural AI voice acting and multilingual dubbing — widely used for AI drama dialogue.",
         "ja": "自然なAI声優ボイスと多言語吹き替えが作れ、AIドラマのセリフによく使われます。",
         "zh": "可生成自然的AI配音与多语种译制，常用于AI短剧台词。",
-        "es": "Voces de IA naturales y doblaje multilingüe, muy usado para los diálogos de series con IA."
+        "es": "Voces de IA naturales y doblaje multilingüe, muy usado para los diálogos de series con IA.",
+        "vi": "Lồng tiếng AI tự nhiên và đa ngôn ngữ — được dùng rộng rãi cho thoại phim bộ AI.",
+        "ar": "أداء صوتي طبيعي بالذكاء الاصطناعي ودبلجة متعددة اللغات — مستخدم على نطاق واسع لحوارات مسلسلات الذكاء الاصطناعي."
       }
     },
     {
@@ -178,7 +208,9 @@
         "en": "Describe a mood and get background music or full songs — handy for soundtracks.",
         "ja": "雰囲気を文章で書くとBGMや歌を作ってくれ、映像のOST作りに便利。",
         "zh": "用文字描述氛围即可生成背景音乐和歌曲，适合制作影片原声。",
-        "es": "Describe un ambiente y obtén música de fondo o canciones completas, ideal para bandas sonoras."
+        "es": "Describe un ambiente y obtén música de fondo o canciones completas, ideal para bandas sonoras.",
+        "vi": "Mô tả cảm xúc là có nhạc nền hoặc cả bài hát — tiện cho nhạc phim.",
+        "ar": "صِف الأجواء واحصل على موسيقى خلفية أو أغانٍ كاملة — مفيد للموسيقى التصويرية."
       }
     },
     {
@@ -191,7 +223,9 @@
         "en": "An image AI for character and set concept art you can feed into video tools.",
         "ja": "キャラクターや背景のコンセプトアートを作る画像AI。作った絵を動画ツールに入れてシーン化できます。",
         "zh": "用于角色与场景概念美术的图像AI，生成的图片可导入视频工具制作镜头。",
-        "es": "IA de imágenes para arte conceptual de personajes y escenarios que luego puedes animar."
+        "es": "IA de imágenes para arte conceptual de personajes y escenarios que luego puedes animar.",
+        "vi": "AI tạo ảnh cho concept nhân vật và bối cảnh để đưa vào công cụ video.",
+        "ar": "ذكاء اصطناعي للصور لتصميم الشخصيات والمواقع ثم استخدامها في أدوات الفيديو."
       }
     },
     {
@@ -204,7 +238,9 @@
         "en": "Create talking AI-avatar videos and lip-synced translations.",
         "ja": "AIアバターが話す動画や、口の動きまで合わせた翻訳動画を作れます。",
         "zh": "可制作AI数字人讲话视频以及口型同步的翻译视频。",
-        "es": "Crea videos con avatares de IA que hablan y traducciones con sincronización labial."
+        "es": "Crea videos con avatares de IA que hablan y traducciones con sincronización labial.",
+        "vi": "Tạo video avatar AI biết nói và bản dịch khớp khẩu hình.",
+        "ar": "أنشئ فيديوهات أفاتار ناطقة بالذكاء الاصطناعي وترجمات بمزامنة الشفاه."
       }
     },
     {
@@ -217,7 +253,9 @@
         "en": "A free editor to cut and join scenes and add captions and effects, with built-in AI features.",
         "ja": "シーンのカット・結合、字幕やエフェクト追加ができる無料編集ツール。AI機能も搭載。",
         "zh": "免费剪辑工具，可剪切拼接镜头、添加字幕与特效，并内置AI功能。",
-        "es": "Editor gratuito para cortar y unir escenas y añadir subtítulos y efectos, con funciones de IA."
+        "es": "Editor gratuito para cortar y unir escenas y añadir subtítulos y efectos, con funciones de IA.",
+        "vi": "Trình biên tập miễn phí để cắt ghép cảnh, thêm phụ đề và hiệu ứng, có sẵn tính năng AI.",
+        "ar": "محرر مجاني لقص المشاهد ودمجها وإضافة الترجمة والتأثيرات، مع ميزات ذكاء اصطناعي مدمجة."
       }
     }
   ]

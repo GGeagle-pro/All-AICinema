@@ -580,3 +580,7 @@ html{overflow-x:clip}
 .wguide__note{background:linear-gradient(135deg,rgba(255,61,127,.14),rgba(139,92,246,.14));border-radius:10px;padding:10px 12px;margin:0 0 8px}
 .wguide__note p{margin:4px 0 0;white-space:pre-line}
 @media (max-width:640px){.wguide{font-size:13.5px;padding:10px 12px}}
+
+/* 아랍어(오른쪽→왼쪽) 화면: 영어·한국어로 된 영상 제목·채널 이름·설명은 그 글자 방향대로 (문장부호가 엉뚱한 쪽에 붙지 않게) */
+html[dir="rtl"] :is(h1, h2, h3, h4, p, li, dd, dt, figcaption, blockquote) { unicode-bidi: plaintext; text-align: right; }
+html[dir="rtl"] :is(input, textarea) { unicode-bidi: plaintext; }
