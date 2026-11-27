@@ -35,7 +35,7 @@ const jsonLd = (o) => JSON.stringify(o).replace(/</g, "\\u003c");
 const cut = (s, n) => { const a = Array.from(String(s || "").replace(/\s+/g, " ").trim()); return a.length > n ? a.slice(0, n - 1).join("").trim() + "…" : a.join(""); };   // 글자 단위 (이모지가 반으로 잘리지 않게)
 
 // ── 해외 검색 노출: 언어별 페이지 ──
-// ko = 기본 주소(/), 나머지는 /en/ /ja/ /zh/ /es/ /vi/ /ar/(오른쪽→왼쪽) (미국·영국·싱가포르 등 영어권은 /en/, 중화권은 /zh/)
+// ko = 기본 주소(/), 나머지는 /en/ /ja/ /zh/ /es/ /vi/ /ar/(오른쪽→왼쪽) /de/ /fr/ /it/ (미국·영국·싱가포르 등 영어권은 /en/, 중화권은 /zh/)
 const LANGS = {
   ko: { path: "/", hreflang: "ko", html: "ko", locale: "ko_KR" },
   en: { path: "/en/", hreflang: "en", html: "en", locale: "en_US",
@@ -64,7 +64,7 @@ const LANGS = {
     listName: "最新AI电影与短剧" },
   es: { path: "/es/", hreflang: "es", html: "es", locale: "es_ES",
     title: "All AI-Cinema | Películas, series y cortos hechos con IA",
-    desc: "Las mejores películas, series y cortometrajes creados con inteligencia artificial en un solo lugar. Elige por género, país y canal de YouTube y míralos al instante, gratis.",
+    desc: "Películas, series y cortos creados con inteligencia artificial en un solo lugar. Elige por género, país y canal de YouTube y míralos gratis al instante.",
     ogDesc: "Películas, series y cortos hechos con IA en un solo lugar. Reproducción al instante.",
     keywords: "películas IA, película hecha con IA, serie IA, cortometraje IA, video generado por IA, cine IA, animación IA",
     h1: "All AI-Cinema – Películas, series y cortos hechos con IA",
@@ -79,13 +79,37 @@ const LANGS = {
     ogAlt: "All AI-Cinema – những câu chuyện do AI tạo ra, ở một nơi",
     listName: "Phim và phim bộ AI mới nhất" },
   ar: { path: "/ar/", hreflang: "ar", html: "ar", locale: "ar_AR", rtl: true,
-    title: "All AI-Cinema | شاهد أفلام ومسلسلات وأفلامًا قصيرة بالذكاء الاصطناعي",
+    title: "All AI-Cinema | أفلام ومسلسلات الذكاء الاصطناعي",
     desc: "أفضل الأفلام والمسلسلات والأفلام القصيرة المصنوعة بالذكاء الاصطناعي في مكان واحد. اختر حسب النوع والدولة وقناة يوتيوب وشاهد فورًا مجانًا.",
     ogDesc: "أفلام ومسلسلات وأفلام قصيرة بالذكاء الاصطناعي في مكان واحد. مشاهدة فورية مجانًا.",
     keywords: "أفلام الذكاء الاصطناعي, مسلسلات الذكاء الاصطناعي, فيلم قصير بالذكاء الاصطناعي, فيديو مولد بالذكاء الاصطناعي, رسوم متحركة بالذكاء الاصطناعي",
     h1: "All AI-Cinema – أفلام ومسلسلات وأفلام قصيرة بالذكاء الاصطناعي",
     ogAlt: "All AI-Cinema – قصص صنعها الذكاء الاصطناعي في مكان واحد",
     listName: "أحدث أفلام ومسلسلات الذكاء الاصطناعي" },
+  de: { path: "/de/", hreflang: "de", html: "de", locale: "de_DE",
+    title: "All AI-Cinema | KI-Filme, KI-Serien & KI-Kurzfilme ansehen",
+    desc: "Die besten mit KI erstellten Filme, Serien und Kurzfilme an einem Ort. Nach Genre, Land und YouTube-Kanal stöbern und sofort kostenlos abspielen.",
+    ogDesc: "KI-Filme, KI-Serien und KI-Kurzfilme an einem Ort. Sofort und kostenlos abspielen.",
+    keywords: "KI Film, KI Filme, KI Serie, KI Kurzfilm, mit KI erstellter Film, KI generiertes Video, KI Animation, KI Kino",
+    h1: "All AI-Cinema – KI-Filme, KI-Serien und KI-Kurzfilme",
+    ogAlt: "All AI-Cinema – von KI erzählte Geschichten an einem Ort",
+    listName: "Neueste KI-Filme und -Serien" },
+  fr: { path: "/fr/", hreflang: "fr", html: "fr", locale: "fr_FR",
+    title: "All AI-Cinema | Films IA, séries IA et courts métrages IA",
+    desc: "Films, séries et courts métrages créés par l'IA, réunis au même endroit. Choisissez par genre, pays ou chaîne YouTube et regardez gratuitement.",
+    ogDesc: "Films, séries et courts métrages IA réunis au même endroit. Lecture immédiate et gratuite.",
+    keywords: "film IA, films IA, série IA, court métrage IA, film généré par IA, vidéo IA, animation IA, cinéma IA",
+    h1: "All AI-Cinema – Films IA, séries IA et courts métrages IA",
+    ogAlt: "All AI-Cinema – des histoires créées par l'IA, au même endroit",
+    listName: "Nouveaux films et séries IA" },
+  it: { path: "/it/", hreflang: "it", html: "it", locale: "it_IT",
+    title: "All AI-Cinema | Film IA, serie IA e cortometraggi IA",
+    desc: "Film, serie e cortometraggi creati con l'intelligenza artificiale in un unico posto. Scegli per genere, paese e canale YouTube e guardali gratis.",
+    ogDesc: "Film, serie e cortometraggi IA in un unico posto. Riproduzione immediata e gratuita.",
+    keywords: "film IA, film intelligenza artificiale, serie IA, cortometraggio IA, video generato con IA, animazione IA, cinema IA",
+    h1: "All AI-Cinema – Film IA, serie IA e cortometraggi IA",
+    ogAlt: "All AI-Cinema – storie create dall'IA, in un unico posto",
+    listName: "Nuovi film e serie IA" },
 };
 const hreflangLinks = () => Object.values(LANGS).map((l) => `<link rel="alternate" hreflang="${l.hreflang}" href="${SITE}${l.path}" />`).join("\n  ")
   + `\n  <link rel="alternate" hreflang="x-default" href="${SITE}/en/" />`;
@@ -113,6 +137,9 @@ function localize(page, code, I) {
   p = p.replace(/(<link rel="canonical" href=")[^"]*/, `$1${SITE}${L.path}`);
   p = p.replace(/(<meta property="og:url" content=")[^"]*/, `$1${SITE}${L.path}`);
   p = p.replace(/(<meta property="og:locale" content=")[^"]*/, `$1${L.locale}`);
+  // RSS 제목·로고 링크도 그 언어로 (로고는 같은 언어 홈으로)
+  p = p.replace(/(<link rel="alternate" type="application\/rss\+xml" title=")[^"]*/, `$1All AI-Cinema – ${attr(L.rssTitle || L.listName || L.title)}`);
+  p = p.replace(/<a class="brand" href="[^"]*" aria-label="[^"]*">/, `<a class="brand" href="${L.path}" aria-label="All AI-Cinema – ${attr(t("홈"))}">`);
   p = p.replace(/(<meta property="og:title" content=")[^"]*/, `$1${attr(L.title)}`);
   p = p.replace(/(<meta name="twitter:title" content=")[^"]*/, `$1${attr(L.title)}`);
   p = p.replace(/(<meta property="og:description" content=")[^"]*/, `$1${attr(L.ogDesc)}`);
@@ -187,9 +214,9 @@ function sitemap(lastmod, pages = [], tools = []) {
     { loc: `${SITE}/terms.html`, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE}/en/terms.html`, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE}/en/privacy.html`, changefreq: "yearly", priority: "0.2" },
-    // AI 제작 도구 추천 페이지 (5개 언어, scripts/tools.mjs)
+    // AI 제작 도구 추천 페이지 (언어별, scripts/tools.mjs)
     ...tools.map((u) => ({ loc: u.loc, lastmod, changefreq: "weekly", priority: "0.7",
-      alts: u.altsXml !== undefined ? u.altsXml : ["ko:/tools/", "en:/en/tools/", "ja:/ja/tools/", "zh-Hans:/zh/tools/", "es:/es/tools/", "x-default:/en/tools/"].map((x) => { const [h, p] = [x.slice(0, x.indexOf(":")), x.slice(x.indexOf(":") + 1)]; return `<xhtml:link rel="alternate" hreflang="${h}" href="${SITE}${p}"/>`; }).join("") })),
+      alts: u.altsXml !== undefined ? u.altsXml : ["ko:/tools/", ...Object.entries(LANGS).filter(([c]) => c !== "ko").map(([c, l]) => `${l.hreflang}:/${c}/tools/`), "x-default:/en/tools/"].map((x) => { const [h, p] = [x.slice(0, x.indexOf(":")), x.slice(x.indexOf(":") + 1)]; return `<xhtml:link rel="alternate" hreflang="${h}" href="${SITE}${p}"/>`; }).join("") })),
     // 작품·영상 페이지 (scripts/pages.mjs)
     ...pages.map((u) => ({ loc: u.loc, lastmod: u.lastmod, alts: u.alts || "", changefreq: u.loc.includes("/work/") ? "daily" : "weekly", priority: u.loc.includes("/work/") ? "0.8" : "0.6" })),
   ];
@@ -245,7 +272,7 @@ export async function buildSeo() {
   try { pagesOn = JSON.parse(await readFile(resolve(PUB, "data/site.json"), "utf8")).pages !== false; } catch {}
   let pages = { urls: [], counts: { works: 0, videos: 0 }, changed: 0 };
   if (pagesOn) pages = await buildPages({ PUB, SITE, loadI18n, ver });
-  else for (const base of [".", "ko", "en", "ja", "zh", "es", "vi", "ar"]) for (const d of ["watch", "work"]) await rm(resolve(PUB, base, d), { recursive: true, force: true });
+  else for (const base of [".", "ko", "en", "ja", "zh", "es", "vi", "ar", "de", "fr", "it"]) for (const d of ["watch", "work"]) await rm(resolve(PUB, base, d), { recursive: true, force: true });
   const tools = await buildTools({ PUB, SITE, loadI18n, ver });
   const howto = await buildHowto({ PUB, SITE, loadI18n, ver });
   const adv = await buildAdvertise({ PUB, SITE, loadI18n, ver });

@@ -35,12 +35,12 @@ export const slugify = (s) => String(s || "").normalize("NFKC").toLowerCase()
 // 제목 글자로 페이지 언어 정하기
 const VI_RE = /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i;
 const langOf = (t) => /[가-힣]/.test(t) ? "ko" : /[぀-ヿ]/.test(t) ? "ja" : /[一-鿿]/.test(t) ? "zh" : /[\u0600-\u06ff]/.test(t) ? "ar" : VI_RE.test(t) ? "vi" : "en";
-export const HTML_LANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
-export const HOME = { ko: "/", en: "/en/", ja: "/ja/", zh: "/zh/", es: "/es/", vi: "/vi/", ar: "/ar/" };
+export const HTML_LANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar", de: "de", fr: "fr", it: "it" };
+export const HOME = { ko: "/", en: "/en/", ja: "/ja/", zh: "/zh/", es: "/es/", vi: "/vi/", ar: "/ar/", de: "/de/", fr: "/fr/", it: "/it/" };
 export const RTL = new Set(["ar"]);   // 오른쪽→왼쪽 언어
-const LOCALE = { ko: "ko_KR", en: "en_US", ja: "ja_JP", zh: "zh_CN", es: "es_ES", vi: "vi_VN", ar: "ar_AR" };
+const LOCALE = { ko: "ko_KR", en: "en_US", ja: "ja_JP", zh: "zh_CN", es: "es_ES", vi: "vi_VN", ar: "ar_AR", de: "de_DE", fr: "fr_FR", it: "it_IT" };
 // 언어별 사본 (해외 검색용): /ko|en|ja|zh|es/watch/영상ID/, /…/work/작품/ – 원래 페이지(/watch/…)는 제목 언어 화면 그대로
-const LP = { ko: "/ko", en: "/en", ja: "/ja", zh: "/zh", es: "/es", vi: "/vi", ar: "/ar" };
+const LP = { ko: "/ko", en: "/en", ja: "/ja", zh: "/zh", es: "/es", vi: "/vi", ar: "/ar", de: "/de", fr: "/fr", it: "/it" };
 const LOCAL_TOP = 300;   // 언어별 사본을 만들 영상 수 (조회수 높은 순) – 작품 페이지는 전부
 const WATCH_INTRO = {
   ko: (v) => `${v.channel} 채널이 AI로 만든 영상이에요. All AI-Cinema에서 유튜브 공식 플레이어로 무료로 볼 수 있어요.`,
@@ -50,6 +50,9 @@ const WATCH_INTRO = {
   es: (v) => `Un video hecho con IA por ${v.channel}. Míralo gratis con el reproductor oficial de YouTube en All AI-Cinema.`,
   vi: (v) => `Video do kênh ${v.channel} tạo bằng AI. Xem miễn phí bằng trình phát YouTube chính thức trên All AI-Cinema.`,
   ar: (v) => `فيديو صنعته قناة ${v.channel} بالذكاء الاصطناعي. شاهده مجانًا عبر مشغّل يوتيوب الرسمي على All AI-Cinema.`,
+  de: (v) => `Ein mit KI erstelltes Video von ${v.channel}. Kostenlos ansehen mit dem offiziellen YouTube-Player auf All AI-Cinema.`,
+  fr: (v) => `Une vidéo créée avec l'IA par ${v.channel}. Regardez-la gratuitement avec le lecteur YouTube officiel sur All AI-Cinema.`,
+  it: (v) => `Un video creato con l'IA da ${v.channel}. Guardalo gratis con il player ufficiale di YouTube su All AI-Cinema.`,
 };
 const WORK_INTRO = {
   ko: (w) => `${w.channel} 채널의 AI 드라마 「${w.name}」 전체 ${w.list.length}편을 1화부터 차례로 모았어요.`,
@@ -59,6 +62,9 @@ const WORK_INTRO = {
   es: (w) => `Los ${w.list.length} episodios de la serie IA «${w.name}» de ${w.channel}, en orden desde el episodio 1.`,
   vi: (w) => `Trọn ${w.list.length} tập của phim bộ AI "${w.name}" từ kênh ${w.channel}, sắp xếp theo thứ tự từ tập 1.`,
   ar: (w) => `جميع حلقات مسلسل الذكاء الاصطناعي «${w.name}» من قناة ${w.channel} (${w.list.length} حلقة) مرتبة من الحلقة 1.`,
+  de: (w) => `Alle ${w.list.length} Folgen der KI-Serie „${w.name}“ von ${w.channel}, der Reihe nach ab Folge 1.`,
+  fr: (w) => `Les ${w.list.length} épisodes de la série IA « ${w.name} » de ${w.channel}, dans l'ordre depuis l'épisode 1.`,
+  it: (w) => `Tutti i ${w.list.length} episodi della serie IA «${w.name}» di ${w.channel}, in ordine dall'episodio 1.`,
 };
 
 // 유튜브 설명 앞부분만 (링크·해시태그·이메일 제거)
@@ -113,7 +119,26 @@ export async function loadAll(PUB) {
 }
 
 // ── 공통 틀 ──
+// 검색 결과에서 잘리지 않게: 제목 ~60, 설명 ~160 (한·중·일 글자는 2칸으로 계산)
+const width = (t) => [...String(t)].reduce((n, c) => n + (/[\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/.test(c) ? 2 : 1), 0);
+export function seoTitle(t) {
+  t = String(t || "").trim();
+  if (width(t) <= 62) return t;
+  const m = t.match(/^(.*?)\s*[|–-]\s*All AI-Cinema\s*$/);   // 길면 뒤의 사이트 이름부터 뺌
+  return m && m[1] ? m[1] : t;
+}
+export function seoDesc(d, max = 160) {
+  d = String(d || "").replace(/\s+/g, " ").trim();
+  if (width(d) <= max) return d;
+  let out = "", w = 0;
+  for (const c of d) { const cw = width(c); if (w + cw > max - 1) break; out += c; w += cw; }
+  const cut = Math.max(out.lastIndexOf(". "), out.lastIndexOf("。"), out.lastIndexOf("! "), out.lastIndexOf("? "));
+  if (cut > out.length * 0.6) return out.slice(0, cut + 1);   // 문장 끝에서 자르기
+  const sp = out.lastIndexOf(" ");
+  return (sp > out.length * 0.7 ? out.slice(0, sp) : out).replace(/[,;:·、，\s]+$/, "") + "…";
+}
 export function shell(o) {
+  o = { ...o, title: seoTitle(o.title), desc: seoDesc(o.desc) };
   const html = shellHtml(o);
   // 오른쪽→왼쪽 언어: 화살표를 반대로 (앞으로 가기 = 왼쪽)
   return RTL.has(o.lang) ? html.replace(/→/g, "←").replace(/↗/g, "↖") : html;
@@ -250,19 +275,22 @@ const GUIDE = {
   es: { ana: "Análisis", t: "Guía de la serie", genre: "Género y país", eps: "Episodios", first: "Primer episodio", last: "Último episodio", every: "Ritmo", everyV: (d) => (d < 1.5 ? "Casi a diario" : `Cada ${Math.round(d)} días aprox.`), done: "Terminada o en pausa", rec: "Para quién es", note: "Nota del editor", same: "Más de este canal", like: "Series parecidas", n: (n) => `${n} episodios` },
   vi: { ana: "Phân tích", t: "Hướng dẫn phim bộ", genre: "Thể loại & quốc gia", eps: "Số tập", first: "Tập đầu", last: "Tập mới nhất", every: "Nhịp cập nhật", everyV: (d) => (d < 1.5 ? "Gần như mỗi ngày" : `Khoảng ${Math.round(d)} ngày một tập`), done: "Đã hết hoặc đang tạm nghỉ", rec: "Phù hợp với ai", note: "Ghi chú biên tập", same: "Thêm từ kênh này", like: "Phim bộ tương tự", n: (n) => `${n} tập` },
   ar: { ana: "تحليل", t: "دليل المسلسل", genre: "النوع والدولة", eps: "الحلقات", first: "الحلقة الأولى", last: "أحدث حلقة", every: "وتيرة التحديث", everyV: (d) => (d < 1.5 ? "يوميًا تقريبًا" : `كل ${Math.round(d)} أيام تقريبًا`), done: "منتهٍ أو متوقف مؤقتًا", rec: "لمن يناسب", note: "ملاحظة المحرر", same: "المزيد من هذه القناة", like: "مسلسلات مشابهة", n: (n) => `${n} حلقة` },
+  de: { ana: "Analyse", t: "Serien-Guide", genre: "Genre & Land", eps: "Folgen", first: "Erste Folge", last: "Neueste Folge", every: "Update-Rhythmus", everyV: (d) => (d < 1.5 ? "Fast täglich" : `Etwa alle ${Math.round(d)} Tage`), done: "Abgeschlossen oder pausiert", rec: "Für wen es passt", note: "Anmerkung der Redaktion", same: "Mehr von diesem Kanal", like: "Ähnliche Serien", n: (n) => `${n} Folgen` },
+  fr: { ana: "Analyse", t: "Guide de la série", genre: "Genre et pays", eps: "Épisodes", first: "Premier épisode", last: "Dernier épisode", every: "Rythme", everyV: (d) => (d < 1.5 ? "Presque chaque jour" : `Environ tous les ${Math.round(d)} jours`), done: "Terminée ou en pause", rec: "Pour qui", note: "Note de la rédaction", same: "Plus de cette chaîne", like: "Séries similaires", n: (n) => `${n} épisodes` },
+  it: { ana: "Analisi", t: "Guida alla serie", genre: "Genere e paese", eps: "Episodi", first: "Primo episodio", last: "Ultimo episodio", every: "Ritmo", everyV: (d) => (d < 1.5 ? "Quasi ogni giorno" : `Circa ogni ${Math.round(d)} giorni`), done: "Conclusa o in pausa", rec: "Per chi è", note: "Nota della redazione", same: "Altro da questo canale", like: "Serie simili", n: (n) => `${n} episodi` },
 };
 // 장르별 추천 문구 (사이트에서 직접 쓴 글)
 const REC = {
-  "액션·히어로": { ko: "시원한 액션과 통쾌한 반전을 좋아하는 분", en: "Fans of big action and satisfying comebacks", ja: "爽快なアクションと逆転劇が好きな方", zh: "喜欢爽快动作与逆袭剧情的观众", es: "Quienes disfrutan la acción y las remontadas", vi: "Ai thích hành động mãn nhãn và màn lội ngược dòng", ar: "محبّو الأكشن الكبير والعودة المُرضية" },
-  "판타지": { ko: "현실에서 볼 수 없는 세계와 능력이 궁금한 분", en: "Viewers who love other worlds and special powers", ja: "異世界や特殊能力の物語が好きな方", zh: "喜欢异世界与超能力设定的观众", es: "Amantes de mundos fantásticos y poderes", vi: "Người mê thế giới khác và siêu năng lực", ar: "من يحبون العوالم الأخرى والقدرات الخارقة" },
-  "사극·무협": { ko: "옛날 배경, 궁중 암투, 무협 액션을 즐기는 분", en: "Fans of period drama, palace intrigue and martial arts", ja: "時代劇・宮廷劇・武侠アクションが好きな方", zh: "喜欢古装、宫斗与武侠的观众", es: "Fans de época, intrigas de palacio y artes marciales", vi: "Fan phim cổ trang, đấu đá cung đình và võ hiệp", ar: "محبّو الدراما التاريخية ومؤامرات القصور والفنون القتالية" },
-  "SF": { ko: "미래 기술, 우주, AI가 등장하는 이야기를 좋아하는 분", en: "Sci-fi fans: future tech, space and AI", ja: "未来技術・宇宙・AIの物語が好きな方", zh: "喜欢未来科技、太空与AI题材的观众", es: "Fans de la ciencia ficción, el espacio y la IA", vi: "Fan khoa học viễn tưởng: công nghệ tương lai, vũ trụ và AI", ar: "محبّو الخيال العلمي: تقنيات المستقبل والفضاء والذكاء الاصطناعي" },
-  "미스터리·스릴러": { ko: "끝까지 범인과 진실을 추리하고 싶은 분", en: "Anyone who likes to solve the mystery before the end", ja: "最後まで謎解きを楽しみたい方", zh: "喜欢推理悬疑、猜真相的观众", es: "Quienes quieren resolver el misterio antes del final", vi: "Ai thích tự giải bí ẩn trước khi phim kết thúc", ar: "من يحب حل اللغز قبل النهاية" },
-  "코미디": { ko: "가볍게 웃으며 보고 싶은 분", en: "Anyone looking for a light laugh", ja: "気軽に笑いたい方", zh: "想轻松一笑的观众", es: "Quienes buscan reír sin complicaciones", vi: "Ai muốn cười nhẹ nhàng", ar: "من يبحث عن ضحكة خفيفة" },
-  "드라마": { ko: "인물의 감정과 관계 변화를 따라가는 이야기를 좋아하는 분", en: "Viewers who enjoy character-driven stories", ja: "人物の感情や関係の変化を味わいたい方", zh: "喜欢人物情感与关系变化的观众", es: "Quienes disfrutan historias centradas en personajes", vi: "Người thích câu chuyện xoay quanh nhân vật", ar: "من يستمتع بالقصص التي تدور حول الشخصيات" },
-  "로맨스": { ko: "설레는 연애와 반전 있는 사랑 이야기를 찾는 분", en: "Romance fans who like a twist", ja: "ときめく恋愛と逆転劇が好きな方", zh: "喜欢心动恋爱与反转爱情的观众", es: "Amantes del romance con giros", vi: "Fan lãng mạn thích những cú twist", ar: "محبّو الرومانسية مع المفاجآت" },
-  "공포": { ko: "오싹한 분위기와 긴장감을 즐기는 분", en: "Horror fans who like the tension", ja: "ぞくっとする緊張感が好きな方", zh: "喜欢惊悚紧张氛围的观众", es: "Fans del terror y la tensión", vi: "Fan kinh dị thích cảm giác căng thẳng", ar: "محبّو الرعب والتوتر" },
-  "애니메이션": { ko: "그림체와 연출이 독특한 AI 애니메이션이 궁금한 분", en: "Curious about the look of AI animation", ja: "AIアニメの独特な絵柄と演出が気になる方", zh: "想看风格独特的AI动画的观众", es: "Curiosos por la animación hecha con IA", vi: "Ai tò mò về phong cách hoạt hình AI", ar: "الفضوليون حول شكل الرسوم المتحركة بالذكاء الاصطناعي" },
+  "액션·히어로": { ko: "시원한 액션과 통쾌한 반전을 좋아하는 분", en: "Fans of big action and satisfying comebacks", ja: "爽快なアクションと逆転劇が好きな方", zh: "喜欢爽快动作与逆袭剧情的观众", es: "Quienes disfrutan la acción y las remontadas", vi: "Ai thích hành động mãn nhãn và màn lội ngược dòng", ar: "محبّو الأكشن الكبير والعودة المُرضية", de: "Fans von großer Action und befriedigenden Comebacks", fr: "Les fans d'action et de revanches réjouissantes", it: "Chi ama l'azione e le rivincite soddisfacenti" },
+  "판타지": { ko: "현실에서 볼 수 없는 세계와 능력이 궁금한 분", en: "Viewers who love other worlds and special powers", ja: "異世界や特殊能力の物語が好きな方", zh: "喜欢异世界与超能力设定的观众", es: "Amantes de mundos fantásticos y poderes", vi: "Người mê thế giới khác và siêu năng lực", ar: "من يحبون العوالم الأخرى والقدرات الخارقة", de: "Alle, die andere Welten und besondere Kräfte lieben", fr: "Ceux qui aiment les autres mondes et les pouvoirs", it: "Chi ama altri mondi e poteri speciali" },
+  "사극·무협": { ko: "옛날 배경, 궁중 암투, 무협 액션을 즐기는 분", en: "Fans of period drama, palace intrigue and martial arts", ja: "時代劇・宮廷劇・武侠アクションが好きな方", zh: "喜欢古装、宫斗与武侠的观众", es: "Fans de época, intrigas de palacio y artes marciales", vi: "Fan phim cổ trang, đấu đá cung đình và võ hiệp", ar: "محبّو الدراما التاريخية ومؤامرات القصور والفنون القتالية", de: "Fans von Historiendrama, Palastintrigen und Kampfkunst", fr: "Les fans de drames d'époque, d'intrigues de palais et d'arts martiaux", it: "Fan di drammi storici, intrighi di corte e arti marziali" },
+  "SF": { ko: "미래 기술, 우주, AI가 등장하는 이야기를 좋아하는 분", en: "Sci-fi fans: future tech, space and AI", ja: "未来技術・宇宙・AIの物語が好きな方", zh: "喜欢未来科技、太空与AI题材的观众", es: "Fans de la ciencia ficción, el espacio y la IA", vi: "Fan khoa học viễn tưởng: công nghệ tương lai, vũ trụ và AI", ar: "محبّو الخيال العلمي: تقنيات المستقبل والفضاء والذكاء الاصطناعي", de: "Sci-Fi-Fans: Zukunftstechnik, Weltraum und KI", fr: "Les fans de SF : technologies futures, espace et IA", it: "Fan della fantascienza: tecnologia futura, spazio e IA" },
+  "미스터리·스릴러": { ko: "끝까지 범인과 진실을 추리하고 싶은 분", en: "Anyone who likes to solve the mystery before the end", ja: "最後まで謎解きを楽しみたい方", zh: "喜欢推理悬疑、猜真相的观众", es: "Quienes quieren resolver el misterio antes del final", vi: "Ai thích tự giải bí ẩn trước khi phim kết thúc", ar: "من يحب حل اللغز قبل النهاية", de: "Alle, die das Rätsel vor dem Ende lösen wollen", fr: "Ceux qui aiment résoudre l'énigme avant la fin", it: "Chi ama risolvere il mistero prima della fine" },
+  "코미디": { ko: "가볍게 웃으며 보고 싶은 분", en: "Anyone looking for a light laugh", ja: "気軽に笑いたい方", zh: "想轻松一笑的观众", es: "Quienes buscan reír sin complicaciones", vi: "Ai muốn cười nhẹ nhàng", ar: "من يبحث عن ضحكة خفيفة", de: "Alle, die einfach lachen wollen", fr: "Ceux qui cherchent à rire simplement", it: "Chi cerca una risata leggera" },
+  "드라마": { ko: "인물의 감정과 관계 변화를 따라가는 이야기를 좋아하는 분", en: "Viewers who enjoy character-driven stories", ja: "人物の感情や関係の変化を味わいたい方", zh: "喜欢人物情感与关系变化的观众", es: "Quienes disfrutan historias centradas en personajes", vi: "Người thích câu chuyện xoay quanh nhân vật", ar: "من يستمتع بالقصص التي تدور حول الشخصيات", de: "Zuschauer, die figurenstarke Geschichten mögen", fr: "Ceux qui aiment les histoires centrées sur les personnages", it: "Chi ama le storie incentrate sui personaggi" },
+  "로맨스": { ko: "설레는 연애와 반전 있는 사랑 이야기를 찾는 분", en: "Romance fans who like a twist", ja: "ときめく恋愛と逆転劇が好きな方", zh: "喜欢心动恋爱与反转爱情的观众", es: "Amantes del romance con giros", vi: "Fan lãng mạn thích những cú twist", ar: "محبّو الرومانسية مع المفاجآت", de: "Romance-Fans, die Wendungen mögen", fr: "Les amateurs de romance avec rebondissements", it: "Gli amanti del romance con colpi di scena" },
+  "공포": { ko: "오싹한 분위기와 긴장감을 즐기는 분", en: "Horror fans who like the tension", ja: "ぞくっとする緊張感が好きな方", zh: "喜欢惊悚紧张氛围的观众", es: "Fans del terror y la tensión", vi: "Fan kinh dị thích cảm giác căng thẳng", ar: "محبّو الرعب والتوتر", de: "Horrorfans, die die Spannung lieben", fr: "Les fans d'horreur qui aiment la tension", it: "Fan dell'horror che amano la tensione" },
+  "애니메이션": { ko: "그림체와 연출이 독특한 AI 애니메이션이 궁금한 분", en: "Curious about the look of AI animation", ja: "AIアニメの独特な絵柄と演出が気になる方", zh: "想看风格独特的AI动画的观众", es: "Curiosos por la animación hecha con IA", vi: "Ai tò mò về phong cách hoạt hình AI", ar: "الفضوليون حول شكل الرسوم المتحركة بالذكاء الاصطناعي", de: "Neugierig auf den Look von KI-Animation", fr: "Les curieux du style de l'animation IA", it: "Chi è curioso dello stile dell'animazione IA" },
 };
 function workGuide(w, ctx, I, lang, L) {
   const G = GUIDE[lang], eps = w.list.filter((x) => !isBinge(x));
@@ -359,7 +387,7 @@ async function bigThumbs(PUB, ids) {
 export async function buildPages({ PUB, SITE, loadI18n, ver, only }) {
   const { videos, works } = await loadAll(PUB);
   const cache = {};
-  for (const l of ["ko", "en", "ja", "zh", "es", "vi", "ar"]) cache[l] = await loadI18n(l);
+  for (const l of ["ko", "en", "ja", "zh", "es", "vi", "ar", "de", "fr", "it"]) cache[l] = await loadI18n(l);
   const big = await bigThumbs(PUB, videos.map((v) => v.id));
   // 언어별 사본 대상: 조회수 높은 영상 LOCAL_TOP개 + 모든 작품
   const loc = { watch: new Set([...videos].sort((a, b) => b.views - a.views).slice(0, LOCAL_TOP).map((v) => v.id)), work: new Set(works.map((w) => w.slug)) };

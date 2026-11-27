@@ -9,8 +9,8 @@ import { resolve } from "node:path";
 import { shell, esc, HTML_LANG, HOME } from "./pages.mjs";
 import { HOWTO, HOWTO_PATH } from "./howto-text.mjs";
 
-const PATH = { ko: "/tools/", en: "/en/tools/", ja: "/ja/tools/", zh: "/zh/tools/", es: "/es/tools/", vi: "/vi/tools/", ar: "/ar/tools/" };
-const HREFLANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
+const PATH = { ko: "/tools/", en: "/en/tools/", ja: "/ja/tools/", zh: "/zh/tools/", es: "/es/tools/", vi: "/vi/tools/", ar: "/ar/tools/", de: "/de/tools/", fr: "/fr/tools/", it: "/it/tools/" };
+const HREFLANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar", de: "de", fr: "fr", it: "it" };
 const safeUrl = (u) => { try { const x = new URL(String(u || "").trim()); return x.protocol === "https:" ? x.href : ""; } catch { return ""; } };
 const jsonLd = (o) => JSON.stringify(o).replace(/</g, "\\u003c");
 
@@ -35,7 +35,7 @@ const TXT = {
     steps: ["用图像工具设计角色与场景", "用视频工具生成镜头", "添加配音与音乐", "用剪辑工具拼接并加字幕"],
     stepsTitle: "AI电影制作流程", go: "访问网站", disclose: "本页部分链接为推广链接，通过链接注册或购买时，网站可能获得佣金，您的价格不受影响。",
     watch: "观看AI制作的电影", desc: "按用途整理的AI电影与短剧制作工具推荐：视频生成、配音、音乐、图像与剪辑。" },
-  es: { title: "Cómo hacer películas con IA – Herramientas de video, voz y música", h1: "Haz películas con IA: herramientas recomendadas",
+  es: { title: "Cómo hacer películas con IA – Mejores herramientas", h1: "Haz películas con IA: herramientas recomendadas",
     lead: "Las películas y series con IA de All AI-Cinema se crean con herramientas como estas. Están ordenadas según el proceso: crear escenas a partir de texto o imágenes, añadir voces y música, y editar.",
     steps: ["Diseña personajes y escenarios con una herramienta de imágenes", "Genera escenas (planos) con una herramienta de video", "Añade voces y música", "Edita, une los planos y añade subtítulos"],
     stepsTitle: "El proceso de cine con IA", go: "Ir al sitio", disclose: "Algunos enlaces de esta página son de afiliado. Si te registras o compras a través de ellos, podemos recibir una comisión sin costo adicional para ti.",
@@ -45,11 +45,26 @@ const TXT = {
     steps: ["Thiết kế nhân vật và bối cảnh bằng công cụ ảnh", "Tạo cảnh (cú máy) bằng công cụ video", "Thêm giọng nói và âm nhạc", "Biên tập, nối cảnh và thêm phụ đề"],
     stepsTitle: "Quy trình làm phim AI", go: "Đến trang", disclose: "Một số liên kết trên trang này là liên kết tiếp thị. Nếu bạn đăng ký hoặc mua qua đó, chúng tôi có thể nhận hoa hồng mà bạn không phải trả thêm.",
     watch: "Xem phim làm bằng AI", desc: "Danh sách công cụ AI để làm phim và phim bộ: tạo video, giọng nói và lồng tiếng, âm nhạc, hình ảnh và biên tập." },
-  ar: { title: "كيف تصنع أفلامًا بالذكاء الاصطناعي – أفضل أدوات الفيديو والصوت والموسيقى", h1: "اصنع أفلامًا بالذكاء الاصطناعي: أدوات مقترحة",
+  ar: { title: "كيف تصنع أفلامًا بالذكاء الاصطناعي – أفضل الأدوات", h1: "اصنع أفلامًا بالذكاء الاصطناعي: أدوات مقترحة",
     lead: "تُصنع أفلام ومسلسلات الذكاء الاصطناعي على All AI-Cinema بأدوات مثل هذه. رتّبناها حسب خطوات العمل: إنشاء المشاهد من نص أو صور، ثم إضافة الأصوات والموسيقى، ثم المونتاج.",
     steps: ["صمّم الشخصيات والمواقع بأداة صور", "أنشئ المشاهد (اللقطات) بأداة فيديو", "أضف الأصوات والموسيقى", "حرّر المشاهد واجمعها وأضف الترجمة"],
     stepsTitle: "خطوات صناعة فيلم بالذكاء الاصطناعي", go: "زيارة الموقع", disclose: "بعض الروابط في هذه الصفحة روابط تسويقية. إذا سجّلت أو اشتريت عبرها فقد نحصل على عمولة دون أي تكلفة إضافية عليك.",
     watch: "شاهد أفلامًا صُنعت بالذكاء الاصطناعي", desc: "قائمة مختارة من أدوات الذكاء الاصطناعي لصناعة الأفلام والمسلسلات: توليد الفيديو، الصوت والدبلجة، الموسيقى، الصور والمونتاج." },
+  de: { title: "KI-Filme machen – die besten KI-Tools", h1: "Filme mit KI machen: empfohlene Tools",
+    lead: "Die KI-Filme und -Serien auf All AI-Cinema entstehen mit Tools wie diesen. Sie sind in der Reihenfolge sortiert, in der du sie nutzt: Szenen aus Text oder Bildern erzeugen, Stimmen und Musik hinzufügen, dann schneiden.",
+    steps: ["Figuren und Sets mit einem Bild-Tool entwerfen", "Szenen (Einstellungen) mit einem Video-Tool erzeugen", "Stimmen und Musik hinzufügen", "Schneiden, Einstellungen verbinden und Untertitel einfügen"],
+    stepsTitle: "Der Ablauf beim KI-Film", go: "Zur Website", disclose: "Einige Links auf dieser Seite sind Affiliate-Links. Wenn du dich darüber anmeldest oder etwas kaufst, erhalten wir eventuell eine Provision – ohne Mehrkosten für dich.",
+    watch: "Mit KI erstellte Filme ansehen", desc: "Eine kuratierte Liste von KI-Tools für Filme und Serien: Videogenerierung, Stimme und Synchronisation, Musik, Bilder und Schnitt." },
+  fr: { title: "Faire un film avec l'IA – les meilleurs outils", h1: "Faire des films avec l'IA : outils recommandés",
+    lead: "Les films et séries IA d'All AI-Cinema sont réalisés avec des outils comme ceux-ci. Ils sont classés dans l'ordre d'utilisation : créer des scènes à partir de texte ou d'images, ajouter voix et musique, puis monter.",
+    steps: ["Concevoir personnages et décors avec un outil d'image", "Générer les scènes (plans) avec un outil vidéo", "Ajouter voix et musique", "Monter, assembler les plans et ajouter des sous-titres"],
+    stepsTitle: "Les étapes d'un film IA", go: "Voir le site", disclose: "Certains liens de cette page sont des liens d'affiliation. Si vous vous inscrivez ou achetez via ces liens, nous pouvons percevoir une commission, sans frais supplémentaires pour vous.",
+    watch: "Regarder des films créés par l'IA", desc: "Une sélection d'outils IA pour faire des films et séries : génération vidéo, voix et doublage, musique, images et montage." },
+  it: { title: "Fare film con l'IA – i migliori strumenti", h1: "Fare film con l'IA: strumenti consigliati",
+    lead: "I film e le serie IA di All AI-Cinema nascono con strumenti come questi. Sono ordinati come li useresti: creare scene da testo o immagini, aggiungere voci e musica, poi montare.",
+    steps: ["Progetta personaggi e ambientazioni con uno strumento di immagini", "Genera le scene (inquadrature) con uno strumento video", "Aggiungi voci e musica", "Monta, unisci le inquadrature e aggiungi i sottotitoli"],
+    stepsTitle: "Le fasi di un film IA", go: "Vai al sito", disclose: "Alcuni link di questa pagina sono link di affiliazione. Se ti registri o acquisti tramite questi link, potremmo ricevere una commissione senza costi aggiuntivi per te.",
+    watch: "Guarda film creati con l'IA", desc: "Una selezione di strumenti IA per fare film e serie: generazione video, voce e doppiaggio, musica, immagini e montaggio." },
 };
 
 async function writeIfChanged(file, text) {

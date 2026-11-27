@@ -696,7 +696,7 @@ function renderAds() {
     fillGuide(w);
     return w;
   }
-  // 작품 분석·에디터 노트·추천 대상 (data/guides.json – 수집할 때 5개 언어로 자동 생성, 화면 언어에 맞춰 표시)
+  // 작품 분석·에디터 노트·추천 대상 (data/guides.json – 수집할 때 언어별로 자동 생성, 화면 언어에 맞춰 표시)
   let guidesP = null;
   const getGuides = () => (guidesP ||= fetch("/data/guides.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => { guidesP = null; return {}; }));
   async function fillGuide(w) {
@@ -1182,7 +1182,7 @@ function renderAds() {
     policyLinks(code);
       // 주소: ?lang= 은 지우고, 언어별 페이지(/, /en/, /ja/, /zh/, /es/)에 있으면 고른 언어 주소로 바꿈
       const u = new URL(location.href); u.searchParams.delete("lang");
-      if (/^\/((en|ja|zh|es|vi|ar)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
+      if (/^\/((en|ja|zh|es|vi|ar|de|fr|it)\/?)?(index\.html)?$/.test(u.pathname)) u.pathname = code === "ko" ? "/" : `/${code}/`;
       if (u.href !== location.href) history.replaceState(history.state, "", u.pathname + u.search);
       document.title = $("#player").hidden ? `${siteName()} | ${T("AI 영화·드라마 모아보기")}` : document.title;
       renderPromo(); renderMenus(); apply();

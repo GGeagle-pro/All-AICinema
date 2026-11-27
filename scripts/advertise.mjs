@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 import { shell, esc, loadAll, HTML_LANG, HOME } from "./pages.mjs";
 import { ADV, ADV_PATH } from "./advertise-text.mjs";
 
-const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar"];
-const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
+const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar", "de", "fr", "it"];
+const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar", de: "de", fr: "fr", it: "it" };
 const MAIL = "champkj79@gmail.com";
 
 async function writeIfChanged(file, text) {

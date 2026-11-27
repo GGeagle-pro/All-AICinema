@@ -7,8 +7,11 @@
     es: ["Página no encontrada", "Esta página se movió o ya no existe. Busca películas y series con IA en la página de inicio.", "Ir al inicio", "Preguntas frecuentes"],
     vi: ["Không tìm thấy trang", "Trang này đã chuyển hoặc không còn nữa. Hãy tìm phim và phim bộ AI ở trang chủ.", "Về trang chủ", "Câu hỏi thường gặp"],
     ar: ["الصفحة غير موجودة", "نُقلت هذه الصفحة أو لم تعد موجودة. ابحث عن أفلام ومسلسلات الذكاء الاصطناعي في الصفحة الرئيسية.", "إلى الرئيسية", "الأسئلة الشائعة"],
+    de: ["Seite nicht gefunden", "Diese Seite wurde verschoben oder existiert nicht mehr. Auf der Startseite findest du KI-Filme und -Serien.", "Zur Startseite", "FAQ"],
+    fr: ["Page introuvable", "Cette page a été déplacée ou n'existe plus. Retrouvez les films et séries IA sur la page d'accueil.", "Aller à l'accueil", "FAQ"],
+    it: ["Pagina non trovata", "Questa pagina è stata spostata o non esiste più. Trovi film e serie IA nella home.", "Vai alla home", "Domande frequenti"],
   };
-  let lang = (location.pathname.match(/^\/(en|ja|zh|es|vi|ar)\//) || [])[1];
+  let lang = (location.pathname.match(/^\/(en|ja|zh|es|vi|ar|de|fr|it)\//) || [])[1];
   if (!lang) { try { lang = localStorage.getItem("aic:lang") || ""; } catch {} }
   if (!lang) { const n = (navigator.language || "ko").slice(0, 2); lang = n === "ko" ? "ko" : T[n] ? n : "en"; }
   if (!T[lang]) return;

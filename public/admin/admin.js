@@ -1114,6 +1114,9 @@
     es: [["Publicar en X", "x"], ["Reddit", "https://www.reddit.com/r/aivideo/submit"], ["Facebook", "fb"]],
     vi: [["Facebook", "fb"], ["Zalo", "zalo"], ["X", "x"]],
     ar: [["X", "x"], ["Facebook", "fb"], ["Telegram", "tg"]],
+    de: [["Auf X posten", "x"], ["Reddit r/aivideo", "https://www.reddit.com/r/aivideo/submit"], ["Facebook", "fb"]],
+    fr: [["Publier sur X", "x"], ["Reddit r/aivideo", "https://www.reddit.com/r/aivideo/submit"], ["Facebook", "fb"]],
+    it: [["Pubblica su X", "x"], ["Facebook", "fb"], ["Telegram", "tg"]],
   };
   let promoLang = "ko", promoData = null;
   async function renderPromo() {
@@ -1158,7 +1161,7 @@
   }
   // 작품 에디터 노트 (site.json workNotes["채널 / 작품"] = 한국어 글 또는 { ko, en, ja, zh, es })
   //  - 비워 둔 언어는 그 언어 화면에서 안 보이고, 자동 '작품 분석'만 보여요
-  const NOTE_LANGS = [["ko", "한국어"], ["en", "English"], ["ja", "日本語"], ["zh", "中文"], ["es", "Español"], ["vi", "Tiếng Việt"], ["ar", "العربية"]];
+  const NOTE_LANGS = [["ko", "한국어"], ["en", "English"], ["ja", "日本語"], ["zh", "中文"], ["es", "Español"], ["vi", "Tiếng Việt"], ["ar", "العربية"], ["de", "Deutsch"], ["fr", "Français"], ["it", "Italiano"]];
   function noteEditor(ch, name) {
     const key = `${ch} / ${name}`, cur = state.site?.workNotes?.[key];
     const val = (l) => (typeof cur === "string" ? (l === "ko" ? cur : "") : cur?.[l] || "");

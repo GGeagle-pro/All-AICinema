@@ -9,8 +9,8 @@ import { shell, esc, loadAll, HOME, HTML_LANG } from "./pages.mjs";
 import { GENRE_SLUG } from "./genre.mjs";
 import { INTRO, PICK_KEYS } from "./intro-text.mjs";
 
-const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar"];
-const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
+const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar", "de", "fr", "it"];
+const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar", de: "de", fr: "fr", it: "it" };
 const P = (l) => (l === "ko" ? "/intro/" : `/${l}/intro/`);
 // 정책 페이지: 한국어·영어는 기존 .html, 나머지 언어는 legal.mjs 가 만드는 /xx/terms/ · /xx/privacy/
 export const POLICY = (l) => (l === "ko" ? { terms: "/terms.html", privacy: "/privacy.html" } : l === "en" ? { terms: "/en/terms.html", privacy: "/en/privacy.html" } : { terms: `/${l}/terms/`, privacy: `/${l}/privacy/` });

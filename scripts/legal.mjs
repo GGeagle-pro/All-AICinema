@@ -7,7 +7,7 @@ import { shell, esc, HOME, HTML_LANG } from "./pages.mjs";
 import { LEGAL } from "./legal-text.mjs";
 import { INTRO } from "./intro-text.mjs";
 
-const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
+const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar", de: "de", fr: "fr", it: "it" };
 const PATH = { terms: (l) => (l === "ko" ? "/terms.html" : l === "en" ? "/en/terms.html" : `/${l}/terms/`), privacy: (l) => (l === "ko" ? "/privacy.html" : l === "en" ? "/en/privacy.html" : `/${l}/privacy/`) };
 const ALL = ["ko", "en", ...Object.keys(LEGAL)];
 

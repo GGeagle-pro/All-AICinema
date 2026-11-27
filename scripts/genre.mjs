@@ -7,9 +7,9 @@ import { readFile, writeFile, rename, mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { shell, esc, HTML_LANG, HOME, loadAll } from "./pages.mjs";
 
-const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar"];
-const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
-const BASE = { ko: "/genre/", en: "/en/genre/", ja: "/ja/genre/", zh: "/zh/genre/", es: "/es/genre/", vi: "/vi/genre/", ar: "/ar/genre/" };
+const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar", "de", "fr", "it"];
+const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar", de: "de", fr: "fr", it: "it" };
+const BASE = { ko: "/genre/", en: "/en/genre/", ja: "/ja/genre/", zh: "/zh/genre/", es: "/es/genre/", vi: "/vi/genre/", ar: "/ar/genre/", de: "/de/genre/", fr: "/fr/genre/", it: "/it/genre/" };
 // 주소 이름 (바꾸면 검색엔진에 쌓인 주소가 바뀌므로 그대로 둘 것)
 export const GENRE_SLUG = {
   "드라마": "drama", "판타지": "fantasy", "액션·히어로": "action", "로맨스": "romance", "사극·무협": "historical",
@@ -108,6 +108,42 @@ const TX = {
     q1: (g) => `أين أشاهد أفلام ${g} بالذكاء الاصطناعي مجانًا؟`, a1: (g) => `يجمع All AI-Cinema أعمال ${g} المصنوعة بالذكاء الاصطناعي والمنشورة على يوتيوب لتشاهدها مجانًا في مكان واحد. تُعرض الفيديوهات عبر مشغّل يوتيوب ولا حاجة للتسجيل.`,
     q2: (g) => `ما أشهر أعمال ${g} بالذكاء الاصطناعي؟`, a2: (v, w) => `الفيديو الأكثر مشاهدة الآن هو «${v.title}» من قناة ${v.channel}.${w ? ` ومن المسلسلات الرائجة «${w.name}» من ${w.channel} (${w.list.length} حلقة).` : ""}`,
     q3: () => "كم مرة تُضاف أعمال جديدة؟", a3: (s) => `أُضيف ${s.n30} فيديو جديد خلال آخر 30 يومًا. يفحص الموقع قنوات يوتيوب كل ساعتين ويضيف الجديد تلقائيًا.`,
+  },
+  de: {
+    h: (g, c) => (c ? `KI-Filme & -Serien aus ${g}` : `KI-Filme & -Serien: ${g}`),
+    t: (g, c) => (c ? `KI-Filme, -Serien & Kurzfilme aus ${g}` : `Die besten KI-Filme & -Serien: ${g} – kostenlos ansehen`),
+    intro: (g, c, s) => `${s.more ? "Über " : ""}${s.n} mit KI erstellte Filme, Serien und Kurzfilme ${c ? "aus " + g : "im Genre " + g} von YouTube an einem Ort. Sie stammen von ${s.ch} Kanälen${s.w ? ` und ${s.w} Serien` : ""}; ${s.topN > 1 ? "die aktivsten Kanäle sind" : "der aktivste Kanal ist"} ${s.top}. In den letzten 30 Tagen kamen ${s.n30} Videos hinzu, und alle 2 Stunden werden neue automatisch ergänzt.`,
+    works: "Beliebte Serien", eps: (n) => `${n} Folgen`, pop: "Meistgesehen", fresh: "Neu hinzugefügt", other: "Weitere Genres & Länder", views: "Aufrufe",
+    all: (g) => `Alles aus ${g} auf der Seite ansehen`, home: "Startseite", hub: "Genres", hubT: "KI-Filme & -Serien nach Genre", hubD: "Mit KI erstellte Filme, Serien und Kurzfilme nach Genre und Land sortiert. Wähle eines, um beliebte Serien und die neuesten Videos zu sehen.",
+    genres: "Genres", countries: "Länder", count: (n) => `${n} Videos`,
+    faq: "Häufige Fragen",
+    q1: (g) => `Wo kann ich KI-Filme (${g}) kostenlos ansehen?`, a1: (g) => `All AI-Cinema sammelt auf YouTube veröffentlichte KI-Titel (${g}), damit du sie kostenlos an einem Ort ansehen kannst. Die Videos laufen im YouTube-Player, eine Anmeldung ist nicht nötig.`,
+    q2: (g) => `Welche KI-Titel (${g}) sind am beliebtesten?`, a2: (v, w) => `Das meistgesehene Video ist derzeit „${v.title}“ von ${v.channel}.${w ? ` Eine beliebte Serie ist „${w.name}“ von ${w.channel} (${w.list.length} Folgen).` : ""}`,
+    q3: () => "Wie oft kommen neue Titel hinzu?", a3: (s) => `In den letzten 30 Tagen kamen ${s.n30} neue Videos hinzu. Die Seite prüft ihre YouTube-Kanäle alle 2 Stunden und ergänzt neue Videos automatisch.`,
+  },
+  fr: {
+    h: (g, c) => (c ? `Films et séries IA : ${g}` : `Films et séries IA : ${g}`),
+    t: (g, c) => (c ? `Films, séries et courts métrages IA : ${g}` : `Meilleurs films et séries IA (${g}) – à voir gratuitement`),
+    intro: (g, c, s) => `${s.more ? "Plus de " : ""}${s.n} films, séries et courts métrages créés avec l'IA ${c ? "venant de " + g : "du genre " + g} publiés sur YouTube, réunis au même endroit. Ils viennent de ${s.ch} chaînes${s.w ? ` et ${s.w} séries` : ""} ; ${s.topN > 1 ? "les chaînes les plus actives sont" : "la chaîne la plus active est"} ${s.top}. ${s.n30} vidéos ont été ajoutées ces 30 derniers jours, et de nouvelles arrivent automatiquement toutes les 2 heures.`,
+    works: "Séries populaires", eps: (n) => `${n} épisodes`, pop: "Les plus vues", fresh: "Ajoutées récemment", other: "Autres genres et pays", views: "vues",
+    all: (g) => `Tout voir (${g}) sur le site`, home: "Accueil", hub: "Genres", hubT: "Films et séries IA par genre", hubD: "Films, séries et courts métrages créés avec l'IA, classés par genre et par pays. Choisissez-en un pour voir les séries populaires et les dernières vidéos.",
+    genres: "Genres", countries: "Pays", count: (n) => `${n} vidéos`,
+    faq: "Questions fréquentes",
+    q1: (g) => `Où regarder gratuitement des films IA (${g}) ?`, a1: (g) => `All AI-Cinema réunit les titres IA (${g}) publiés sur YouTube pour les regarder gratuitement au même endroit. Les vidéos sont lues dans le lecteur YouTube, sans inscription.`,
+    q2: (g) => `Quels sont les titres IA (${g}) les plus populaires ?`, a2: (v, w) => `La vidéo la plus vue en ce moment est « ${v.title} » de ${v.channel}.${w ? ` Une série populaire : « ${w.name} » de ${w.channel} (${w.list.length} épisodes).` : ""}`,
+    q3: () => "À quelle fréquence de nouveaux titres sont-ils ajoutés ?", a3: (s) => `${s.n30} nouvelles vidéos ont été ajoutées ces 30 derniers jours. Le site vérifie ses chaînes YouTube toutes les 2 heures et ajoute les nouveautés automatiquement.`,
+  },
+  it: {
+    h: (g, c) => (c ? `Film e serie IA da ${g}` : `Film e serie IA: ${g}`),
+    t: (g, c) => (c ? `Film, serie e cortometraggi IA da ${g}` : `I migliori film e serie IA (${g}) – guarda gratis`),
+    intro: (g, c, s) => `${s.more ? "Oltre " : ""}${s.n} film, serie e cortometraggi creati con l'IA ${c ? "da " + g : "del genere " + g} pubblicati su YouTube, riuniti in un unico posto. Provengono da ${s.ch} canali${s.w ? ` e ${s.w} serie` : ""}; ${s.topN > 1 ? "i canali più attivi sono" : "il canale più attivo è"} ${s.top}. Negli ultimi 30 giorni sono stati aggiunti ${s.n30} video, e ne arrivano di nuovi automaticamente ogni 2 ore.`,
+    works: "Serie popolari", eps: (n) => `${n} episodi`, pop: "Più visti", fresh: "Aggiunti di recente", other: "Altri generi e paesi", views: "visualizzazioni",
+    all: (g) => `Vedi tutto (${g}) sul sito`, home: "Home", hub: "Generi", hubT: "Film e serie IA per genere", hubD: "Film, serie e cortometraggi creati con l'IA, ordinati per genere e paese. Scegline uno per vedere le serie popolari e gli ultimi video.",
+    genres: "Generi", countries: "Paesi", count: (n) => `${n} video`,
+    faq: "Domande frequenti",
+    q1: (g) => `Dove guardare gratis film IA (${g})?`, a1: (g) => `All AI-Cinema raccoglie i titoli IA (${g}) pubblicati su YouTube per guardarli gratis in un unico posto. I video si riproducono nel player di YouTube e non serve registrarsi.`,
+    q2: (g) => `Quali sono i titoli IA (${g}) più popolari?`, a2: (v, w) => `Il video più visto al momento è «${v.title}» di ${v.channel}.${w ? ` Una serie popolare è «${w.name}» di ${w.channel} (${w.list.length} episodi).` : ""}`,
+    q3: () => "Ogni quanto vengono aggiunti nuovi titoli?", a3: (s) => `Negli ultimi 30 giorni sono stati aggiunti ${s.n30} nuovi video. Il sito controlla i suoi canali YouTube ogni 2 ore e aggiunge le novità automaticamente.`,
   },
 };
 

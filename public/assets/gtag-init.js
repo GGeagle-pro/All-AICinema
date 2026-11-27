@@ -5,6 +5,16 @@
 window.dataLayer = window.dataLayer || [];
 function gtag() { window.dataLayer.push(arguments); }
 window.gtag = gtag;
+// 동의 모드 v2 (EU·EEA·영국·스위스): 방문자가 동의하기 전에는 광고·분석 쿠키를 쓰지 않음(GDPR·Google EU 사용자 동의 정책)
+//  - 동의 창은 애드센스 > 개인 정보 보호 및 메시지 > 'European regulations' 메시지(구글 인증 CMP)가 띄우고, 동의하면 자동으로 granted 로 바뀜
+//  - 그 밖의 나라는 기존과 같음
+gtag("consent", "default", {
+  ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied", analytics_storage: "denied",
+  region: ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO", "GB", "CH"],
+  wait_for_update: 500,
+});
+gtag("set", "ads_data_redaction", true);
+gtag("set", "url_passthrough", true);
 gtag("js", new Date());
 gtag("config", "AW-947429542");
 // 새 Google Ads 계정 (2026-11-25, AllAICinema 773-750-3442) – 전환은 app.js 가 첫 영상 재생 때 보냄

@@ -6,8 +6,8 @@ import { resolve } from "node:path";
 import { shell, esc, HTML_LANG, HOME } from "./pages.mjs";
 import { HOWTO, HOWTO_PATH } from "./howto-text.mjs";
 
-const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar"];
-const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
+const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar", "de", "fr", "it"];
+const HREF = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar", de: "de", fr: "fr", it: "it" };
 const TOOLS_PATH = (l) => (l === "ko" ? "/tools/" : `/${l}/tools/`);
 const safeUrl = (u) => { try { const x = new URL(String(u || "").trim()); return x.protocol === "https:" ? x.href : ""; } catch { return ""; } };
 

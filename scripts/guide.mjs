@@ -1,11 +1,11 @@
-// 작품·영상 자동 분석 글 (5개 언어) – 수집한 데이터로 사이트가 직접 만드는 설명
+// 작품·영상 자동 분석 글 (10개 언어) – 수집한 데이터로 사이트가 직접 만드는 설명
 //  - 작품: 언제부터 몇 화, 업데이트 주기, 가장 많이 본 회차, 최근 반응(초반 대비)
 //  - 영상: 어떤 채널의 어떤 장르, 공개일, 그 채널 안에서의 인기 정도
 //  - 자주 바뀌는 숫자(조회수)는 글에 넣지 않음 → 페이지가 매시간 다시 써지지 않게
 //  - 관리자가 쓴 에디터 노트: site.json workNotes { "채널 / 작품이름": "한국어 글" 또는 { ko, en, ja, zh, es } }
-export const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar"];
+export const LANGS = ["ko", "en", "ja", "zh", "es", "vi", "ar", "de", "fr", "it"];
 
-const DATE = { ko: "ko-KR", en: "en-US", ja: "ja-JP", zh: "zh-CN", es: "es-ES", vi: "vi-VN", ar: "ar" };
+const DATE = { ko: "ko-KR", en: "en-US", ja: "ja-JP", zh: "zh-CN", es: "es-ES", vi: "vi-VN", ar: "ar", de: "de-DE", fr: "fr-FR", it: "it-IT" };
 const ym = (iso, l) => new Intl.DateTimeFormat(DATE[l], { year: "numeric", month: "long", timeZone: "Asia/Seoul" }).format(new Date(iso));
 const ymd = (iso, l) => new Intl.DateTimeFormat(DATE[l], { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Seoul" }).format(new Date(iso));
 const DEFAULT_COUNTRIES = new Set(["한국", "미국", "일본", "중국", "스페인", "영국", "프랑스", "대만", "홍콩", "인도네시아"]);
@@ -13,10 +13,11 @@ const DEFAULT_COUNTRIES = new Set(["한국", "미국", "일본", "중국", "스�
 function genreText(cats, l, name, countries) {
   const u = [...new Set(cats)].filter((c) => c !== "기타");
   const c = u.find((x) => countries.has(x)), gs = u.filter((x) => !countries.has(x)).slice(0, 2).map(name);
-  const g = gs.join(l === "en" || l === "es" || l === "vi" ? " / " : l === "ar" ? " و" : "·");
+  const LAT = ["en", "es", "vi", "de", "fr", "it"].includes(l);
+  const g = gs.join(LAT ? " / " : l === "ar" ? " و" : "·");
   if (!c) return g;
   const cn = name(c);
-  return l === "en" || l === "es" || l === "vi" || l === "ar" ? `${g ? g + " " : ""}(${cn})` : `${cn} ${g}`.trim();
+  return LAT || l === "ar" ? `${g ? g + " " : ""}(${cn})` : `${cn} ${g}`.trim();
 }
 const list = (arr, l) => { try { return new Intl.ListFormat(DATE[l], { type: "conjunction" }).format(arr); } catch { return arr.join(", "); } };
 
@@ -28,8 +29,11 @@ const PACE = {
   es: (d) => (d < 1.5 ? "sale un episodio nuevo casi cada día" : `sale un episodio nuevo cada ${Math.round(d)} días aprox.`),
   vi: (d) => (d < 1.5 ? "gần như ngày nào cũng có tập mới" : `khoảng ${Math.round(d)} ngày lại có một tập mới`),
   ar: (d) => (d < 1.5 ? "تصدر حلقة جديدة يوميًا تقريبًا" : `تصدر حلقة جديدة كل ${Math.round(d)} أيام تقريبًا`),
+  de: (d) => (d < 1.5 ? "fast täglich erscheint eine neue Folge" : `etwa alle ${Math.round(d)} Tage erscheint eine neue Folge`),
+  fr: (d) => (d < 1.5 ? "un nouvel épisode sort presque chaque jour" : `un nouvel épisode sort environ tous les ${Math.round(d)} jours`),
+  it: (d) => (d < 1.5 ? "esce un nuovo episodio quasi ogni giorno" : `esce un nuovo episodio circa ogni ${Math.round(d)} giorni`),
 };
-const PAUSED = { ko: "최근에는 새 화가 뜸해 완결됐거나 쉬는 중이에요", en: "no new episodes lately, so it may be finished or on a break", ja: "最近は更新がなく、完結または休止中のようです", zh: "最近没有更新，可能已完结或暂停", es: "no hay episodios nuevos últimamente: puede estar terminada o en pausa", vi: "gần đây không có tập mới, có thể đã hết hoặc đang tạm nghỉ", ar: "لا توجد حلقات جديدة مؤخرًا، فربما انتهى أو توقف مؤقتًا" };
+const PAUSED = { ko: "최근에는 새 화가 뜸해 완결됐거나 쉬는 중이에요", en: "no new episodes lately, so it may be finished or on a break", ja: "最近は更新がなく、完結または休止中のようです", zh: "最近没有更新，可能已完结或暂停", es: "no hay episodios nuevos últimamente: puede estar terminada o en pausa", vi: "gần đây không có tập mới, có thể đã hết hoặc đang tạm nghỉ", ar: "لا توجد حلقات جديدة مؤخرًا، فربما انتهى أو توقف مؤقتًا", de: "zuletzt keine neuen Folgen – vielleicht abgeschlossen oder pausiert", fr: "pas de nouvel épisode récemment : elle est peut-être terminée ou en pause", it: "nessun nuovo episodio di recente: forse è conclusa o in pausa" };
 
 // 작품 분석
 export function workAnalysis(w, l, name = (c) => c, countries = DEFAULT_COUNTRIES) {
@@ -68,6 +72,15 @@ export function workAnalysis(w, l, name = (c) => c, countries = DEFAULT_COUNTRIE
     ar: () => [`مسلسل ${genre ? genre + " " : ""}مصنوع بالذكاء الاصطناعي من قناة ${w.channel}، يُعرض منذ ${since}.`, `صدرت حتى الآن ${n} حلقة${paceTxt ? "، و" + paceTxt : ""}.`,
       n > 1 && eps[best].views ? `الحلقة الأكثر مشاهدة هي الحلقة ${best + 1}.` : "",
       trend === "up" ? "الحلقات الأحدث تحصد مشاهدات أكثر من الأولى، فشعبيته في ازدياد." : trend === "down" ? "الحلقات الأولى هي الأكثر مشاهدة، لذا يبدأ معظم المشاهدين من الحلقة 1." : ""],
+    de: () => [`Eine mit KI erstellte Serie${genre ? " (" + genre + ")" : ""} von ${w.channel}, veröffentlicht seit ${since}.`, `Bisher ${n} Folge${n > 1 ? "n" : ""}${paceTxt ? "; " + paceTxt : ""}.`,
+      n > 1 && eps[best].views ? `Am meisten gesehen ist Folge ${best + 1}.` : "",
+      trend === "up" ? "Neuere Folgen haben mehr Aufrufe als die ersten – die Serie gewinnt gerade an Fahrt." : trend === "down" ? "Die ersten Folgen haben die meisten Aufrufe, die meisten starten also bei Folge 1." : ""],
+    fr: () => [`Une série ${genre ? genre + " " : ""}créée avec l'IA par ${w.channel}, publiée depuis ${since}.`, `${n} épisode${n > 1 ? "s" : ""} pour l'instant${paceTxt ? " ; " + paceTxt : ""}.`,
+      n > 1 && eps[best].views ? `L'épisode le plus vu est le ${best + 1}.` : "",
+      trend === "up" ? "Les épisodes récents sont plus vus que les premiers : la série prend de l'élan." : trend === "down" ? "Les premiers épisodes sont les plus vus : la plupart commencent par l'épisode 1." : ""],
+    it: () => [`Una serie ${genre ? genre + " " : ""}creata con l'IA da ${w.channel}, pubblicata da ${since}.`, `Finora ${n} episodi${n > 1 ? "" : "o"}${paceTxt ? "; " + paceTxt : ""}.`,
+      n > 1 && eps[best].views ? `L'episodio più visto è il ${best + 1}.` : "",
+      trend === "up" ? "Gli episodi recenti hanno più visualizzazioni dei primi: la serie sta crescendo." : trend === "down" ? "I primi episodi sono i più visti: quasi tutti iniziano dall'episodio 1." : ""],
   };
   return T[l]().filter(Boolean).join(l === "ja" || l === "zh" ? "" : " ").replace(/\.\./g, ".");
 }
@@ -105,6 +118,12 @@ export function videoAnalysis(v, l, { rank, work, ep, name = (c) => c, countries
       tier === "top" ? "Một trong những video được xem nhiều nhất của kênh." : tier === "high" ? "Thuộc nhóm video nổi bật của kênh." : ""],
     ar: [`فيديو ${g ? g + " " : ""}مصنوع بالذكاء الاصطناعي من قناة ${v.channel}، نُشر في ${d}.`, work ? `الحلقة ${ep} من «${work}».` : "",
       tier === "top" ? "من أكثر فيديوهات القناة مشاهدة." : tier === "high" ? "من الفيديوهات الرائجة في القناة." : ""],
+    de: [`Ein mit KI erstelltes Video${g ? " (" + g + ")" : ""} von ${v.channel}, veröffentlicht am ${d}.`, work ? `Folge ${ep} von „${work}“.` : "",
+      tier === "top" ? "Eines der meistgesehenen Videos dieses Kanals." : tier === "high" ? "Gehört zu den beliebteren Videos des Kanals." : ""],
+    fr: [`Une vidéo ${g ? g + " " : ""}créée avec l'IA par ${v.channel}, publiée le ${d}.`, work ? `Épisode ${ep} de « ${work} ».` : "",
+      tier === "top" ? "L'une des vidéos les plus vues de la chaîne." : tier === "high" ? "Parmi les vidéos populaires de la chaîne." : ""],
+    it: [`Un video ${g ? g + " " : ""}creato con l'IA da ${v.channel}, pubblicato il ${d}.`, work ? `Episodio ${ep} di «${work}».` : "",
+      tier === "top" ? "Uno dei video più visti del canale." : tier === "high" ? "Tra i video più popolari del canale." : ""],
   };
   return T[l].filter(Boolean).join(l === "ja" || l === "zh" ? "" : " ").replace(/\.\./g, ".");
 }
