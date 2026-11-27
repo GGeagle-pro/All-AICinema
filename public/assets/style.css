@@ -584,3 +584,26 @@ html{overflow-x:clip}
 /* 아랍어(오른쪽→왼쪽) 화면: 영어·한국어로 된 영상 제목·채널 이름·설명은 그 글자 방향대로 (문장부호가 엉뚱한 쪽에 붙지 않게) */
 html[dir="rtl"] :is(h1, h2, h3, h4, p, li, dd, dt, figcaption, blockquote) { unicode-bidi: plaintext; text-align: right; }
 html[dir="rtl"] :is(input, textarea) { unicode-bidi: plaintext; }
+/* 시청 흐름: 끝난 뒤 다음 화 카드 · 1화부터 안내 · 닫은 뒤 추천 */
+.pend{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(90deg,rgba(255,61,110,.16),rgba(124,92,255,.12));border:1px solid var(--accent);border-radius:14px;padding:10px;margin:0 0 12px}
+.pend img{width:120px;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:8px;flex:none}
+.pend__txt{flex:1;min-width:150px;display:flex;flex-direction:column;gap:2px}
+.pend__txt em{font-style:normal;font-size:.8em;color:var(--accent);font-weight:700}
+.pend__txt b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35}
+.pend__cd{font-size:.85em;color:var(--muted)}
+.pend__btns{display:flex;gap:8px;flex-wrap:wrap}
+.pfrom1{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--accent2);border-radius:12px;padding:10px 12px;margin:0 0 12px}
+.pfrom1 span{flex:1;min-width:180px;line-height:1.45}
+.pfrom1__x,.aftr__x{border:0;background:none;color:var(--muted);font-size:1.05em;cursor:pointer;min-width:36px;min-height:36px;border-radius:50%}
+.pfrom1__x:hover,.aftr__x:hover{background:var(--line);color:var(--text)}
+.aftr{grid-column:1/-1;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:12px 14px 14px;animation:aftrIn .3s ease}
+@keyframes aftrIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.aftr__h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.aftr__row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(180px,220px);gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
+.aftr__c{scroll-snap-align:start;display:flex;flex-direction:column;gap:4px;color:inherit;text-decoration:none;min-width:0}
+.aftr__c img{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:10px}
+.aftr__c b{font-size:.92em;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.aftr__c span{font-size:.8em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px){.aftr__row{grid-auto-columns:minmax(150px,46%)}.pend img{width:96px}}
+[dir=rtl] .pfrom1{border-left:1px solid var(--line);border-right:3px solid var(--accent2)}
+.aftr--shelf{margin:4px 0 22px}

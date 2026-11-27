@@ -197,6 +197,16 @@
           </form>
         </div>
         <div class="adm-card">
+          <h2>시청 흐름 (머문 시간 늘리기)</h2>
+          <p class="muted small">① 영상이 끝나면 플레이어 아래에 <b>다음 화 카드</b>(자동 다음이 켜져 있으면 5초 뒤 재생, 취소 가능) ② 시리즈 중간 화로 들어온 사람에게 <b>'1화부터 보기' 안내</b> ③ 플레이어를 닫으면 보던 자리 바로 아래에 <b>'다음에 볼 만한 작품'</b> 한 줄. 끄면 예전처럼 끝나자마자 다음 화로 넘어가요(원상 복구).</p>
+          <form id="flowSwitch" class="adm-radios" novalidate>
+            <label class="adm-radio"><input type="radio" name="flowOn" value="on" /><span><b>켜기</b></span></label>
+            <label class="adm-radio"><input type="radio" name="flowOn" value="off" /><span><b>끄기 (원상 복구)</b></span></label>
+            <p id="flowNow" class="adm-hint"></p>
+            <button class="btn btn--primary" type="submit">저장</button>
+          </form>
+        </div>
+        <div class="adm-card">
           <h2>장르·나라별 모음 페이지</h2>
           <p class="muted small">"AI 공포 영화", "한국 AI 드라마" 같은 검색어로 찾아오도록 <b>/genre/horror/</b> 같은 모음 페이지를 5개 언어로 자동으로 만들어요(영상 12편 이상인 장르·나라만). 소개 글·인기 시리즈·많이 본 영상·최신 영상·자주 묻는 질문이 자동으로 들어가고 수집 때마다 갱신돼요. 끄면 3~5분 뒤 모두 지워져요(원상 복구).</p>
           <form id="genreSwitch" class="adm-radios" novalidate>
@@ -378,6 +388,6 @@
   </main>
 
   <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
-  <script src="admin.js?v=20261127a" defer></script>
+  <script src="admin.js?v=20261127b" defer></script>
 </body>
 </html>

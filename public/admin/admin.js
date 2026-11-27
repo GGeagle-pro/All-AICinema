@@ -1088,6 +1088,23 @@
       afterSiteSave("검색용 페이지 설정 반영 중");
     });
   }
+  // 시청 흐름 스위치 (site.json flow – 사이트 app.js 가 읽음, 끄면 원상 복구)
+  function renderFlowSwitch() {
+    const on = state.site?.flow !== false;
+    for (const r of document.querySelectorAll('input[name="flowOn"]')) r.checked = r.value === (on ? "on" : "off");
+    const n = $("#flowNow"); if (n) n.textContent = on ? "지금: 켜짐" : "지금: 꺼짐";
+  }
+  function saveFlowSwitch(e) {
+    e.preventDefault();
+    const on = document.querySelector('input[name="flowOn"]:checked')?.value !== "off";
+    run(async () => {
+      const changed = await saveSite(`시청 흐름 ${on ? "켜기" : "끄기"}`, (s) => { if ((s.flow !== false) === on) return false; s.flow = on; return true; });
+      renderFlowSwitch();
+      if (!changed) return toast("이미 그 상태예요.");
+      toast(on ? "켰어요. 1~2분 뒤 사이트에 반영돼요." : "껐어요. 1~2분 뒤 예전 방식으로 돌아가요.");
+      afterSiteSave("시청 흐름 설정 반영 중");
+    });
+  }
   // 주간 TOP 10 홍보 글 (public/data/top-promo.json – top.mjs 가 만듦)
   const PROMO_WHERE = {
     ko: [["네이버 블로그 글쓰기", "https://blog.naver.com/GoBlogWrite.naver"], ["X에 올리기", "x"], ["디시 AI 갤러리", "https://gall.dcinside.com/mgallery/board/lists/?id=ai"]],
@@ -1173,7 +1190,7 @@
 
   function renderWorks() {
     renderWorksSwitch();
-    renderPagesSwitch(); renderGenreSwitch();
+    renderPagesSwitch(); renderGenreSwitch(); renderFlowSwitch();
     const box = $("#worksList");
     if (!box || !state.videos) return;
     const q = ($("#worksQ")?.value || "").trim().toLowerCase();
@@ -2288,6 +2305,7 @@
     $("#chQ").addEventListener("keydown", (e) => { if (e.key === "Escape" && e.target.value) { e.target.value = ""; renderChannels(); } }); }
   $("#worksSwitch").addEventListener("submit", saveWorksSwitch);
   $("#pagesSwitch").addEventListener("submit", savePagesSwitch);
+  $("#flowSwitch").addEventListener("submit", saveFlowSwitch);
   $("#genreSwitch").addEventListener("submit", saveGenreSwitch);
   $("#langCountrySwitch").addEventListener("submit", saveLangCountry);
   $("#dashGoStats").addEventListener("click", () => document.querySelector('.adm-tabs [data-tab="stats"]').click());

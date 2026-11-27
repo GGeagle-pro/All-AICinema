@@ -145,6 +145,10 @@
     "다음 영상": ["Up next","次の動画","接下来播放","A continuación","Tiếp theo","التالي"],
     "다음 화": ["Next episode","次の話","下一集","Siguiente episodio","Tập tiếp theo","الحلقة التالية"],
     "이전 화": ["Previous episode","前の話","上一集","Episodio anterior","Tập trước","الحلقة السابقة"],
+    "취소": ["Cancel","キャンセル","取消","Cancelar","Hủy","إلغاء"],
+    "{n}초 후 재생": ["Playing in {n}s","{n}秒後に再生","{n}秒后播放","Se reproduce en {n} s","Phát sau {n} giây","التشغيل بعد {n} ث"],
+    "다음에 볼 만한 작품": ["Watch next","次に見るなら","接下来看什么","Para ver después","Xem tiếp gì","شاهد بعد ذلك"],
+    "지금 {n}화예요. 처음 보신다면 1화부터 보면 더 재미있어요.": ["This is episode {n}. New to the series? It's more fun from episode 1.","今は第{n}話です。初めてなら第1話から見るともっと楽しめます。","现在是第{n}集。第一次看的话，从第1集开始更好看。","Este es el episodio {n}. ¿Primera vez? Es mejor desde el episodio 1.","Đây là tập {n}. Lần đầu xem? Xem từ tập 1 sẽ hay hơn.","هذه الحلقة {n}. أول مرة؟ المشاهدة من الحلقة 1 أمتع."],
     "다른 영상": ["More videos","その他の動画","更多视频","Más videos","Thêm video","فيديوهات أخرى"],
     // 검색
     "최근 검색어": ["Recent searches","最近の検索","最近搜索","Búsquedas recientes","Tìm kiếm gần đây","عمليات البحث الأخيرة"],

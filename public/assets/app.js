@@ -272,6 +272,7 @@ function renderAds() {
         works: s.works !== false,
         stripsSame: s.stripsSame === true,   // 관리자 체크: 1번 띠 배너를 모든 띠 배너 자리에 똑같이
         kakaoKey: /^[0-9a-f]{32}$/.test(s.kakaoKey || "") ? s.kakaoKey : "",   // 카카오 JavaScript 키 (공개용 키, 등록한 도메인에서만 동작)
+        flow: s.flow !== false,   // 시청 흐름(끝난 뒤 다음 화 카드·1화부터 안내·닫은 뒤 추천) – site.json "flow": false 로 끄기
         pages: s.pages !== false,   // 검색용 작품·영상 페이지 (관리자 > 작품 탭에서 끄면 예전 주소로)
       };
     } catch {}
@@ -797,7 +798,8 @@ function renderAds() {
           if (e.data === YT.PlayerState.ENDED) {
             const cur = state.queue[state.current];
             if (cur) { const d = ytPlayer.getDuration?.() || 0; if (d) savePos(cur.id, d, d); }
-            if ($("#pAuto").checked && !$("#player").hidden) step(1);
+            if (state.site.flow) showEndCard();
+            else if ($("#pAuto").checked && !$("#player").hidden) step(1);
           }
         },
         onError: (e) => {
@@ -878,6 +880,7 @@ function renderAds() {
     });
     // 다음·이전: 같은 시리즈(채널)의 다음 화·이전 화 우선, 없으면 다른 영상
     const plan = state.plan = buildUpNext(v, i);
+    flowOnOpen(v, plan);
     $("#pPrev").disabled = !plan.prev;
     $("#pNext").disabled = !plan.next;
     document.title = `${v.title} – ${siteName()}`;
@@ -943,6 +946,8 @@ function renderAds() {
       }
     } catch {}
     try { ytPlayer?.stopVideo(); } catch {}
+    stopEndCard();
+    try { if (state.site.flow) showAfterClose(state.queue[state.current]); } catch {}
     try { if (env.mobile) showInstallCard(); } catch {}
     document.title = `${siteName()} | ${T("AI 영화·드라마 모아보기")}`;
     if (!fromPop && backToList) { backToList = false; history.back(); return; }
@@ -1402,6 +1407,94 @@ function renderAds() {
     $("#clearQ").addEventListener("click", () => { state.q = ""; qi.value = ""; mi.value = ""; apply(); });
   }
 
+  // ===== 시청 흐름 (state.site.flow) =====
+  // 1) 영상이 끝나면 플레이어 아래(영상 위를 가리지 않음 – 유튜브 API 정책)에 '다음 화' 카드: 자동 다음이 켜져 있으면 5초 뒤 재생, 취소 가능
+  // 2) 시리즈 중간 화로 들어왔고 앞 화를 본 적 없으면 '1화부터 보기' 안내 (작품별로 닫으면 이번 방문 동안 안 보임)
+  // 3) 플레이어를 닫으면 방금 보던 카드 줄 바로 아래에 '다음에 볼 만한 작품' 한 줄
+  let endTimer = 0;
+  function stopEndCard() { clearInterval(endTimer); endTimer = 0; const b = $("#pEnd"); if (b) { b.hidden = true; b.innerHTML = ""; } }
+  function showEndCard() {
+    const p = $("#player"), n = state.plan?.next, box = $("#pEnd");
+    if (p.hidden || !box) return;
+    if (!n) { box.hidden = true; return; }
+    const f1 = $("#pFrom1"); if (f1) f1.hidden = true;
+    const isEp = state.plan.nextEps[0] === n, auto = $("#pAuto").checked;
+    let left = 5;
+    box.innerHTML = `<img src="${thumb(n.id, "mqdefault")}" alt="" width="160" height="90" />
+      <div class="pend__txt"><em>${T(isEp ? "다음 화" : "다음 영상")}</em><b>${esc(n.title)}</b>
+        <span class="pend__cd">${auto ? T("{n}초 후 재생", { n: left }) : ""}</span></div>
+      <div class="pend__btns"><button type="button" class="btn btn--primary" data-endgo>${T("▶ 지금 보기")}</button>${auto ? `<button type="button" class="btn" data-endstop>${T("취소")}</button>` : ""}</div>`;
+    box.hidden = false;
+    box.querySelector("[data-endgo]").onclick = () => { track("next_card", { link_text: "go" }); stopEndCard(); step(1); };
+    const st = box.querySelector("[data-endstop]");
+    if (st) st.onclick = () => { track("next_card", { link_text: "cancel" }); clearInterval(endTimer); endTimer = 0; box.querySelector(".pend__cd").textContent = ""; st.remove(); };
+    if (innerWidth <= 1100) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (!auto) return;
+    clearInterval(endTimer);
+    endTimer = setInterval(() => {
+      if ($("#player").hidden) return stopEndCard();
+      left--;
+      const cd = box.querySelector(".pend__cd"); if (cd) cd.textContent = T("{n}초 후 재생", { n: Math.max(0, left) });
+      if (left <= 0) { stopEndCard(); track("next_card", { link_text: "auto" }); step(1); }
+    }, 1000);
+  }
+  const seenEp1 = new Set();   // 이번 방문 동안 '1화부터' 안내를 닫은 작품
+  function flowOnOpen(v, plan) {
+    stopEndCard();
+    const box = $("#pFrom1"); if (!box) return;
+    box.hidden = true; box.innerHTML = "";
+    if (!state.site.flow || !plan.first) return;
+    const key = workKey(v) || v.channel;
+    if (seenEp1.has(key) || plan.before.some((x) => progOf(x.id) > 0.05 || (x.id !== v.id && hist.includes(x.id)))) return;
+    box.innerHTML = `<span>${T("지금 {n}화예요. 처음 보신다면 1화부터 보면 더 재미있어요.", { n: plan.epNo })}</span>
+      <button type="button" class="btn btn--primary" data-from1>${T("▶ 1화부터 보기")}</button><button type="button" class="pfrom1__x" aria-label="${T("닫기")}" data-from1x>✕</button>`;
+    box.hidden = false;
+    box.querySelector("[data-from1]").onclick = () => { seenEp1.add(key); track("from_ep1", { link_url: `https://youtu.be/${plan.first.id}` }); openVideo(plan.first); };
+    box.querySelector("[data-from1x]").onclick = () => { seenEp1.add(key); box.hidden = true; };
+  }
+  function showAfterClose(v) {
+    document.querySelectorAll(".aftr").forEach((e) => e.remove());
+    const grid = $("#grid");
+    if (!v || !grid) return;
+    const genres = new Set(state.site.genres || []);
+    const g = (v.categories || []).filter((c) => genres.has(c));
+    const cs = new Set(countryList()), vc = (v.categories || []).filter((c) => cs.has(c));   // 같은 나라 작품만 (나라 정보가 없으면 전체)
+    const sameC = (x) => !vc.length || x.categories.some((c) => vc.includes(c));
+    const watched = new Set([v.id, ...hist]);
+    const now = Date.now(), wk = 7 * 864e5, mo = 30 * 864e5;
+    const pick = [], used = new Set();
+    const add = (x) => { const k = x.series ? workKey(x) : x.id; if (pick.length >= 8 || watched.has(x.id) || used.has(k) || (workKey(v) && workKey(x) === workKey(v)) || kidsIds.has(x.id)) return; used.add(k); pick.push(x); };
+    // 같은 장르 인기작(최근 30일, 시리즈면 1화) → 이번 주 많이 본 영상
+    const firstEp = (x) => { if (!workKey(x)) return x; const w = workByKey(workKey(x)); return w?.list?.find((y) => !isBinge(y)) || w?.list?.[0] || x; };
+    const byViews = (a, b) => (b.views || 0) - (a.views || 0);
+    if (g.length) state.all.filter((x) => sameC(x) && now - Date.parse(x.published) < mo && x.categories.some((c) => g.includes(c))).sort(byViews).slice(0, 40).forEach((x) => pick.length < 4 && add(firstEp(x)));
+    state.all.filter((x) => sameC(x) && now - Date.parse(x.published) < wk).sort(byViews).slice(0, 40).forEach((x) => add(firstEp(x)));
+    if (pick.length < 3) return;
+    const el = document.createElement("div");
+    el.className = "aftr";
+    el.innerHTML = `<div class="aftr__h"><b>${T("다음에 볼 만한 작품")}</b><button type="button" class="aftr__x" aria-label="${T("닫기")}">✕</button></div>
+      <div class="aftr__row">${pick.map((x) => `<a class="aftr__c" href="${state.site.pages ? `/watch/${x.id}/` : `?v=${x.id}`}" data-id="${x.id}"><img loading="lazy" src="${thumb(x.id, "mqdefault")}" alt="" width="320" height="180" /><b>${esc(x.title)}</b><span>${esc(x.channel)}${x.views ? " · " + views(x.views) : ""}</span></a>`).join("")}</div>`;
+    el.querySelector(".aftr__x").onclick = () => el.remove();
+    el.querySelectorAll(".aftr__c").forEach((a) => a.addEventListener("click", (e) => {
+      e.preventDefault(); const x = state.all.find((y) => y.id === a.dataset.id); if (!x) return;
+      track("after_close_pick", { link_url: `https://youtu.be/${x.id}` }); el.remove(); openVideo(x);
+    }));
+    // 방금 보던 카드가 있는 줄 바로 아래 (없으면 목록 맨 위)
+    // 놓을 자리: 영상을 연 카드(홈 줄 또는 목록)가 화면에 있으면 그 줄 바로 아래, 아니면 지금 화면에 보이는 첫 줄 아래
+    const vis = (e) => { const r = e.getBoundingClientRect(); return r.height > 0 && r.bottom > 60 && r.top < innerHeight - 40; };
+    const shelves = $("#shelves");
+    const rowEnd = (c) => { let a = c; for (let n = c.nextElementSibling; n && n.offsetTop === c.offsetTop; n = n.nextElementSibling) if (n.classList.contains("card")) a = n; return a; };
+    const blockOf = (e) => { if (!e) return null; if (e.parentElement === grid && e.classList.contains("card")) return rowEnd(e); if (shelves?.contains(e)) { let b = e; while (b.parentElement !== shelves) b = b.parentElement; return b; } return null; };
+    let after = lastOpenEl && document.contains(lastOpenEl) && vis(lastOpenEl) ? blockOf(lastOpenEl) : null;
+    if (!after) { const s0 = shelves && !shelves.hidden ? [...shelves.children].find(vis) : null; after = s0 || blockOf([...grid.querySelectorAll(":scope > .card")].find(vis)); }
+    if (after) { after.after(el); if (!grid.contains(el)) el.classList.add("aftr--shelf"); }
+    else if (shelves && !shelves.hidden && shelves.firstElementChild) { shelves.prepend(el); el.classList.add("aftr--shelf"); }
+    else grid.prepend(el);
+    setTimeout(() => { if (!el.isConnected || !$("#player").hidden) return; const r = el.getBoundingClientRect(); if (r.bottom > innerHeight || r.top < 60) el.scrollIntoView({ block: r.height < innerHeight - 120 ? "center" : "start", behavior: "smooth" }); }, 400);
+  }
+  let lastOpenEl = null;   // 영상을 연 카드 (닫은 뒤 추천 줄을 그 근처에 놓기)
+  document.addEventListener("click", (e) => { const c = e.target.closest?.("#grid .card, #shelves a, #shelves li, #shelves [data-id]"); if (c) lastOpenEl = c; }, true);
+
   // ===== 다음 영상 순서 정하기 =====
   // 같은 채널 영상을 올린 순서(화수 표기가 있으면 화수)대로 줄 세워서 지금 영상의 바로 다음 화·이전 화를 찾음.
   // 몰아보기·통합본은 회차 순서에서 빼고(지금 보는 게 몰아보기면 포함), 남는 자리는 지금 보던 목록의 다른 영상으로 채움.
@@ -1438,7 +1531,7 @@ function renderAds() {
       if (others.length >= 15) break;
       if (x && !used.has(x.id)) { used.add(x.id); others.push(x); }
     }
-    return { nextEps, prevEps, others, next: nextEps[0] || others[0] || null, prev: prevEps[0] || state.queue[i - 1] || null };
+    return { first: !binge && k > 0 ? seq[0] : null, before: !binge && k > 0 ? seq.slice(0, k) : [], epNo: k + 1, nextEps, prevEps, others, next: nextEps[0] || others[0] || null, prev: prevEps[0] || state.queue[i - 1] || null };
   }
   function openVideo(v) {
     if (!v) return;
