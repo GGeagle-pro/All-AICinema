@@ -1953,6 +1953,7 @@
         ["방문 횟수", V(cur.sessions, TS?.sessions), C(TS?.sessions, YS?.sessions, yAll.sessions)], ["페이지뷰 (GA·영상 열기 포함)", V(cur.views, TS?.views), C(TS?.views, YS?.views, yAll.views)],
         ["영상 재생", ...EV("video_play")], ["광고 배너 클릭", ...EV("banner_click")],
         ["띠 배너 클릭", ...EV("strip_click")], ["검색", ...EV("search")], ["시리즈 화면", ...EV("work_open")],
+        ["찜", ...EV("add_favorite")], ["다음 화 카드로 이어 봄", ...EV("next_card_play")], ["다음 화 카드 취소", ...EV("next_card_cancel")], ["1화부터 보기 클릭", ...EV("from_ep1")], ["닫은 뒤 추천 클릭", ...EV("after_close_pick")],
       ];
       // 머문 시간·이탈률·시청 시간 (같은 구간 0:00~H:59끼리)
       const Cx = (cv, pv, txt, fullTxt, bad = false) => {
@@ -1984,6 +1985,7 @@
         ["방문 횟수", cur.sessions, D2(cur.sessions, prev.sessions)], ["페이지뷰 (GA·영상 열기 포함)", cur.views, D2(cur.views, prev.views)],
         ["영상 재생", evSum(ev, "video_play"), E("video_play")], ["광고 배너 클릭", evSum(ev, "banner_click"), E("banner_click")],
         ["띠 배너 클릭", evSum(ev, "strip_click"), E("strip_click")], ["검색", evSum(ev, "search"), E("search")], ["시리즈 화면", evSum(ev, "work_open"), E("work_open")],
+        ...[["찜", "add_favorite"], ["다음 화 카드로 이어 봄", "next_card_play"], ["다음 화 카드 취소", "next_card_cancel"], ["1화부터 보기 클릭", "from_ep1"], ["닫은 뒤 추천 클릭", "after_close_pick"]].map(([l, k]) => [l, evSum(ev, k), E(k)]),
       ];
       // 머문 시간·이탈률·시청 시간 (일별 합으로 같은 기준 비교)
       const Dx = (cv, pv, txt, bad = false) => (noCmp ? "" : prevPartial ? firstNote(vs, txt) : (bad ? bounceDelta(cv, pv) : deltaBase(cv, pv)) + `<small class="st-vs">${escH(vs)} ${escH(txt)}</small>`);
@@ -2161,6 +2163,7 @@
       <p class="st-period"><b>${toIso(from)}${from === to ? "" : ` ~ ${toIso(to)}`}</b> <span class="muted small">(${len}일 · ${cmpLabel})</span></p>
       <div class="st-kpis st-kpis--main">${kpi.map(([l, v, dl], i) => `<div class="st-kpi"><span>${l}${custom && i < 4 && len > 1 ? " *" : ""}</span><b>${typeof v === "string" ? escH(v) : num(v)}</b>${dl}</div>`).join("")}</div>
       ${custom && len > 1 ? `<p class="muted small">* 직접 고른 기간의 방문자는 날짜별 방문자를 더한 숫자예요. 여러 날 온 사람은 여러 번 세어져요.</p>` : ""}
+      <p class="muted small">시청 흐름(11/27부터 기록) · 다음 화 카드로 이어 봄 = 영상이 끝난 뒤 카드에서 '지금 보기'를 누르거나 5초 뒤 자동으로 넘어간 횟수 · 다음 화 카드 취소 = 카드에서 '취소'를 누른 횟수 · 1화부터 보기 클릭 = 중간 화에서 안내를 보고 1화로 간 횟수 · 닫은 뒤 추천 클릭 = 플레이어를 닫은 뒤 '다음에 볼 만한 작품'에서 고른 횟수</p>
       <p class="muted small">재방문자 = 이 기간 방문자 중 이전에 한 번이라도 온 적 있는 사람(방문자 − 새 방문자) · 재방문율 = 재방문자 ÷ 방문자 (높을수록 다시 찾는 사람이 많음, 증감은 %p)</p>
       ${hasEng || hasWatch ? `<p class="muted small">머문 시간 = 방문 1번에 화면을 실제로 보고 있던 시간 · 이탈률 = 10초 안에 나가고 다른 화면·영상도 안 본 방문의 비율(GA4 기준, 낮을수록 좋음) · 영상 시청 시간 = 플레이어에서 실제로 재생된 시간 합계(11/26부터 기록)</p>` : ""}
       <section class="adm-card st-card st-wide"><h3>광고 칸별 성과 <span class="muted small">(${ST.mode === "today" ? `오늘 0:00~${d.generatedAt ? new Date(d.generatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false }) : "지금"} 전체 · 칸별 기록은 시간 구분이 없어 위 카드(0:00~${H != null ? H + ":59" : "지금"})보다 넓어요` : "이 기간"} · 광고 배너 1~3, 띠 배너 1~6)</span></h3>${slotReport(d, from, to, { daily: false })}</section>

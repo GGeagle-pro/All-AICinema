@@ -1425,9 +1425,9 @@ function renderAds() {
         <span class="pend__cd">${auto ? T("{n}초 후 재생", { n: left }) : ""}</span></div>
       <div class="pend__btns"><button type="button" class="btn btn--primary" data-endgo>${T("▶ 지금 보기")}</button>${auto ? `<button type="button" class="btn" data-endstop>${T("취소")}</button>` : ""}</div>`;
     box.hidden = false;
-    box.querySelector("[data-endgo]").onclick = () => { track("next_card", { link_text: "go" }); stopEndCard(); step(1); };
+    box.querySelector("[data-endgo]").onclick = () => { track("next_card_play", { link_text: "go" }); stopEndCard(); step(1); };
     const st = box.querySelector("[data-endstop]");
-    if (st) st.onclick = () => { track("next_card", { link_text: "cancel" }); clearInterval(endTimer); endTimer = 0; box.querySelector(".pend__cd").textContent = ""; st.remove(); };
+    if (st) st.onclick = () => { track("next_card_cancel"); clearInterval(endTimer); endTimer = 0; box.querySelector(".pend__cd").textContent = ""; st.remove(); };
     if (innerWidth <= 1100) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
     if (!auto) return;
     clearInterval(endTimer);
@@ -1435,7 +1435,7 @@ function renderAds() {
       if ($("#player").hidden) return stopEndCard();
       left--;
       const cd = box.querySelector(".pend__cd"); if (cd) cd.textContent = T("{n}초 후 재생", { n: Math.max(0, left) });
-      if (left <= 0) { stopEndCard(); track("next_card", { link_text: "auto" }); step(1); }
+      if (left <= 0) { stopEndCard(); track("next_card_play", { link_text: "auto" }); step(1); }
     }, 1000);
   }
   const seenEp1 = new Set();   // 이번 방문 동안 '1화부터' 안내를 닫은 작품

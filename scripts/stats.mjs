@@ -15,7 +15,7 @@ import { collectAdsense } from "./adsense.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = resolve(ROOT, "stats/stats.enc.json");
 const ITER = 250000;
-const EVENTS = ["watch_time", "video_play", "banner_click", "strip_click", "banner_view", "strip_view", "search", "work_open", "video_error", "share", "add_favorite"];
+const EVENTS = ["watch_time", "video_play", "banner_click", "strip_click", "banner_view", "strip_view", "search", "work_open", "video_error", "share", "add_favorite", "next_card_play", "next_card_cancel", "from_ep1", "after_close_pick"];
 const SLOT_EVENTS = ["banner_click", "strip_click", "banner_view", "strip_view"];
 const DAYS = 90;   // 날짜별로 쪼갠 기록을 몇 일치 보관할지 (관리자에서 달력으로 아무 기간이나 골라 합산)
 const FROM = `${DAYS - 1}daysAgo`;
