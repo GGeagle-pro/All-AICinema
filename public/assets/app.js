@@ -148,6 +148,9 @@
   if (a) a.href = P("/about.html", "/en/about.html", `/${l}/intro/`);
   if (pv) pv.href = P("/privacy.html", "/en/privacy.html", `/${l}/privacy/`);
   if (tm) tm.href = P("/terms.html", "/en/terms.html", `/${l}/terms/`);
+  const ht = $("#howtoLink"), ad = $("#advLink");
+  if (ht) ht.href = l === "ko" ? "/how-to/" : `/${l}/how-to/`;
+  if (ad) ad.href = l === "ko" ? "/advertise/" : `/${l}/advertise/`;
 }
 function renderAds() {
     if (adLite) { for (const sel of ["#adTop", "#railL", "#railR"]) { const b = $(sel); if (b) { b.textContent = ""; b.hidden = true; } } document.body.classList.remove("has-rails"); placeAd("#adBottom", "bottom"); return; }

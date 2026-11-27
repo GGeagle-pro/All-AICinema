@@ -111,3 +111,11 @@
 /* 아랍어(오른쪽→왼쪽) 화면: 영어·한국어로 된 영상 제목·채널 이름·설명은 그 글자 방향대로 (문장부호가 엉뚱한 쪽에 붙지 않게) */
 html[dir="rtl"] :is(h1, h2, h3, h4, p, li, dd, dt, figcaption, blockquote) { unicode-bidi: plaintext; text-align: right; }
 html[dir="rtl"] :is(input, textarea) { unicode-bidi: plaintext; }
+/* AI 영화 만드는 법 가이드 */
+.ht-toc{display:grid;gap:6px;padding-inline-start:1.4em;margin:4px 0 8px}
+.ht-step h2{display:flex;align-items:center;gap:10px}
+.ht-n{flex:none;display:inline-grid;place-items:center;width:1.8em;height:1.8em;border-radius:50%;background:var(--accent);color:#fff;font-size:.85em}
+.ht-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ht-tool{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:999px;text-decoration:none;font-size:.9em}
+.ht-tool--aff{border-color:var(--accent)}
+.adv-mail{font-size:1.1em;user-select:all}

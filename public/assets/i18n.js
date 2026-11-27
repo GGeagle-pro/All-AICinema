@@ -145,6 +145,8 @@
     "다음 영상": ["Up next","次の動画","接下来播放","A continuación","Tiếp theo","التالي"],
     "다음 화": ["Next episode","次の話","下一集","Siguiente episodio","Tập tiếp theo","الحلقة التالية"],
     "이전 화": ["Previous episode","前の話","上一集","Episodio anterior","Tập trước","الحلقة السابقة"],
+    "AI 영화 만드는 법": ["How to make AI movies","AI映画の作り方","AI电影制作方法","Cómo hacer películas con IA","Cách làm phim AI","طريقة صنع أفلام الذكاء الاصطناعي"],
+    "광고 문의": ["Advertise","広告掲載","广告合作","Publicidad","Quảng cáo","أعلن معنا"],
     "취소": ["Cancel","キャンセル","取消","Cancelar","Hủy","إلغاء"],
     "{n}초 후 재생": ["Playing in {n}s","{n}秒後に再生","{n}秒后播放","Se reproduce en {n} s","Phát sau {n} giây","التشغيل بعد {n} ث"],
     "다음에 볼 만한 작품": ["Watch next","次に見るなら","接下来看什么","Para ver después","Xem tiếp gì","شاهد بعد ذلك"],

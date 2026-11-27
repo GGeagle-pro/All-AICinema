@@ -165,7 +165,7 @@ function shellHtml({ lang, title, desc, url, image, ogType, ld, body, I, ver, he
 ${body}
   </main>
   <footer class="footer"><p class="muted small">${esc(t("AI로 만든 영상입니다. 저작권은 원 채널에 있으며, 유튜브 공식 플레이어로 재생됩니다."))}</p>
-    <p><a href="${lang === "ko" ? "/tools/" : `/${lang}/tools/`}">${esc(t("AI 제작 도구"))}</a> · <a href="${lang === "ko" ? "/about.html" : lang === "en" ? "/en/about.html" : `/${lang}/intro/`}">${esc(t("소개"))}</a> · <a href="${lang === "ko" ? "/terms.html" : lang === "en" ? "/en/terms.html" : `/${lang}/terms/`}">${esc(t("이용약관"))}</a> · <a href="${lang === "ko" ? "/privacy.html" : lang === "en" ? "/en/privacy.html" : `/${lang}/privacy/`}">${esc(t("개인정보처리방침"))}</a></p></footer>
+    <p><a href="${lang === "ko" ? "/tools/" : `/${lang}/tools/`}">${esc(t("AI 제작 도구"))}</a> · <a href="${lang === "ko" ? "/how-to/" : `/${lang}/how-to/`}">${esc(t("AI 영화 만드는 법"))}</a> · <a href="${lang === "ko" ? "/about.html" : lang === "en" ? "/en/about.html" : `/${lang}/intro/`}">${esc(t("소개"))}</a> · <a href="${lang === "ko" ? "/terms.html" : lang === "en" ? "/en/terms.html" : `/${lang}/terms/`}">${esc(t("이용약관"))}</a> · <a href="${lang === "ko" ? "/privacy.html" : lang === "en" ? "/en/privacy.html" : `/${lang}/privacy/`}">${esc(t("개인정보처리방침"))}</a> · <a href="${lang === "ko" ? "/advertise/" : `/${lang}/advertise/`}">${esc(t("광고 문의"))}</a></p></footer>
 </body>
 </html>
 `;

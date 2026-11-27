@@ -7,6 +7,7 @@
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { shell, esc, HTML_LANG, HOME } from "./pages.mjs";
+import { HOWTO, HOWTO_PATH } from "./howto-text.mjs";
 
 const PATH = { ko: "/tools/", en: "/en/tools/", ja: "/ja/tools/", zh: "/zh/tools/", es: "/es/tools/", vi: "/vi/tools/", ar: "/ar/tools/" };
 const HREFLANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar" };
@@ -91,7 +92,7 @@ export async function buildTools({ PUB, SITE, loadI18n, ver }) {
     <h1 class="pg-title">${esc(T.h1)}</h1>
     <p class="pg-desc">${esc(T.lead)}</p>
     ${anyAff ? `<p class="tl-disclose">${esc(T.disclose)}</p>` : ""}
-    <section class="pg-sec"><h2>${esc(T.stepsTitle)}</h2><ol class="tl-steps">${T.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></section>
+    <section class="pg-sec"><h2>${esc(T.stepsTitle)}</h2><ol class="tl-steps">${T.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol><p><a href="${HOWTO_PATH(lang)}">${esc(HOWTO[lang].h1)} →</a></p></section>
 ${sec}
     <p class="pg-all"><a class="btn btn--primary" href="${HOME[lang]}">${esc(T.watch)} →</a></p>`;
     const html = shell({ lang, title: `${T.title} | All AI-Cinema`, desc: T.desc, url, image: `${SITE}/og-image.jpg?v=3`, ogType: "article", ld, body, I, ver, head: alternates });

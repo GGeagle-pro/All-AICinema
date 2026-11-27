@@ -2085,7 +2085,20 @@
         <p class="st-sub">선택한 기간 (애드센스 날짜 ${toIso(aFrom)}${aFrom === aTo ? "" : ` ~ ${toIso(aTo)}`}) · ${aNo ? "오늘은 하루가 안 끝났고 애드센스는 시간별 숫자가 없어 증감 비교 안 함" : `증감은 ${escH(avs)} 대비`}</p>
         <p class="st-sub muted small">광고 페이지뷰는 애드센스 광고가 실린 페이지가 실제로 열린 횟수예요. 위 방문 통계의 '페이지뷰(GA)'는 영상·작품을 열 때도 1회로 세서 더 커요.</p>
         <div class="st-kpis st-kpis--ads st-kpis--8">${sel.map(([l, v, dl]) => `<div class="st-kpi"><span>${l}</span><b>${v}</b>${dl}</div>`).join("")}</div>
-        ${byCountry.length ? `<h3 class="st-h4">국가별 예상 수입</h3>${bars(byCountry, (x) => `${flag(x.country)} ${escH(COUNTRY_KO(x.country, x.country))}`, (x) => x.ESTIMATED_EARNINGS, { fmt: money })}` : ""}
+        ${byCountry.length ? (() => {
+          // 국가별 수입·광고 페이지뷰·페이지 RPM (= 광고 페이지 1,000번당 수입). RPM 은 광고 페이지뷰 30회 이상인 나라만 순위에 넣음(적으면 들쭉날쭉)
+          const tot = byCountry.reduce((t, x) => t + x.ESTIMATED_EARNINGS, 0), totPv = byCountry.reduce((t, x) => t + x.PAGE_VIEWS, 0);
+          const rpm = (x) => (x.PAGE_VIEWS ? (x.ESTIMATED_EARNINGS / x.PAGE_VIEWS) * 1000 : 0), avg = totPv ? (tot / totPv) * 1000 : 0;
+          const rows = byCountry.sort((a, b) => b.ESTIMATED_EARNINGS - a.ESTIMATED_EARNINGS || b.PAGE_VIEWS - a.PAGE_VIEWS);
+          const hi = rows.filter((x) => x.PAGE_VIEWS >= 30).sort((a, b) => rpm(b) - rpm(a)).slice(0, 3);
+          const nm = (x) => `${flag(x.country)} ${escH(COUNTRY_KO(x.country, x.country))}`;
+          return `<h3 class="st-h4">국가별 수입 · 페이지 RPM</h3>
+        ${hi.length ? `<p class="st-sub">페이지 RPM 높은 나라 (광고 페이지뷰 30회 이상): ${hi.map((x) => `${nm(x)} <b>${money(rpm(x))}</b>`).join(" · ")} · 전체 평균 ${money(avg)}</p>` : ""}
+        <div class="st-tablewrap"><table class="st-table"><thead><tr><th>국가</th><th>예상 수입</th><th>수입 비중</th><th>광고 페이지뷰</th><th>페이지 RPM</th><th>평균 대비</th></tr></thead><tbody>
+          ${rows.slice(0, 30).map((x) => { const r = rpm(x), few = x.PAGE_VIEWS < 30; return `<tr><td>${nm(x)}</td><td class="num">${money(x.ESTIMATED_EARNINGS)}</td><td class="num">${tot ? Math.round((x.ESTIMATED_EARNINGS / tot) * 100) : 0}%</td><td class="num">${num(x.PAGE_VIEWS)}</td><td class="num">${money(r)}${few ? ' <small class="muted">(적음)</small>' : ""}</td><td class="num">${few || !avg ? "-" : `<em class="st-d ${r >= avg ? "st-d--up" : "st-d--down"}">${(r / avg).toFixed(1)}배</em>`}</td></tr>`; }).join("")}
+        </tbody></table></div>
+        <p class="muted small">페이지 RPM = 광고가 실린 페이지 1,000번 열릴 때 수입. 높은 나라일수록 방문자 1명의 가치가 커요 → 검색광고 예산·번역 페이지를 그 나라 위주로. 광고 페이지뷰가 30회 미만이면 우연이 커서 '(적음)'으로 표시하고 순위에서 빼요.</p>`;
+        })() : ""}
       </section>`;
     } else if (d.adsenseError) {
       adsHtml = `<p class="st-note">애드센스 공식 숫자를 가져오지 못했어요: ${escH(d.adsenseError)}</p>` + adsHtml;

@@ -10,6 +10,8 @@ import { readFile, writeFile, rename, mkdir, rm } from "node:fs/promises";
 import vm from "node:vm";
 import { buildPages } from "./pages.mjs";
 import { buildTools } from "./tools.mjs";
+import { buildHowto } from "./howto.mjs";
+import { buildAdvertise } from "./advertise.mjs";
 import { buildGeo } from "./geo.mjs";
 import { buildTop } from "./top.mjs";
 import { buildGenre } from "./genre.mjs";
@@ -245,6 +247,8 @@ export async function buildSeo() {
   if (pagesOn) pages = await buildPages({ PUB, SITE, loadI18n, ver });
   else for (const base of [".", "ko", "en", "ja", "zh", "es", "vi", "ar"]) for (const d of ["watch", "work"]) await rm(resolve(PUB, base, d), { recursive: true, force: true });
   const tools = await buildTools({ PUB, SITE, loadI18n, ver });
+  const howto = await buildHowto({ PUB, SITE, loadI18n, ver });
+  const adv = await buildAdvertise({ PUB, SITE, loadI18n, ver });
   // AI 검색용: /faq/ (5개 언어) + /llms.txt
   const geo = await buildGeo({ PUB, SITE, loadI18n, ver, pagesOn });
   // 주간 TOP 10 (/top/ 5개 언어 + 주차별 기록)
@@ -252,7 +256,7 @@ export async function buildSeo() {
   const genre = await buildGenre({ PUB, SITE, loadI18n, ver, pagesOn });
   const intro = await buildIntro({ PUB, SITE, loadI18n, ver, pagesOn });
   const legal = await buildLegal({ PUB, SITE, loadI18n, ver });
-  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls, ...top.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...genre.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...intro.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...legal.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" }))]));
+  await atomicWrite(resolve(PUB, "sitemap.xml"), sitemap(generatedAt, pages.urls, [...tools.urls, ...geo.urls, ...top.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...genre.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...intro.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...legal.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...howto.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" })), ...adv.urls.map((u) => ({ loc: u.loc, altsXml: u.alts || "" }))]));
   await atomicWrite(resolve(PUB, "rss.xml"), rss(videos, generatedAt));
   const file = resolve(PUB, "index.html");
   const page = await readFile(file, "utf8");
