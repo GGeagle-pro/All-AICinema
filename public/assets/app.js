@@ -117,7 +117,7 @@
     if (key === "right") return ok("right") || ok("left");
     return ok(key);
   };
-  function adIns(key, { fixed } = {}) {
+  function adIns(key, { fixed, horizontal } = {}) {
     const client = adClient(), slot = adSlot(key);
     if (!client || !slot) return null;
     const ins = document.createElement("ins");
@@ -126,7 +126,7 @@
       ins.style.cssText = `display:inline-block;width:${fixed[0]}px;height:${fixed[1]}px`;
     } else {
       ins.style.display = "block";
-      ins.dataset.adFormat = "auto";
+      ins.dataset.adFormat = horizontal ? "horizontal" : "auto";   // 목록 사이: 가로형(띠 모양)만 – 세로로 긴 광고가 목록을 끊지 않게
       ins.dataset.fullWidthResponsive = "true";
     }
     ins.dataset.adClient = client;
@@ -766,7 +766,7 @@ function renderAds() {
         const h = stripHtml("div", stripBase() + Math.floor(i / feedEvery())); if (h) { tmp.innerHTML = h; frag.appendChild(tmp.firstElementChild); }
       }
       if ((i + 1) % feedEvery() === 0 && i + 1 < state.list.length) {
-        const ins = adLite ? null : adIns("feed");
+        const ins = adLite ? null : adIns("feed", { horizontal: true });
         if (ins) { const box = document.createElement("div"); box.className = "ad ad--feed"; box.appendChild(ins); frag.appendChild(box); newAds.push(ins); }
       }
     }

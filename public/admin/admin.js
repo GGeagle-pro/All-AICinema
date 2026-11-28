@@ -984,8 +984,8 @@
       ));
     }
     // 목록 사이 광고 간격 (영상 N개마다 1개)
-    const every = [12, 24, 36, 48, 60].includes(+a.feedEvery) ? +a.feedEvery : 36;
-    const sel = el("select", { id: "feedEvery" }, ...[12, 24, 36, 48, 60].map((n) => el("option", { value: String(n), text: `영상 ${n}개마다` })));
+    const every = [12, 24, 36, 48, 60, 72, 96, 120].includes(+a.feedEvery) ? +a.feedEvery : 36;
+    const sel = el("select", { id: "feedEvery" }, ...[12, 24, 36, 48, 60, 72, 96, 120].map((n) => el("option", { value: String(n), text: `영상 ${n}개마다` })));
     sel.value = String(every);
     box.append(el("div", { class: "adm-slot" },
       el("label", { for: "feedEvery", text: "목록 사이 광고 간격" }), sel,
@@ -1466,7 +1466,7 @@
       slots[k] = v;
     }
     run(async () => {
-      const feedEvery = [12, 24, 36, 48, 60].includes(+$("#feedEvery").value) ? +$("#feedEvery").value : 36;
+      const feedEvery = [12, 24, 36, 48, 60, 72, 96, 120].includes(+$("#feedEvery").value) ? +$("#feedEvery").value : 36;
       await saveSite("애드센스 설정 변경", (s) => { s.adsense = { client, slots, feedEvery }; return true; });
       renderAds();
       toast("광고 설정을 저장했어요.");
