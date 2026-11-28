@@ -36,7 +36,7 @@ jobs:
           age=$(( $(date +%s) - last ))
           echo "마지막 수집 후 $((age/60))분"
           if [ "$age" -lt 6000 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "100분이 안 지나서 이번 예약은 건너뜀"; fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.gap.outputs.skip != 'true'
         with:
           node-version: 22
