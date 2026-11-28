@@ -140,6 +140,7 @@ function localize(page, code, I) {
   p = p.replace(/(<meta property="og:locale" content=")[^"]*/, `$1${L.locale}`);
   // RSS 제목·로고 링크도 그 언어로 (로고는 같은 언어 홈으로)
   p = p.replace(/(<link rel="alternate" type="application\/rss\+xml" title=")[^"]*/, `$1All AI-Cinema – ${attr(L.rssTitle || L.listName || L.title)}`);
+  p = p.replace('<a id="toolsNav" class="save-btn tools-btn" href="/tools/"', `<a id="toolsNav" class="save-btn tools-btn" href="${L.path}tools/"`);
   p = p.replace(/<a class="brand" href="[^"]*" aria-label="[^"]*">/, `<a class="brand" href="${L.path}" aria-label="All AI-Cinema – ${attr(t("홈"))}">`);
   p = p.replace(/(<meta property="og:title" content=")[^"]*/, `$1${attr(L.title)}`);
   p = p.replace(/(<meta name="twitter:title" content=")[^"]*/, `$1${attr(L.title)}`);

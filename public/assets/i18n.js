@@ -148,6 +148,7 @@
     "다음 영상": ["Up next","次の動画","接下来播放","A continuación","Tiếp theo","التالي","Als Nächstes","À suivre","Prossimo"],
     "다음 화": ["Next episode","次の話","下一集","Siguiente episodio","Tập tiếp theo","الحلقة التالية","Nächste Folge","Épisode suivant","Episodio successivo"],
     "이전 화": ["Previous episode","前の話","上一集","Episodio anterior","Tập trước","الحلقة السابقة","Vorherige Folge","Épisode précédent","Episodio precedente"],
+    "AI 도구": ["AI Tools","AIツール","AI工具","Crear con IA","Công cụ AI","أدوات AI","KI-Tools","Outils IA","Strumenti IA"],
     "AI 영화 만드는 법": ["How to make AI movies","AI映画の作り方","AI电影制作方法","Cómo hacer películas con IA","Cách làm phim AI","طريقة صنع أفلام الذكاء الاصطناعي","So drehst du KI-Filme","Comment faire des films IA","Come fare film con l'IA"],
     "광고 문의": ["Advertise","広告掲載","广告合作","Publicidad","Quảng cáo","أعلن معنا","Werben","Publicité","Pubblicità"],
     "취소": ["Cancel","キャンセル","取消","Cancelar","Hủy","إلغاء","Abbrechen","Annuler","Annulla"],

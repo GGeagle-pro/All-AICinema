@@ -148,6 +148,7 @@
   if (a) a.href = P("/about.html", "/en/about.html", `/${l}/intro/`);
   if (pv) pv.href = P("/privacy.html", "/en/privacy.html", `/${l}/privacy/`);
   if (tm) tm.href = P("/terms.html", "/en/terms.html", `/${l}/terms/`);
+  const tn = $("#toolsNav"); if (tn) tn.href = l === "ko" ? "/tools/" : `/${l}/tools/`;
   const ht = $("#howtoLink"), ad = $("#advLink");
   if (ht) ht.href = l === "ko" ? "/how-to/" : `/${l}/how-to/`;
   if (ad) ad.href = l === "ko" ? "/advertise/" : `/${l}/advertise/`;

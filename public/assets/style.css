@@ -607,3 +607,20 @@ html[dir="rtl"] :is(input, textarea) { unicode-bidi: plaintext; }
 @media (max-width:600px){.aftr__row{grid-auto-columns:minmax(150px,46%)}.pend img{width:96px}}
 [dir=rtl] .pfrom1{border-left:1px solid var(--line);border-right:3px solid var(--accent2)}
 .aftr--shelf{margin:4px 0 22px}
+
+/* 위쪽 메뉴 'AI 도구' 버튼 (AI 제작 도구 페이지로) – 즐겨찾기 버튼과 같은 모양 */
+.tools-btn{text-decoration:none}
+.tools-btn svg{fill:var(--accent)}
+.tools-btn:hover{border-color:var(--text)}
+@media (max-width:760px){ .topbar__inner .tools-btn + .save-btn{margin-left:8px} }
+@media (max-width:400px){ .topbar__inner .tools-btn + .save-btn{margin-left:6px} }
+/* 좁은 휴대폰(420px 이하): 'AI 도구' 버튼까지 들어가게 로고 글자를 조금 줄이고 버튼 간격을 좁힘 (로고 글자는 그대로 보임) */
+@media (max-width:420px){
+  .topbar__inner{gap:6px}
+  .topbar__inner .brand{gap:6px}
+  .topbar__inner .brand__mark{width:26px;height:26px}
+  .topbar__inner .brand__name{font-size:13.5px;letter-spacing:-.03em}
+  .topbar__inner .save-btn{min-width:40px;padding:0 4px}
+  .topbar__inner .save-btn span{font-size:9.5px;letter-spacing:-.04em}
+  .topbar__inner .tools-btn + .save-btn,.topbar__inner .search-btn,.topbar__inner .lang{margin-left:4px}
+}
