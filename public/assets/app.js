@@ -16,6 +16,7 @@
 
   // ===== 설정 =====
   const PAGE_SIZE = 24;
+  const FEED_FIRST = 24;   // 목록 사이 첫 애드센스 광고 위치 (첫 화면 24개 바로 뒤)
   const FEED_EVERY_DEFAULT = 36;      // 카드 N개마다 목록 사이 광고 1개 (관리자 > 광고 설정에서 변경)
   const feedEvery = () => { const n = +state.site.adsense?.feedEvery; return Number.isInteger(n) && n >= 6 && n <= 120 ? n : FEED_EVERY_DEFAULT; };
   const REFRESH_MS = 10 * 60 * 1000;  // 열려 있는 페이지에서 10분마다 새 영상 확인
@@ -761,11 +762,13 @@ function renderAds() {
     for (let i = start; i < end; i++) {
       tmp.innerHTML = card(state.list[i], i);
       frag.appendChild(tmp.firstElementChild);
-      // 띠 배너: 광고 간격의 중간 지점 (기본 18·54·90번째 뒤)
-      if ((i + 1) % feedEvery() === Math.floor(feedEvery() / 2) && i + 1 < state.list.length) {
-        const h = stripHtml("div", stripBase() + Math.floor(i / feedEvery())); if (h) { tmp.innerHTML = h; frag.appendChild(tmp.firstElementChild); }
+      // 목록 사이 광고: 첫 광고는 24번째 뒤(첫 화면 끝), 그 뒤로는 '광고 간격'마다 (예: 60 → 24·84·144번째 뒤)
+      // 띠 배너: 광고와 광고 사이 한가운데 (예: 54·114번째 뒤)
+      const n = i + 1, E = feedEvery(), FIRST = Math.min(FEED_FIRST, E), more = n < state.list.length;
+      if (more && n > FIRST && (n - FIRST) % E === Math.floor(E / 2)) {
+        const h = stripHtml("div", stripBase() + Math.floor((n - FIRST) / E)); if (h) { tmp.innerHTML = h; frag.appendChild(tmp.firstElementChild); }
       }
-      if ((i + 1) % feedEvery() === 0 && i + 1 < state.list.length) {
+      if (more && n >= FIRST && (n - FIRST) % E === 0) {
         const ins = adLite ? null : adIns("feed", { horizontal: true });
         if (ins) { const box = document.createElement("div"); box.className = "ad ad--feed"; box.appendChild(ins); frag.appendChild(box); newAds.push(ins); }
       }
