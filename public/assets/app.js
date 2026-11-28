@@ -134,6 +134,14 @@
     ins.dataset.adSlot = slot;
     return ins;
   }
+  // 애드센스 자동 광고(전면·앵커)가 플레이어·하단 등에 'height:auto !important' 를 강제로 넣으면
+  // 플레이어 창이 내용 길이만큼 늘어나 PC에서 스크롤이 안 됨 → 그 높이 덮어쓰기만 되돌림 (광고 자체는 건드리지 않음)
+  (() => {
+    const fix = (el) => { if (el && /height:\s*auto\s*!important/i.test(el.getAttribute("style") || "")) el.style.removeProperty("height"); };
+    const watch = (el) => { if (!el) return; fix(el); new MutationObserver(() => fix(el)).observe(el, { attributes: true, attributeFilter: ["style"] }); };
+    const init = () => ["#player", ".player__panel", ".player__main", ".player__side", ".footer"].forEach((s) => document.querySelectorAll(s).forEach(watch));
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+  })();
   const pushAd = (ins) => { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch { ins?.remove(); } };
   function placeAd(boxSel, key, opts) {
     const box = typeof boxSel === "string" ? $(boxSel) : boxSel;
