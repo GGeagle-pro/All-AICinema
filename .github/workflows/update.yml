@@ -4,7 +4,9 @@ name: 영상 자동 업데이트
 # 작업을 하나로 합쳐서 실행마다 서버 준비 시간이 한 번만 듦 (GitHub Actions 사용 시간 절약)
 on:
   schedule:
-    - cron: "7 */2 * * *"   # 2시간마다(짝수 시 7분) – 정각은 GitHub 이 붐벼서 늦어지므로 피함
+    # GitHub 예약 실행은 붐비면 자주 빠짐(하루 몇 번만 실행된 적 있음) → 30분마다 깨우고,
+    # 마지막 수집이 100분이 안 지났으면 바로 끝냄 → 실제 수집은 약 2시간마다, 빠져도 30분 안에 다음 기회
+    - cron: "17,47 * * * *"
   workflow_dispatch:          # Actions 탭에서 수동 실행 가능 (항상 배포까지)
   push:
     branches: [main]
@@ -26,16 +28,27 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: 수집 간격 확인 (예약 실행만)
+        id: gap
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(node -e 'try{const m=require("./public/data/meta.json");console.log(Math.floor(Date.parse(m.generatedAt)/1000))}catch{console.log(0)}')
+          age=$(( $(date +%s) - last ))
+          echo "마지막 수집 후 $((age/60))분"
+          if [ "$age" -lt 6000 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "100분이 안 지나서 이번 예약은 건너뜀"; fi
       - uses: actions/setup-node@v4
+        if: steps.gap.outputs.skip != 'true'
         with:
           node-version: 22
       - name: 영상 수집
+        if: steps.gap.outputs.skip != 'true'
         run: node scripts/fetch-videos.mjs
         env:
           # 선택: 있으면 공식 API로 채널의 예전 영상까지 수집 (없으면 RSS 최근 15개만)
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - name: 변경 사항 저장
         id: commit
+        if: steps.gap.outputs.skip != 'true'
         env:
           # 다른 작업과 겹쳐 다시 수집할 때도 공식 API 사용 (채널 사진·외부 재생 확인이 빠지지 않게)
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
@@ -43,13 +56,13 @@ jobs:
           bash scripts/commit-and-push.sh
           "영상 목록 업데이트 $(date -u +'%Y-%m-%d %H:%M')"
           "node scripts/fetch-videos.mjs"
-          channels.json public/data/videos.json public/data/desc.json public/data/videos-recent.json public/data/guides.json public/data/desc public/data/meta.json public/sitemap.xml public/rss.xml public/index.html public/ko public/en public/ja public/zh public/es public/watch public/work public/tools public/faq public/top public/llms.txt cache/playlists.json cache/thumbs.json cache/embed.json
+          channels.json public/data/videos.json public/data/desc.json public/data/videos-recent.json public/data/guides.json public/data/desc public/data/meta.json public/sitemap.xml public/rss.xml public/index.html public/ko public/en public/ja public/zh public/es public/vi public/ar public/de public/fr public/it public/watch public/work public/tools public/faq public/top public/genre public/intro public/how-to public/advertise public/llms.txt cache/playlists.json cache/thumbs.json cache/embed.json
 
       # 새 영상·바뀐 페이지가 저장됐거나, 관리자 저장·수동 실행이면 Cloudways 서버에 반영
       # (자동 실행에서 바뀐 게 없으면 건너뜀 → 시간 절약)
       - name: Cloudways 배포
         id: deploy
-        if: steps.commit.outputs.changed == 'true' || github.event_name != 'schedule'
+        if: steps.gap.outputs.skip != 'true' && (steps.commit.outputs.changed == 'true' || github.event_name != 'schedule')
         env:
           CW_EMAIL: ${{ secrets.CLOUDWAYS_EMAIL }}
           CW_KEY: ${{ secrets.CLOUDWAYS_API_KEY }}
@@ -72,6 +85,7 @@ jobs:
 
       # 관리자 > 통계 (GA 방문 통계 + 애드센스)를 실행마다 새로 – 따로 6시간마다 돌던 작업을 여기로 합침
       - name: 방문 통계·애드센스 새로 고침
+        if: steps.gap.outputs.skip != 'true'
         continue-on-error: true
         env:
           GA_PROPERTY_ID: ${{ secrets.GA_PROPERTY_ID }}
