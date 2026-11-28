@@ -197,6 +197,23 @@ export async function collect(prop, token) {
     ads = { currency: a?.metadata?.currencyCode || "", sums: sumOf, firstDay, ...table(a, ["date", "totalAdRevenue", "publisherAdImpressions", "publisherAdClicks"]) };
   } catch (e) { adsError = String(e.message || e).slice(0, 200); }
 
+  // 구글 광고(Google Ads) 비용 – GA4 에 Google Ads 를 연결해야 숫자가 나옴 (관리 → 제품 링크 → Google Ads 링크)
+  //  비용·클릭·노출은 Google Ads 가 GA4 로 보내 준 값(GA4 속성 통화), 광고로 온 방문은 GA4 가 센 세션
+  let gads = null, gadsVisits = null, gadsError = "";
+  try {
+    const [c] = await batch(prop, token, [
+      { dateRanges: RANGE, dimensions: D("date", "sessionGoogleAdsCampaignName"), metrics: D("advertiserAdCost", "advertiserAdClicks", "advertiserAdImpressions"), limit: BIG },
+    ]);
+    gads = { currency: c?.metadata?.currencyCode || "", ...table(c, ["date", "sessionGoogleAdsCampaignName", "advertiserAdCost", "advertiserAdClicks", "advertiserAdImpressions"]) };
+  } catch (e) { gadsError = String(e.message || e).slice(0, 200); }
+  try {
+    const [v] = await batch(prop, token, [
+      { dateRanges: RANGE, dimensions: D("date", "sessionGoogleAdsCampaignName"), metrics: D("sessions", "activeUsers", "screenPageViews"), limit: BIG },
+    ]);
+    gadsVisits = table(v, ["date", "sessionGoogleAdsCampaignName", "sessions", "activeUsers", "screenPageViews"]);
+    gadsVisits.r = gadsVisits.r.filter((r) => r[1] && !/^\(/.test(r[1]));   // (not set) = 광고가 아닌 방문
+  } catch {}
+
   // 실시간 (최근 30분) – 오늘 숫자는 구글 집계가 몇 시간 늦으므로 '지금 접속 중' 확인용
   let realtime = null;
   try {
@@ -269,6 +286,7 @@ export async function collect(prop, token) {
     errors: errors ? table(errors, ["date", "linkUrl", "linkText", "eventCount"]) : null,
     slots: slots ? table(slots, ["date", "eventName", "linkText", "deviceCategory", "eventCount"]) : null,
     ads, adsError,
+    gads, gadsVisits, gadsError,
   };
 }
 
@@ -286,7 +304,7 @@ async function main() {
   await mkdir(dirname(OUT), { recursive: true });
   await writeFile(OUT + ".tmp", JSON.stringify(encrypt(data, password)) + "\n");
   await rename(OUT + ".tmp", OUT);
-  console.log(`통계 저장 (GA 시간대 ${data.timeZone || "?"}): 오늘 방문자 ${data.totals.today?.users ?? 0}명·페이지뷰 ${data.totals.today?.views ?? 0}, 어제 방문자 ${data.totals.yesterday?.users ?? 0}명(0~${data.totals.ySame?.hour ?? "-"}시 비교: 오늘 ${data.totals.tSame?.users ?? "-"}명 / 어제 ${data.totals.ySame?.users ?? "-"}명), 최근 30분 ${data.realtime ? data.realtime.users + "명" : "-"}, 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
+  console.log(`통계 저장 (GA 시간대 ${data.timeZone || "?"}): 오늘 방문자 ${data.totals.today?.users ?? 0}명·페이지뷰 ${data.totals.today?.views ?? 0}, 어제 방문자 ${data.totals.yesterday?.users ?? 0}명(0~${data.totals.ySame?.hour ?? "-"}시 비교: 오늘 ${data.totals.tSame?.users ?? "-"}명 / 어제 ${data.totals.ySame?.users ?? "-"}명), 최근 30분 ${data.realtime ? data.realtime.users + "명" : "-"}, 최근 30일 방문자 ${data.totals.d30?.users ?? 0}명, 일별 ${data.daily.r.length}일, GA 광고 ${data.ads ? `${data.ads.r.length}일` : "없음(" + data.adsError + ")"}, 구글 광고 비용 ${data.gads ? `${data.gads.r.length}행 합계 ${data.gads.r.reduce((t, r) => t + r[2], 0).toFixed(2)} ${data.gads.currency}` : "없음(" + data.gadsError + ")"},애드센스 API ${data.adsense ? `잔고 ${data.adsense.balance || "-"}, 이번 달 ${data.adsense.sums.month.earnings}` : data.adsenseError ? "실패" : "미설정"}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

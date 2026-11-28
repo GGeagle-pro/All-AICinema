@@ -1565,6 +1565,94 @@
   }
   // ── 대시보드 (첫 화면): 영상·채널 숫자는 바로, 방문자·재생 오류·채널 성과는 통계 암호가 저장돼 있으면 ──
   const DASH = { sort: "plays", dir: -1, range: (() => { try { return localStorage.getItem("aic:admin:perfRange") || "d30"; } catch { return "d30"; } })() };
+  // ── 수익 · 광고비 (애드센스 수입 + 구글 광고 비용, 날짜별) ──
+  //  날짜는 모두 한국 날짜(GA4 속성·애드센스 계정 시간대 Asia/Seoul). 7일·30일은 통계 탭과 같이 '어제까지'
+  const MONEY = { range: (() => { try { return localStorage.getItem("aic:admin:moneyRange") || "today"; } catch { return "today"; } })(), date: "" };
+  function renderMoney(sd) {
+    const card = $("#moneyCard"); if (!card) return;
+    card.hidden = !sd; if (!sd) return;
+    const AS = sd.adsense, GA = sd.gads, GV = sd.gadsVisits;
+    const tz = sd.timeZone || "Asia/Seoul";
+    const today = ymd(new Date(sd.generatedAt || Date.now()), tz);
+    const y = addDays(today, -1);
+    if (!["today", "yesterday", "d7", "d30", "date"].includes(MONEY.range)) MONEY.range = "today";
+    if (MONEY.range === "date" && !/^\d{8}$/.test(MONEY.date)) MONEY.range = "today";
+    const [from, to] = { today: [today, today], yesterday: [y, y], d7: [addDays(today, -7), y], d30: [addDays(today, -30), y], date: [MONEY.date, MONEY.date] }[MONEY.range];
+    const len = daysBetween(from, to);
+    const pFrom = addDays(from, -len), pTo = addDays(from, -1);
+    document.querySelectorAll("#moneyRange [data-mrange]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mrange === MONEY.range)));
+    const inp = $("#moneyDate"); inp.max = toIso(today); inp.min = toIso(addDays(today, -((sd.days || 90) - 1))); inp.value = MONEY.range === "date" ? toIso(MONEY.date) : "";
+    const md2 = (x) => `${+x.slice(4, 6)}/${+x.slice(6)}`;
+    $("#moneyWhen").textContent = `(${from === to ? (from === today ? `오늘 ${md2(from)}` : from === y ? `어제 ${md2(from)}` : md2(from)) : `${md2(from)}~${md2(to)}`}${sd.generatedAt ? ` · ${new Date(AS?.at || sd.generatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })} 기준` : ""})`;
+
+    // 수입: 애드센스 공식 숫자가 먼저, 없으면 GA4 에 연결된 애드센스 수익
+    const rev = AS ? { t: AS.daily, e: "ESTIMATED_EARNINGS", pv: "PAGE_VIEWS", cur: AS.currency || "USD" } : sd.ads ? { t: sd.ads, e: "totalAdRevenue", pv: null, cur: sd.ads.currency || "KRW" } : null;
+    const gCur = GA?.currency || "";
+    // 순수익은 같은 통화끼리만 뺌. 다르면 GA4 쪽 애드센스 수익(광고비와 같은 GA4 통화)으로 계산
+    const profitSrc = !rev || !GA ? null : !gCur || gCur === rev.cur ? rev : sd.ads && (sd.ads.currency || "") === gCur ? { t: sd.ads, e: "totalAdRevenue", cur: gCur } : null;
+    const fmtM = (cur) => (n) => { try { return new Intl.NumberFormat("ko-KR", { style: "currency", currency: cur || "USD", maximumFractionDigits: cur === "KRW" ? 0 : 2 }).format(n || 0); } catch { return num(n); } };
+    const mR = fmtM(rev?.cur), mG = fmtM(gCur || rev?.cur), mP = fmtM(profitSrc?.cur);
+    const byDay = (t, m) => (t ? new Map(agg(t, "", "z", ["date"], [m]).map((x) => [x.date, x[m]])) : new Map());
+    const R = byDay(rev?.t, rev?.e), RPV = rev?.pv ? byDay(rev.t, rev.pv) : new Map(), PR = profitSrc ? byDay(profitSrc.t, profitSrc.e) : new Map();
+    const C = byDay(GA, "advertiserAdCost"), CK = byDay(GA, "advertiserAdClicks"), CI = byDay(GA, "advertiserAdImpressions"), CV = byDay(GV, "sessions");
+    const U = byDay(sd.daily, "activeUsers"), V = byDay(sd.daily, "screenPageViews");
+    const sumR = (M, a, b) => { let t = 0; for (let k = a; k <= b; k = addDays(k, 1)) t += M.get(k) || 0; return t; };
+    const S = (a, b) => ({ rev: sumR(R, a, b), pv: sumR(RPV, a, b), prev: sumR(PR, a, b), cost: sumR(C, a, b), clk: sumR(CK, a, b), imp: sumR(CI, a, b), vis: sumR(CV, a, b) });
+    const c = S(from, to), p = S(pFrom, pTo);
+    const hasG = !!GA, hasP = !!profitSrc;
+    // 증감: 다 끝난 날끼리만 (오늘은 진행 중이라 비교 안 함)
+    const noCmp = to >= today;
+    const vsTxt = len === 1 ? md2(pFrom) : `${md2(pFrom)}~${md2(pTo)}`;
+    const dl = (cv, pv, fmt, good = 1) => {
+      if (noCmp) return "";
+      if (!pv) return cv ? `<em class="st-d">이전 기록 없음</em>` : "";
+      const pc = Math.round(((cv - pv) / Math.abs(pv)) * 100), cls = pc * good > 0 ? "st-d--up" : pc * good < 0 ? "st-d--down" : "";
+      return `<em class="st-d ${cls}">${pc > 0 ? "▲" : pc < 0 ? "▼" : "−"}${pc ? Math.abs(pc) + "%" : " 같음"}</em><small class="st-vs">${vsTxt} ${fmt(pv)}</small>`;
+    };
+    const profit = (o) => o.prev - o.cost, roas = (o) => (o.cost ? (o.prev / o.cost) * 100 : 0);
+    const rpm = (o) => (o.pv ? (o.rev / o.pv) * 1000 : 0), cpc = (o) => (o.clk ? o.cost / o.clk : 0);
+    const k = [
+      ["애드센스 수입", rev ? mR(c.rev) : "–", rev ? dl(c.rev, p.rev, mR) : ""],
+      ["구글 광고비", hasG ? mG(c.cost) : "–", hasG ? dl(c.cost, p.cost, mG, -1) : ""],
+      ["순수익 (수입 − 광고비)", hasP ? mP(profit(c)) : "–", hasP && !noCmp ? `<small class="st-vs">${vsTxt} ${mP(profit(p))}</small>` : ""],
+      ["수익률 ROAS (수입 ÷ 광고비)", hasP && c.cost ? `${Math.round(roas(c))}%` : "–", hasP && c.cost && p.cost && !noCmp ? `<small class="st-vs">${vsTxt} ${Math.round(roas(p))}%</small>` : ""],
+      ["페이지 RPM", rev?.pv ? mR(rpm(c)) : "–", rev?.pv ? dl(rpm(c), rpm(p), mR) : ""],
+      ["광고 클릭 (구글 광고)", hasG ? num(c.clk) : "–", hasG ? dl(c.clk, p.clk, num) : ""],
+      ["CPC (클릭당 비용)", hasG && c.clk ? mG(cpc(c)) : "–", hasG && c.clk ? dl(cpc(c), cpc(p), mG, -1) : ""],
+      ["광고로 온 방문", GV ? num(c.vis) : "–", GV ? dl(c.vis, p.vis, num) : ""],
+    ];
+    $("#moneyKpis").innerHTML = k.map(([l, v, d], i) => `<div class="st-kpi"><span>${escH(l)}</span><b${i === 2 && hasP ? ` class="${profit(c) < 0 ? "mn-neg" : "mn-pos"}"` : ""}>${v}</b>${d}</div>`).join("");
+    const notes = [];
+    if (noCmp) notes.push("오늘은 하루가 안 끝났고 애드센스·광고비는 시간별 숫자가 없어 증감 비교 안 함");
+    else notes.push(`증감은 ${vsTxt} 대비`);
+    if (!rev) notes.push(sd.adsenseError ? `애드센스 숫자를 못 가져왔어요: ${sd.adsenseError}` : "애드센스 숫자가 아직 없어요");
+    if (!GA) notes.push(sd.gadsError ? `구글 광고비를 못 가져왔어요 (${sd.gadsError}) – 구글 애널리틱스 관리 → 제품 링크 → Google Ads 링크에서 광고 계정을 연결해 주세요` : "구글 광고비는 다음 통계 수집(최대 2시간 뒤)부터 보여요");
+    else if (!(GA.r || []).some((r) => r[2] > 0)) notes.push("구글 광고비가 0이에요. 구글 애널리틱스 관리 → 제품 링크 → Google Ads 링크가 연결돼 있는지, 그 광고 계정의 '자동 태그 추가'가 켜져 있는지 확인해 주세요");
+    if (rev && GA && !profitSrc) notes.push(`애드센스(${rev.cur})와 광고비(${gCur}) 통화가 달라 순수익은 계산하지 않아요`);
+    else if (profitSrc && profitSrc !== rev) notes.push(`순수익·ROAS는 통화를 맞추려고 구글 애널리틱스의 애드센스 수익(${gCur})으로 계산했어요`);
+    $("#moneyNote").textContent = notes.join(" · ");
+
+    // 날짜별 표: 하루를 고르면 그날까지 14일, 7일·30일이면 그 기간. 맨 위에 합계
+    const tFrom = len === 1 ? addDays(to, -13) : from;
+    const row = (label, o, u, v, cls = "") => `<tr${cls ? ` class="${cls}"` : ""}><td>${label}</td><td class="num">${num(u)}</td><td class="num">${num(v)}</td><td class="num">${rev ? mR(o.rev) : "–"}</td><td class="num">${rev?.pv ? mR(rpm(o)) : "–"}</td><td class="num">${hasG ? mG(o.cost) : "–"}</td><td class="num">${hasG ? num(o.clk) : "–"}</td><td class="num">${hasG && o.clk ? mG(cpc(o)) : "–"}</td><td class="num">${GV ? num(o.vis) : "–"}</td><td class="num ${hasP ? (profit(o) < 0 ? "mn-neg" : "mn-pos") : ""}">${hasP ? mP(profit(o)) : "–"}</td></tr>`;
+    const rowsH = [];
+    const tot = S(tFrom, to);
+    rowsH.push(row(`<b>합계</b> <small class="muted">${md2(tFrom)}~${md2(to)}</small>`, tot, sumR(U, tFrom, to), sumR(V, tFrom, to), "mn-total"));
+    for (let d = to; d >= tFrom; d = addDays(d, -1)) {
+      const wd = "일월화수목금토"[new Date(Date.UTC(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6))).getUTCDay()];
+      rowsH.push(row(`${toIso(d)} <small class="muted">${wd}${d === today ? " · 오늘" : ""}</small>`, S(d, d), U.get(d) || 0, V.get(d) || 0, d >= from && d <= to && len === 1 ? "mn-sel" : ""));
+    }
+    $("#moneyDaily tbody").innerHTML = rowsH.join("");
+
+    // 캠페인별
+    const camp = new Map();
+    for (const x of GA ? agg(GA, from, to, ["sessionGoogleAdsCampaignName"], ["advertiserAdCost", "advertiserAdClicks", "advertiserAdImpressions"]) : []) camp.set(x.sessionGoogleAdsCampaignName, { n: x.sessionGoogleAdsCampaignName, cost: x.advertiserAdCost, clk: x.advertiserAdClicks, imp: x.advertiserAdImpressions, vis: 0 });
+    for (const x of GV ? agg(GV, from, to, ["sessionGoogleAdsCampaignName"], ["sessions"]) : []) { const o = camp.get(x.sessionGoogleAdsCampaignName) || { n: x.sessionGoogleAdsCampaignName, cost: 0, clk: 0, imp: 0, vis: 0 }; o.vis += x.sessions; camp.set(o.n, o); }
+    const cl = [...camp.values()].filter((o) => o.cost || o.clk || o.vis).sort((a, b) => b.cost - a.cost || b.vis - a.vis);
+    $("#moneyCamp tbody").innerHTML = cl.length ? cl.map((o) => `<tr><td>${escH(o.n || "(이름 없음)")}</td><td class="num">${mG(o.cost)}</td><td class="num">${num(o.imp)}</td><td class="num">${num(o.clk)}</td><td class="num">${o.imp ? ((o.clk / o.imp) * 100).toFixed(2) + "%" : "–"}</td><td class="num">${o.clk ? mG(o.cost / o.clk) : "–"}</td><td class="num">${num(o.vis)}</td><td class="num">${o.vis ? mG(o.cost / o.vis) : "–"}</td></tr>`).join("")
+      : `<tr><td colspan="8" class="muted">${GA ? "이 기간에는 구글 광고 기록이 없어요." : "구글 광고비 기록이 아직 없어요."}</td></tr>`;
+  }
+
   async function renderDash() {
     const box = $("#dashKpis"); if (!box) return;
     { const li = $("#secToken"); const remember = (() => { try { return !!localStorage.getItem(KEY); } catch { return false; } })();
@@ -1578,6 +1666,7 @@
     let sd = ST.data;
     if (!sd && savedPw()) { try { const f = (await readJson("stats/stats.enc.json")).data; sd = ST.data = await decryptStats(f, savedPw()); } catch {} }
     $("#dashPw").hidden = !!sd;
+    try { renderMoney(sd); } catch (e) { console.warn("수익 카드", e); }
     const ymd = (t) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10).replace(/-/g, "");
     const today = ymd(now), d7 = ymd(now - 6 * day), d30 = ymd(now - 29 * day);
     const sumT = (t, from, to, m) => agg(t, from, to, [], [m])[0]?.[m] || 0;
@@ -2337,6 +2426,8 @@
   $("#adPerfRange").addEventListener("click", (e) => { const b = e.target.closest("button[data-r]"); if (!b) return; AP.r = b.dataset.r; renderAdPerf(); });
   document.addEventListener("click", (e) => { if (e.target.closest("[data-go-stats]")) document.querySelector('.adm-tabs [data-tab="stats"]').click(); });
   $("#perfRange").addEventListener("click", (e) => { const b = e.target.closest("[data-prange]"); if (!b || b.dataset.prange === DASH.range) return; DASH.range = b.dataset.prange; try { localStorage.setItem("aic:admin:perfRange", DASH.range); } catch {} renderDash(); });
+  $("#moneyRange").addEventListener("click", (e) => { const b = e.target.closest("[data-mrange]"); if (!b) return; MONEY.range = b.dataset.mrange; try { localStorage.setItem("aic:admin:moneyRange", MONEY.range); } catch {} renderMoney(ST.data); });
+  $("#moneyDate").addEventListener("change", (e) => { const v = fromIso(e.target.value); if (!/^\d{8}$/.test(v)) return; MONEY.range = "date"; MONEY.date = v; renderMoney(ST.data); });
   $("#perfTable thead").addEventListener("click", (e) => { const th = e.target.closest("th[data-k]"); if (!th) return; DASH.dir = DASH.sort === th.dataset.k ? -DASH.dir : -1; DASH.sort = th.dataset.k; renderDash(); });
 
   // 시작

@@ -19,7 +19,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" integrity="sha384-uR1wgObmx89ZQ4VVXHdzjbDJZ1PvBK01K+E3GebmaBKdZ87qRJvBWPoPbzWeEd5T" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="../assets/style.css?v=20261123b" />
-  <link rel="stylesheet" href="admin.css?v=20261125q" />
+  <link rel="stylesheet" href="admin.css?v=20261128c" />
 </head>
 <body>
   <header class="topbar adm-top">
@@ -90,6 +90,26 @@
           <div class="adm-row-head"><h2 class="adm-h2">한눈에 보기</h2><span id="dashAt" class="muted small"></span></div>
           <div id="dashKpis" class="st-kpis st-kpis--8"></div>
           <p id="dashPw" class="adm-hint" hidden>방문자·재생 오류·채널 성과는 <b>통계 암호</b>를 한 번 넣으면 보여요. <button id="dashGoStats" class="btn" type="button">통계 암호 넣기</button></p>
+        </div>
+        <div class="adm-card" id="moneyCard" hidden>
+          <div class="adm-row-head adm-perfhead"><h2>수익 · 광고비 <span id="moneyWhen" class="muted small"></span></h2>
+            <div class="mn-ctrl">
+              <div class="st-seg adm-perfseg" id="moneyRange" role="group" aria-label="수익 기간">
+                <button type="button" class="btn" data-mrange="today" aria-pressed="true">오늘</button>
+                <button type="button" class="btn" data-mrange="yesterday" aria-pressed="false">어제</button>
+                <button type="button" class="btn" data-mrange="d7" aria-pressed="false">7일</button>
+                <button type="button" class="btn" data-mrange="d30" aria-pressed="false">30일</button>
+              </div>
+              <label class="mn-date"><span class="muted small">날짜</span><input type="date" id="moneyDate" aria-label="날짜 고르기" /></label>
+            </div>
+          </div>
+          <div id="moneyKpis" class="st-kpis st-kpis--ads st-kpis--8"></div>
+          <p id="moneyNote" class="muted small"></p>
+          <h3 class="st-h4">날짜별</h3>
+          <div class="st-tablewrap mn-tablewrap"><table class="st-table" id="moneyDaily"><thead><tr><th>날짜</th><th>방문자</th><th>페이지뷰</th><th>애드센스 수입</th><th>페이지 RPM</th><th>구글 광고비</th><th>광고 클릭</th><th>CPC</th><th>광고 방문</th><th>순수익</th></tr></thead><tbody></tbody></table></div>
+          <h3 class="st-h4">캠페인별 광고비 <span class="muted small">(고른 기간)</span></h3>
+          <div class="st-tablewrap"><table class="st-table" id="moneyCamp"><thead><tr><th>캠페인</th><th>광고비</th><th>노출</th><th>클릭</th><th>CTR</th><th>CPC</th><th>광고 방문</th><th>방문당 비용</th></tr></thead><tbody></tbody></table></div>
+          <p class="muted small">애드센스 수입 = 애드센스 공식 예상 수입(가져온 시각 기준, 애드센스가 며칠 동안 조금씩 고쳐요) · 구글 광고비 = Google Ads 가 구글 애널리틱스로 보낸 비용 · 순수익 = 애드센스 수입 − 구글 광고비 · 수익률(ROAS) = 수입 ÷ 광고비 (100%보다 크면 광고비보다 많이 번 것). 광고비는 보통 3~6시간 늦게 들어와서 '오늘'은 실제보다 적게 보일 수 있어요.</p>
         </div>
         <div class="adm-card">
           <h2>재생 오류 <span class="muted small">(최근 7일 · 사이트 플레이어에서 재생이 안 된 영상)</span></h2>
@@ -388,6 +408,6 @@
   </main>
 
   <div id="toast" class="adm-toast" role="status" aria-live="polite" hidden></div>
-  <script src="admin.js?v=20261128b" defer></script>
+  <script src="admin.js?v=20261128c" defer></script>
 </body>
 </html>
