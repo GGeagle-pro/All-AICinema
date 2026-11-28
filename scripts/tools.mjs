@@ -8,6 +8,7 @@ import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { shell, esc, HTML_LANG, HOME } from "./pages.mjs";
 import { HOWTO, HOWTO_PATH } from "./howto-text.mjs";
+import { TD } from "./tooldetail-text.mjs";
 
 const PATH = { ko: "/tools/", en: "/en/tools/", ja: "/ja/tools/", zh: "/zh/tools/", es: "/es/tools/", vi: "/vi/tools/", ar: "/ar/tools/", de: "/de/tools/", fr: "/fr/tools/", it: "/it/tools/" };
 const HREFLANG = { ko: "ko", en: "en", ja: "ja", zh: "zh-Hans", es: "es", vi: "vi", ar: "ar", de: "de", fr: "fr", it: "it" };
@@ -94,8 +95,8 @@ export async function buildTools({ PUB, SITE, loadI18n, ver }) {
       const list = tools.filter((x) => x.cat === c);
       if (!list.length) return "";
       return `<section class="pg-sec"><h2>${esc(data.cats[c][lang] || c)}</h2><div class="tl-grid">${list.map((x) => `
-        <article class="tl-card"><h3>${esc(x.name)}</h3><p>${esc(x.desc?.[lang] || x.desc?.en || "")}</p>
-          <a class="btn${x.aff ? " btn--primary" : ""}" href="${esc(x.href)}" target="_blank" rel="${x.aff ? "sponsored nofollow noopener" : "noopener"}" data-tool="${esc(x.id)}">${esc(T.go)} ↗</a></article>`).join("")}</div></section>`;
+        <article class="tl-card"><h3>${TD[lang]?.tools?.[x.id] ? `<a href="${PATH[lang]}${x.id}/">${esc(x.name)}</a>` : esc(x.name)}</h3><p>${esc(x.desc?.[lang] || x.desc?.en || "")}</p>
+          <p class="tl-btns">${TD[lang]?.tools?.[x.id] ? `<a class="btn" href="${PATH[lang]}${x.id}/">${esc(TD[lang].more)} →</a> ` : ""}<a class="btn${x.aff ? " btn--primary" : ""}" href="${esc(x.href)}" target="_blank" rel="${x.aff ? "sponsored nofollow noopener" : "noopener"}" data-tool="${esc(x.id)}">${esc(T.go)} ↗</a></p></article>`).join("")}</div></section>`;
     }).join("\n");
     const ld = [
       { "@context": "https://schema.org", "@type": "ItemList", name: T.h1, url, inLanguage: HTML_LANG[lang],

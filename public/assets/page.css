@@ -119,3 +119,9 @@ html[dir="rtl"] :is(input, textarea) { unicode-bidi: plaintext; }
 .ht-tool{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:999px;text-decoration:none;font-size:.9em}
 .ht-tool--aff{border-color:var(--accent)}
 .adv-mail{font-size:1.1em;user-select:all}
+/* AI 도구 상세 페이지 */
+.td-facts{margin:6px 0 14px}
+.td-pc{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.td-pc>div{min-width:0}
+@media (max-width:700px){.td-pc{grid-template-columns:1fr}}
+.tl-btns{display:flex;flex-wrap:wrap;gap:8px;margin:auto 0 0}
