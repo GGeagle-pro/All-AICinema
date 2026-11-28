@@ -32,7 +32,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: 수집 간격 확인 (예약 실행만)
         id: gap
         if: github.event_name == 'schedule' || inputs.mode == 'tick'
