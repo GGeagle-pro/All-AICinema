@@ -35,7 +35,7 @@
     },
     "feedEvery": 60
   },
-  "openMode": "page",
+  "openMode": "inline",
   "banners": [
     {
       "image": "uploads/banner-1-1795183152333.webp",
